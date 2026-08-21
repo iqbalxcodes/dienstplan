@@ -1,0 +1,469 @@
+/* ======================================================
+   DIENSTPLAN — layout variables
+   Same variable names/structure as Hotel PMS's roomRack.css
+   on purpose, so both can share --rack-label-width /
+   --rack-col-width if this file is ever loaded alongside the
+   Hotel PMS one inside the same page (module mode).
+   ====================================================== */
+
+:root {
+    --rack-label-width: 172px;
+    --rack-col-width: 96px; /* overwritten inline by JS per breakpoint */
+}
+
+.rack-page {
+    overflow: hidden;
+}
+
+.rack-page .header-menu input[type="date"] {
+    padding: 3px 6px;
+}
+
+.rack-view-toggle {
+    display: flex;
+    gap: 4px;
+    margin-left: 8px;
+    padding-left: 8px;
+    border-left: 1px solid #ddd;
+}
+
+.rack-view-btn {
+    border: 1px solid #ccc;
+    background: #fff;
+    border-radius: 4px;
+    padding: 3px 9px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.rack-view-btn:hover { background: #f0f0f0; }
+
+.rack-view-btn.active {
+    background: #1565c0;
+    color: #fff;
+    border-color: #1565c0;
+}
+
+
+/* ======================================================
+   SCROLL CONTAINER
+   ====================================================== */
+
+.rack-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    position: relative;
+    border: 1px solid #eee;
+    border-radius: 6px;
+}
+
+
+/* ======================================================
+   HEADER ROW (dates)
+   ====================================================== */
+
+.rack-header-row {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: #fafafa;
+    border-bottom: 1px solid #ddd;
+    width: max-content;
+}
+
+.rack-header-label {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    width: var(--rack-label-width);
+    flex: none;
+    background: #fafafa;
+    border-right: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    box-sizing: border-box;
+    justify-content: space-between;
+}
+
+.rack-header-end {
+    position: sticky;
+    right: 0;
+    z-index: 4;
+    flex: none;
+    background: #fafafa;
+    border-left: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+}
+
+.rack-nav-btn {
+    border: 1px solid #ccc;
+    background: #fff;
+    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    flex: none;
+}
+
+.rack-nav-prev { margin-right: 6px; }
+
+.rack-nav-btn:hover { background: #f0f0f0; }
+
+.rack-header-cell {
+    flex: none;
+    width: var(--rack-col-width);
+    box-sizing: border-box;
+    text-align: center;
+    padding: 6px 2px;
+    border-right: 1px solid #eee;
+}
+
+.rack-header-cell .rack-header-dow {
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+}
+
+.rack-header-cell .rack-header-date {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+}
+
+.rack-header-cell.is-weekend { background: rgba(0, 0, 0, 0.035); }
+
+.rack-header-cell.is-today { background: #fff3e0; }
+
+.rack-header-cell.is-today .rack-header-date { color: #e65100; }
+
+
+/* ======================================================
+   STAFF ROW
+   ====================================================== */
+
+.rack-row {
+    display: flex;
+    position: relative;
+    border-bottom: 1px solid #eee;
+    min-height: 54px;
+    width: max-content;
+}
+
+.rack-room-label {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    width: var(--rack-label-width);
+    flex: none;
+    background: #fff;
+    border-right: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    box-sizing: border-box;
+}
+
+.rack-room-number {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.rack-status-dot {
+    font-size: 10px;
+    line-height: 1;
+}
+
+.rack-status-dot.status-clean { color: #2e7d32; }
+
+.rack-conflict-flag {
+    font-size: 12px;
+    cursor: help;
+}
+
+
+/* ======================================================
+   TIMELINE
+   ====================================================== */
+
+.rack-timeline {
+    position: relative;
+    flex: none;
+    display: flex;
+}
+
+.rack-cell {
+    flex: none;
+    width: var(--rack-col-width);
+    box-sizing: border-box;
+    border-right: 1px solid #f0f0f0;
+    background: #fff;
+}
+
+.rack-cell.is-weekend {
+    background-image: linear-gradient(rgba(0, 0, 0, 0.035), rgba(0, 0, 0, 0.035));
+}
+
+.rack-bars-layer {
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+}
+
+
+/* ======================================================
+   SHIFT BARS — reuses .reservation-bar's visual language
+   from Hotel PMS, restyled per shift/leave semantics.
+   ====================================================== */
+
+.reservation-bar,
+.plan-shift-bar {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    box-sizing: border-box;
+    border-radius: 5px;
+    padding: 3px 8px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.25;
+    cursor: grab;
+    pointer-events: all;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    background: #1565c0;
+}
+
+.reservation-bar:active,
+.plan-shift-bar:active { cursor: grabbing; }
+
+.reservation-bar .bar-guest,
+.plan-shift-bar .bar-guest {
+    font-weight: 600;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.reservation-bar .bar-meta,
+.plan-shift-bar .bar-meta {
+    display: block;
+    font-size: 11px;
+    opacity: 0.9;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.reservation-bar.cut-left,
+.plan-shift-bar.cut-left { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+
+.reservation-bar.cut-right,
+.plan-shift-bar.cut-right { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+
+
+/* ======================================================
+   LEAVE CHIPS (Freiwunsch / Urlaub / Krank)
+   Sits below the shift bar row visually via z-index/top offset
+   handled in JS; styled distinctly from shift bars (dashed
+   outline instead of solid fill) so they never look like a shift.
+   ====================================================== */
+
+.plan-leave-chip {
+    position: absolute;
+    bottom: 2px;
+    height: 16px;
+    border-radius: 3px;
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+    font-weight: 600;
+    pointer-events: none;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.leave-type-freiwunsch { background: #e1f5fe; color: #0277bd; border: 1px dashed #0277bd; }
+.leave-type-urlaub     { background: #ede7f6; color: #5e35b1; border: 1px dashed #5e35b1; }
+.leave-type-sick       { background: #fce4ec; color: #ad1457; border: 1px dashed #ad1457; }
+
+.leave-status-pending  { opacity: 0.55; }
+.leave-status-rejected { opacity: 0.3; text-decoration: line-through; }
+
+
+/* ======================================================
+   DRAG & DROP
+   ====================================================== */
+
+.bar-resize-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    cursor: ew-resize;
+    z-index: 2;
+}
+
+.bar-resize-handle.left { left: 0; }
+.bar-resize-handle.right { right: 0; }
+
+.bar-resize-handle:hover { background: rgba(255, 255, 255, 0.35); }
+
+.rack-drag-ghost {
+    opacity: 0.85;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 999;
+}
+
+.rack-row.drag-target-row {
+    background: rgba(21, 101, 192, 0.08);
+    outline: 2px dashed #1565c0;
+    outline-offset: -2px;
+}
+
+.rack-row.drag-target-row .rack-room-label {
+    background: rgba(21, 101, 192, 0.08);
+}
+
+
+/* ======================================================
+   TIME-ENTRY / APPROVAL QUEUE (check-in/out review list)
+   ====================================================== */
+
+.plan-entry-card {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.plan-entry-card.status-pending { border-left: 3px solid #f9a825; }
+.plan-entry-card.status-approved { border-left: 3px solid #43a047; }
+.plan-entry-card.status-rejected { border-left: 3px solid #c62828; opacity: 0.6; }
+
+.plan-entry-meta {
+    font-size: 12px;
+    color: #777;
+}
+
+.plan-entry-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.plan-entry-actions button {
+    border: 1px solid #ccc;
+    background: #fff;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.plan-entry-actions button:hover { background: #f0f0f0; }
+
+.plan-entry-actions .btn-approve { border-color: #2e7d32; color: #2e7d32; }
+.plan-entry-actions .btn-reject { border-color: #c62828; color: #c62828; }
+
+
+/* ======================================================
+   COMPLAINT PANEL
+   ====================================================== */
+
+.plan-complaint-card {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: #fff9f2;
+}
+
+.plan-complaint-card .evidence-thumb {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    margin-right: 6px;
+}
+
+
+/* ======================================================
+   HOURS SUMMARY (Soll / Ist / \u00dcberstunden)
+   ====================================================== */
+
+#hoursSummaryPanel table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#hoursSummaryPanel th {
+    text-align: left;
+    padding: 8px;
+    background: #fafafa;
+    border-bottom: 1px solid #ddd;
+    font-size: 12px;
+    color: #555;
+}
+
+#hoursSummaryPanel td {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    font-size: 13px;
+}
+
+
+/* ======================================================
+   PANEL SWITCHING (Plan / Hours / Approvals / Complaints /
+   Leave Requests toolbar buttons)
+   ====================================================== */
+
+.plan-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+#rackPanel { display: flex; flex-direction: column; }
+#rackPanel .rack-scroll { flex: 1 1 auto; }
+
+
+/* ======================================================
+   RESPONSIVE — phone defaults to a 3-day window (yesterday /
+   today / tomorrow), handled by getPlanDayCount() in
+   dienstplan.ts. This just tightens spacing to fit.
+   ====================================================== */
+
+@media (max-width: 700px) {
+
+    :root { --rack-label-width: 128px; }
+
+    .rack-page .header-menu { flex-wrap: wrap; }
+
+}
+
+.table-container.rack-page { margin-top: 0; }
+
+@media (max-width: 700px) { .rack-tabs { margin: 0 8px; } }
+@media (max-width: 420px) { .rack-tabs { margin: 0 4px; } }

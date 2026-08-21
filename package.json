@@ -1,0 +1,16 @@
+{
+    "name": "dienstplan",
+    "version": "0.1.0",
+    "description": "Standalone multi-tenant staff scheduling module, styled to match Hotel PMS, integrable as a submodule later.",
+    "type": "module",
+    "scripts": {
+        "build": "tsc",
+        "watch": "tsc --watch"
+    },
+    "devDependencies": {
+        "typescript": "^5.5.4"
+    },
+    "dependencies": {
+        "@supabase/supabase-js": "^2.45.0"
+    }
+}
