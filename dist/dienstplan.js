@@ -712,8 +712,10 @@ function centerPlanOnDate(date) {
 }
 export function changeSelectedDate(value) {
     const [y, m, d] = value.split("-").map(Number);
-    if (!y || !m || !d || y < 1970 || y > 2100) {
-        updatePlanDateInput();
+    // Partial/intermediate state while typing (e.g. year "2"):
+    // ignore silently — do NOT rewrite the input, or the
+    // user's in-progress keystrokes get wiped.
+    if (!y || !m || !d || y < 1900 || y > 2200) {
         return;
     }
     centerPlanOnDate(new Date(y, m - 1, d));
@@ -721,7 +723,7 @@ export function changeSelectedDate(value) {
 }
 function updatePlanDateInput() {
     const input = document.getElementById("planDateInput");
-    if (input) {
+    if (input && document.activeElement !== input) {
         input.value = formatDateISO(planSelectedDate);
     }
 }

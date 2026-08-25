@@ -1001,8 +1001,10 @@ export function changeSelectedDate(value: string): void {
 
     const [y, m, d] = value.split("-").map(Number);
 
-    if(!y || !m || !d || y < 1970 || y > 2100){
-        updatePlanDateInput();
+    // Partial/intermediate state while typing (e.g. year "2"):
+    // ignore silently — do NOT rewrite the input, or the
+    // user's in-progress keystrokes get wiped.
+    if(!y || !m || !d || y < 1900 || y > 2200){
         return;
     }
 
@@ -1015,7 +1017,7 @@ function updatePlanDateInput(): void {
 
     const input = document.getElementById("planDateInput") as HTMLInputElement | null;
 
-    if(input){
+    if(input && document.activeElement !== input){
         input.value = formatDateISO(planSelectedDate);
     }
 
