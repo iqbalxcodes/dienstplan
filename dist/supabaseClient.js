@@ -25,17 +25,35 @@ export const supabaseClient = createClient(DIENSTPLAN_SUPABASE_URL, DIENSTPLAN_S
 // for that later. Query param is the zero-config option, so
 // it's the default here.
 // ======================================================
+// ======================================================
+// Tenant resolution — org dipilih SEKALI (?org= atau lewat
+// picker), lalu diingat di localStorage sehingga URL tetap
+// bersih di kunjungan berikutnya.
+// ======================================================
+const ORG_STORAGE_KEY = "dienstplan_org_slug";
+export function getStoredOrgSlug() {
+    return localStorage.getItem(ORG_STORAGE_KEY);
+}
+export function setStoredOrgSlug(slug) {
+    localStorage.setItem(ORG_STORAGE_KEY, slug);
+}
+export function forgetOrgSlug() {
+    localStorage.removeItem(ORG_STORAGE_KEY);
+}
 export function resolveOrgSlugFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const fromQuery = params.get("org");
-    if (fromQuery)
+    if (fromQuery) {
+        setStoredOrgSlug(fromQuery);
+        // bersihkan ?org= dari address bar biar URL cantik
+        try {
+            params.delete("org");
+            const qs = params.toString();
+            window.history.replaceState({}, "", window.location.pathname + (qs ? "?" + qs : "") + window.location.hash);
+        }
+        catch { /* ignore (mis. file://) */ }
         return fromQuery;
-    // fallback: subdomain, e.g. "resto1" from resto1.dienstplan.app
-    const host = window.location.hostname;
-    const parts = host.split(".");
-    if (parts.length > 2) {
-        return parts[0];
     }
-    return null;
+    return getStoredOrgSlug();
 }
 //# sourceMappingURL=supabaseClient.js.map

@@ -7,7 +7,7 @@
 // with per-role gating since Dienstplan has 3 roles instead
 // of Hotel PMS's simple logged-in/out check.
 // ======================================================
-import { supabaseClient, resolveOrgSlugFromUrl } from "./supabaseClient.js";
+import { supabaseClient, resolveOrgSlugFromUrl, getStoredOrgSlug, setStoredOrgSlug } from "./supabaseClient.js";
 export let currentOrg = null;
 export let currentMembership = null;
 export async function initAuthContext() {
@@ -96,6 +96,25 @@ export function renderUserArea() {
         });
     }
     else {
+        // belum ada org terpilih -> minta pilih org dulu
+        if (!getStoredOrgSlug()) {
+            area.innerHTML = `
+                <span class="login-form">
+                    <span style="color:#777;">Organization:</span>
+                    <input type="text" id="orgSlugInput" placeholder="e.g. inselcafe">
+                    <button id="orgGoBtn">Go</button>
+                </span>
+            `;
+            document.getElementById("orgGoBtn").addEventListener("click", () => {
+                const slug = document.getElementById("orgSlugInput").value.trim().toLowerCase();
+                if (!slug)
+                    return;
+                setStoredOrgSlug(slug);
+                window.location.reload();
+            });
+            return;
+        }
+        // org sudah ada tapi user belum login -> form login biasa
         area.innerHTML = `
             <span class="login-form">
                 <input type="email" id="loginEmail" placeholder="Email">

@@ -8,8 +8,8 @@
 // of Hotel PMS's simple logged-in/out check.
 // ======================================================
 
-import { supabaseClient, resolveOrgSlugFromUrl } from "./supabaseClient.js";
 import type { Organization, Membership, MembershipRole } from "./types.js";
+import { supabaseClient, resolveOrgSlugFromUrl, getStoredOrgSlug, setStoredOrgSlug } from "./supabaseClient.js";
 
 export let currentOrg: Organization | null = null;
 export let currentMembership: Membership | null = null;
@@ -128,6 +128,33 @@ export function renderUserArea(): void {
 
     } else {
 
+        // belum ada org terpilih -> minta pilih org dulu
+        if(!getStoredOrgSlug()){
+
+            area.innerHTML = `
+                <span class="login-form">
+                    <span style="color:#777;">Organization:</span>
+                    <input type="text" id="orgSlugInput" placeholder="e.g. inselcafe">
+                    <button id="orgGoBtn">Go</button>
+                </span>
+            `;
+
+            document.getElementById("orgGoBtn")!.addEventListener("click", () => {
+
+                const slug = (document.getElementById("orgSlugInput") as HTMLInputElement).value.trim().toLowerCase();
+
+                if(!slug) return;
+
+                setStoredOrgSlug(slug);
+                window.location.reload();
+
+            });
+
+            return;
+
+        }
+
+        // org sudah ada tapi user belum login -> form login biasa
         area.innerHTML = `
             <span class="login-form">
                 <input type="email" id="loginEmail" placeholder="Email">
