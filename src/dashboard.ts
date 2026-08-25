@@ -4,7 +4,7 @@
 // ======================================================
 
 import { supabaseClient } from "./supabaseClient.js";
-import { currentOrg, currentMembership } from "./auth.js";
+import { currentOrg, currentMembership, authReady } from "./auth.js";
 import type { Shift, TimeEntry } from "./types.js";
 
 declare const L: any;
@@ -21,7 +21,9 @@ let userMarker: any = null;
 let workMarker: any = null;
 let timerHandle: number | undefined;
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+
+    const loggedIn = await authReady;
 
     if(!currentOrg || !currentMembership){
         document.getElementById("attSub")!.textContent =

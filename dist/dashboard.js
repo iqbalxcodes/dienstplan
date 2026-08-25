@@ -3,7 +3,7 @@
 // shift strip, live map, check-in/out with timer.
 // ======================================================
 import { supabaseClient } from "./supabaseClient.js";
-import { currentOrg, currentMembership } from "./auth.js";
+import { currentOrg, currentMembership, authReady } from "./auth.js";
 const ROLE_OPTIONS = ["Service crew", "Kitchen", "Bar", "Cashier", "Runner"];
 const NEAR_METERS = 150;
 let todayShift = null;
@@ -14,7 +14,8 @@ let map = null;
 let userMarker = null;
 let workMarker = null;
 let timerHandle;
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+    const loggedIn = await authReady;
     if (!currentOrg || !currentMembership) {
         document.getElementById("attSub").textContent =
             "Log in to record your attendance.";

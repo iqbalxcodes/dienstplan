@@ -1180,7 +1180,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     updatePlanViewModeButtons();
     setupPlanDragAndDrop();
 
-    const loggedIn = await initAuthContext();
+    const { bootstrapAuth } = await import("./auth.js");   // atau tambah ke import atas file
+    const loggedIn = await bootstrapAuth();
     renderOrgLabel();
     renderUserArea();
     renderNavigation(currentMembership?.role ?? null);

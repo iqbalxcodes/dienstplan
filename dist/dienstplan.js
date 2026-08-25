@@ -14,7 +14,7 @@
 // BEFORE any conflict check in this file).
 // ======================================================
 import { supabaseClient } from "./supabaseClient.js";
-import { currentOrg, currentMembership, isManager, isLoggedIn, initAuthContext, applyAuthVisibility, renderUserArea } from "./auth.js";
+import { currentOrg, currentMembership, isManager, isLoggedIn, applyAuthVisibility, renderUserArea } from "./auth.js";
 import { getShiftRange, rangeToShiftFields, findShiftConflicts } from "./shiftAvailability.js";
 import { computeHoursSummary, formatHours } from "./hoursCalculator.js";
 import { renderNavigation } from "./nav.js";
@@ -841,7 +841,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     startClock();
     updatePlanViewModeButtons();
     setupPlanDragAndDrop();
-    const loggedIn = await initAuthContext();
+    const { bootstrapAuth } = await import("./auth.js"); // atau tambah ke import atas file
+    const loggedIn = await bootstrapAuth();
     renderOrgLabel();
     renderUserArea();
     renderNavigation(currentMembership?.role ?? null);

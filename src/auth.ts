@@ -14,6 +14,15 @@ import { supabaseClient } from "./supabaseClient.js";
 export let currentOrg: Organization | null = null;
 export let currentMembership: Membership | null = null;
 
+// Resolves once initAuthContext() has finished — lets other
+// modules wait for auth instead of racing against it.
+export let authReady: Promise<boolean> = Promise.resolve(false);
+
+export function bootstrapAuth(): Promise<boolean> {
+    authReady = initAuthContext();
+    return authReady;
+}
+
 const REMEMBER_KEY = "dienstplan_remember";
 const TAB_ALIVE_KEY = "dienstplan_tab_alive";
 
