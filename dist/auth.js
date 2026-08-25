@@ -1,18 +1,20 @@
 // ======================================================
 // auth.ts
-// Session handling + resolves which organization and which
-// membership (role) the logged-in user has in that org.
-// Mirrors the role-gating pattern from Hotel PMS's auth.js
-// (".auth-required" buttons get disabled/locked), extended
-// with per-role gating since Dienstplan has 3 roles instead
-// of Hotel PMS's simple logged-in/out check.
+// Session handling + automatic organization detection:
+// after login the app looks up which organization(s) the
+// user belongs to — no org slug in URLs, no manual input.
+// Multi-org users get a one-click chooser instead.
+// Also owns the centered login card ("remember me" +
+// password recovery) and role-based visibility gating.
 // ======================================================
-import { supabaseClient, resolveOrgSlugFromUrl, getStoredOrgSlug, setStoredOrgSlug } from "./supabaseClient.js";
+import { supabaseClient } from "./supabaseClient.js";
 export let currentOrg = null;
 export let currentMembership = null;
 const REMEMBER_KEY = "dienstplan_remember";
 const TAB_ALIVE_KEY = "dienstplan_tab_alive";
 export async function initAuthContext() {
+    // "Don't remember me": if the tab-sentinel is gone, every
+    // browser window was closed -> wipe the stored session.
     if (localStorage.getItem(REMEMBER_KEY) === "0") {
         if (!sessionStorage.getItem(TAB_ALIVE_KEY)) {
             await supabaseClient.auth.signOut();
@@ -26,37 +28,44 @@ export async function initAuthContext() {
         applyAuthVisibility();
         return false;
     }
-    const slug = resolveOrgSlugFromUrl();
-    if (!slug) {
-        console.error("No organization slug in URL (expected ?org=slug)");
-        applyAuthVisibility();
-        return false;
-    }
-    const { data: org, error: orgError } = await supabaseClient
-        .from("organizations")
-        .select("*")
-        .eq("slug", slug)
-        .single();
-    if (orgError || !org) {
-        console.error("Organization not found for slug:", slug, orgError);
-        applyAuthVisibility();
-        return false;
-    }
-    currentOrg = org;
-    const { data: membership, error: memberError } = await supabaseClient
+    // Auto-detect: which organization(s) is this user registered in?
+    const { data: mine, error: mineError } = await supabaseClient
         .from("memberships")
-        .select("*")
-        .eq("organization_id", currentOrg.id)
+        .select("*, organization:organizations(*)")
         .eq("user_id", session.user.id)
-        .eq("active", true)
-        .single();
-    if (memberError || !membership) {
-        console.error("User is not an active member of this organization");
+        .eq("active", true);
+    if (mineError || !mine || mine.length === 0) {
+        console.error("User is not an active member of any organization", mineError);
+        currentOrg = null;
         currentMembership = null;
         applyAuthVisibility();
         return false;
     }
-    currentMembership = membership;
+    let chosen = mine[0];
+    // Belongs to more than one organization -> let them pick
+    if (mine.length > 1) {
+        const pickedId = await promptOrgChoice(mine.map((m) => ({
+            id: m.id,
+            label: m.organization?.name ?? m.full_name ?? "Organization"
+        })));
+        if (!pickedId) {
+            // closed without choosing -> treat as logged out
+            currentOrg = null;
+            currentMembership = null;
+            applyAuthVisibility();
+            return false;
+        }
+        const found = mine.find((m) => m.id === pickedId);
+        if (!found) {
+            currentOrg = null;
+            currentMembership = null;
+            applyAuthVisibility();
+            return false;
+        }
+        chosen = found;
+    }
+    currentMembership = chosen;
+    currentOrg = chosen.organization;
     applyAuthVisibility();
     return true;
 }
@@ -69,13 +78,6 @@ export function isManager() {
 export function hasRole(...roles) {
     return currentMembership !== null && roles.includes(currentMembership.role);
 }
-export async function login(email, password) {
-    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-    if (error)
-        return error.message;
-    await initAuthContext();
-    return null;
-}
 export async function logout() {
     await supabaseClient.auth.signOut();
     currentOrg = null;
@@ -83,10 +85,8 @@ export async function logout() {
     applyAuthVisibility();
 }
 // ======================================================
-// Visibility gating — same idea as Hotel PMS: elements with
-// class "auth-required" need ANY logged-in membership.
-// Elements with "manager-required" need owner/manager role
-// specifically (e.g. the "approve" buttons, manual time edit).
+// Status bar user area — identity + logout when logged in;
+// falls back to the centered login card when not.
 // ======================================================
 export function renderUserArea() {
     const area = document.getElementById("userArea");
@@ -149,17 +149,6 @@ function showLoginOverlay() {
                 <p class="auth-hint" id="forgotMsg"></p>
             </div>
 
-            <p class="auth-hint auth-org-row">
-                Organization: <strong>${escapeHtml(getStoredOrgSlug() ?? "(not set)")}</strong>
-                \u00b7 <a href="#" id="orgChangeToggle">change</a>
-            </p>
-            <div id="orgChangeSection" style="display:none;">
-                <input type="text" id="orgChangeInput" placeholder="e.g. inselcafe">
-                <div class="plan-modal-footer">
-                    <button id="orgChangeBtn">Use</button>
-                </div>
-            </div>
-
         </div>
     `;
     document.body.appendChild(overlay);
@@ -174,18 +163,6 @@ function showLoginOverlay() {
         sec.style.display = sec.style.display === "none" ? "" : "none";
     });
     document.getElementById("forgotResetBtn").addEventListener("click", handleForgotSubmit);
-    document.getElementById("orgChangeToggle").addEventListener("click", e => {
-        e.preventDefault();
-        const sec = document.getElementById("orgChangeSection");
-        sec.style.display = sec.style.display === "none" ? "" : "none";
-    });
-    document.getElementById("orgChangeBtn").addEventListener("click", () => {
-        const val = document.getElementById("orgChangeInput").value.trim().toLowerCase();
-        if (!val)
-            return;
-        setStoredOrgSlug(val);
-        window.location.reload();
-    });
 }
 async function handleLoginSubmit() {
     const emailEl = document.getElementById("authEmail");
@@ -221,6 +198,33 @@ async function handleForgotSubmit() {
     msgEl.textContent = error
         ? error.message
         : "Recovery email sent \u2014 check your inbox (and spam folder).";
+}
+// ======================================================
+// Multi-org users pick where to log in to
+// ======================================================
+function promptOrgChoice(options) {
+    return new Promise(resolve => {
+        const overlay = document.createElement("div");
+        overlay.className = "plan-modal-backdrop";
+        overlay.innerHTML = `
+            <div class="plan-modal auth-card">
+                <h3>Choose your workplace</h3>
+                <p class="auth-hint">You belong to more than one organization.</p>
+                ${options.map(o => `
+                    <div class="plan-entry-actions" style="margin-top:10px;">
+                        <button style="width:100%;" data-mid="${o.id}">${escapeHtml(o.label)}</button>
+                    </div>
+                `).join("")}
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        overlay.querySelectorAll("button[data-mid]").forEach(btn => {
+            btn.addEventListener("click", () => {
+                overlay.remove();
+                resolve(btn.dataset.mid ?? null);
+            });
+        });
+    });
 }
 function escapeHtml(str) {
     const div = document.createElement("div");
