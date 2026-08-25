@@ -142,6 +142,95 @@
 
 
 /* ======================================================
+   DASHBOARD — mobile-first cards
+   ====================================================== */
+
+.dash-cards {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0 16px 12px;
+}
+
+.dash-card { border-radius: 12px; padding: 14px 16px; }
+
+/* Card 1: horizontally scrollable mini shift cards */
+.shift-strip {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+}
+
+.shift-mini {
+    flex: none;
+    min-width: 118px;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: #fafafa;
+}
+
+.shift-mini.is-today {
+    border-color: #1565c0;
+    background: #e3f2fd;
+}
+
+.shift-mini-dow  { font-size: 11px; color: #888; font-weight: 700; }
+.shift-mini-date { font-size: 11px; color: #aaa; margin-bottom: 6px; }
+.shift-mini-role { font-size: 13px; font-weight: 600; color: #333; }
+.shift-mini-time { font-size: 12px; color: #555; }
+
+/* Card 2: map + attendance */
+.att-map {
+    height: 210px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    margin-top: 8px;
+    z-index: 1;   /* stay below sticky header */
+}
+
+.att-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.att-info > div { display: flex; flex-direction: column; gap: 2px; }
+.att-info strong { font-size: 14px; }
+
+.att-info select {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 13px;
+}
+
+.att-label { display: block; font-size: 12px; color: #777; margin-top: 12px; }
+
+.att-btn {
+    width: 100%;
+    margin-top: 12px;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    border-radius: 10px;
+    border: none;
+    background: #2e7d32;
+    color: #fff;
+    cursor: pointer;
+}
+
+.att-btn:hover { filter: brightness(1.08); }
+
+.att-btn.checkout { background: #c62828; }
+
+/* ======================================================
    STAFF ROW
    ====================================================== */
 

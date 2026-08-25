@@ -114,6 +114,55 @@
         </div>
     </div>
 
+    <h1 id="orgNameLabel">Loading…</h1>
+    <div id="pageNavigation" data-page="dashboard"></div>
+
+    <div class="dash-cards">
+
+        <!-- CARD 1: My Shift -->
+        <section class="detail-card dash-card">
+            <h3>My Shift</h3>
+            <div id="shiftStrip" class="shift-strip">
+                <p class="plan-entry-meta" style="padding:0 12px;">Loading…</p>
+            </div>
+        </section>
+
+        <!-- CARD 2: Attendance -->
+        <section class="detail-card dash-card">
+            <h3 id="attTitle">Check In</h3>
+            <p id="attSub" class="plan-entry-meta">Locating you…</p>
+
+            <div id="map" class="att-map"></div>
+
+            <div class="att-info">
+                <div>
+                    <span class="plan-entry-meta">Role</span>
+                    <select id="attRole" disabled></select>
+                </div>
+                <div>
+                    <span class="plan-entry-meta">Scheduled</span>
+                    <strong id="attHours">–</strong>
+                </div>
+                <div>
+                    <span class="plan-entry-meta">Elapsed</span>
+                    <strong id="attTimer">00:00:00</strong>
+                </div>
+            </div>
+
+            <label class="att-label" for="attComment">Comment (optional)</label>
+            <textarea id="attComment" rows="2" placeholder="e.g. forgot to check in earlier…"></textarea>
+
+            <button id="attBtn" class="att-btn">Check In</button>
+        </section>
+
+        <!-- CARD 3: History -->
+        <section class="detail-card dash-card">
+            <h3>Recent Entries</h3>
+            <div id="myEntriesList"></div>
+        </section>
+
+    </div>
+
     <div id="statusBar">
         <div id="userArea"></div>
         <div id="contextArea"></div>
@@ -121,6 +170,14 @@
         <div id="paginationNav"></div>
     </div>
 
+    <div id="statusBar">
+        <div id="userArea"></div>
+        <div id="contextArea"></div>
+        <div id="paginationInfo"></div>
+        <div id="paginationNav"></div>
+    </div>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="importmap">
     { "imports": { "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2" } }
     </script>

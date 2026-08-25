@@ -20,6 +20,8 @@ export interface OrganizationSettings {
     night_shift_enabled?: boolean;   // show/hide Nachtdienst handling in the UI
     half_day_mode?: boolean;         // optional AM/PM split, off by default (see roomRack.js heritage)
     default_break_minutes?: number;
+    workplace_lat?: number;
+    workplace_lng?: number;
 }
 
 export interface Membership {
@@ -75,6 +77,7 @@ export interface TimeEntry {
     approved_at: string | null;
     created_at: string;
     updated_at: string;
+    role_label: string | null;
 }
 
 export type ComplaintStatus = "open" | "resolved" | "rejected";
