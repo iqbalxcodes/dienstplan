@@ -490,6 +490,71 @@
 
 
 /* ======================================================
+   LOGIN CARD LAYOUT v2
+   ====================================================== */
+
+.auth-pass-row { display: flex; gap: 6px; }
+.auth-pass-row input { flex: 1 1 auto; }
+
+.auth-eye {
+    border: 1px solid #ccc;
+    background: #fff;
+    border-radius: 4px;
+    padding: 0 10px;
+    cursor: pointer;
+    font-size: 14px;
+}
+.auth-eye:hover { background: #f0f0f0; }
+
+/* checkbox group kiri, tombol Log in nempel ujung kanan */
+.auth-actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 14px;
+}
+.auth-actions-row .auth-check { margin-top: 0; flex: 1 1 auto; }
+.auth-actions-row button.primary { padding: 6px 20px; }
+
+/* forgot: input email makan sisa ruang, Reset di kanan */
+.auth-forgot-row { display: flex; gap: 8px; margin-top: 4px; }
+.auth-forgot-row input { flex: 1 1 auto; }
+.auth-forgot-row button {
+    border: 1px solid #1565c0;
+    background: #1565c0;
+    color: #fff;
+    border-radius: 4px;
+    padding: 6px 16px;
+    cursor: pointer;
+}
+.auth-forgot-row button:hover { background: #0d47a1; }
+.auth-forgot-row button:disabled { opacity: .5; cursor: default; }
+
+/* ======================================================
+   ENTRANCE ANIMATION — blur langsung, card menyusul halus
+   ====================================================== */
+
+@keyframes authFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes authCardIn {
+    from { opacity: 0; transform: translateY(14px) scale(.97); }
+    to   { opacity: 1; transform: none; }
+}
+
+#loginOverlay {
+    animation: authFadeIn .18s ease-out;
+}
+
+#loginOverlay .auth-card {
+    animation: authCardIn .28s ease-out .1s backwards;
+}
+
+
+/* ======================================================
    RESPONSIVE — phone defaults to a 3-day window (yesterday /
    today / tomorrow), handled by getPlanDayCount() in
    dienstplan.ts. This just tightens spacing to fit.

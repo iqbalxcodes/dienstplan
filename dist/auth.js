@@ -90,9 +90,11 @@ export async function logout() {
 // ======================================================
 export function renderUserArea() {
     const area = document.getElementById("userArea");
+    const overlay = document.getElementById("loginOverlay");
     if (!area)
         return;
     if (currentMembership) {
+        overlay?.remove(); // sudah login -> buang card
         area.innerHTML = `
             <span>${escapeHtml(currentMembership.full_name)} \u00b7 ${escapeHtml(currentMembership.role)}</span>
             <button id="logoutBtn" style="margin-left:8px;">Logout</button>
@@ -103,59 +105,29 @@ export function renderUserArea() {
         });
         return;
     }
-    showLoginOverlay();
+    wireLoginOverlay();
 }
 // ======================================================
-// Centered login card (first visit / logged out)
+// Wire the STATIC login card from HTML (no injection ->
+// no flash of visible app behind)
 // ======================================================
-function showLoginOverlay() {
-    if (document.getElementById("loginOverlay"))
+function wireLoginOverlay() {
+    const overlay = document.getElementById("loginOverlay");
+    if (!overlay || overlay.dataset.wired === "1")
         return;
-    const overlay = document.createElement("div");
-    overlay.id = "loginOverlay";
-    overlay.className = "plan-modal-backdrop";
-    overlay.innerHTML = `
-        <div class="plan-modal auth-card">
-
-            <h3>Dienstplan Login</h3>
-
-            <label>Email</label>
-            <input type="email" id="authEmail" autocomplete="username">
-
-            <label>Password</label>
-            <input type="password" id="authPassword" autocomplete="current-password">
-
-            <label class="auth-check">
-                <input type="checkbox" id="authRemember" checked>
-                Remember me on this device
-            </label>
-
-            <div id="authError" class="auth-error" style="display:none;"></div>
-
-            <div class="plan-modal-footer">
-                <button class="primary" id="authLoginBtn">Log in</button>
-            </div>
-
-            <p class="auth-hint">No account yet? Please ask your admin / boss.</p>
-            <p class="auth-link"><a href="#" id="forgotToggle">Forgot password?</a></p>
-
-            <div id="forgotSection" style="display:none;">
-                <hr>
-                <label>Email for the recovery link</label>
-                <input type="email" id="forgotEmail" autocomplete="email">
-                <div class="plan-modal-footer">
-                    <button id="forgotResetBtn">Reset</button>
-                </div>
-                <p class="auth-hint" id="forgotMsg"></p>
-            </div>
-
-        </div>
-    `;
-    document.body.appendChild(overlay);
+    overlay.dataset.wired = "1";
     document.getElementById("authLoginBtn").addEventListener("click", handleLoginSubmit);
     document.getElementById("authPassword").addEventListener("keydown", e => {
         if (e.key === "Enter")
             handleLoginSubmit();
+    });
+    // eye toggle: show / hide password
+    const passInput = document.getElementById("authPassword");
+    const eyeBtn = document.getElementById("authEyeBtn");
+    eyeBtn.addEventListener("click", () => {
+        const hidden = passInput.type === "password";
+        passInput.type = hidden ? "text" : "password";
+        eyeBtn.textContent = hidden ? "\u{1F648}" : "\u{1F441}"; // 🙈 / 👁
     });
     document.getElementById("forgotToggle").addEventListener("click", e => {
         e.preventDefault();
@@ -200,7 +172,7 @@ async function handleForgotSubmit() {
         : "Recovery email sent \u2014 check your inbox (and spam folder).";
 }
 // ======================================================
-// Multi-org users pick where to log in to
+// Centered login card (first visit / logged out)
 // ======================================================
 function promptOrgChoice(options) {
     return new Promise(resolve => {
