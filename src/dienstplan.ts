@@ -316,7 +316,7 @@ function buildShiftBarsHTML(
             shift.is_night_shift ? "Nachtdienst" : null
         ].filter(Boolean).join(" \u00b7 ");
 
-        const canDrag = isLoggedIn();
+        const canDrag = isLoggedIn() && (isManager() || member.id === currentMembership?.id);
 
         html += `
             <div class="reservation-bar plan-shift-bar ${cutLeft ? "cut-left" : ""} ${cutRight ? "cut-right" : ""}"

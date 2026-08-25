@@ -217,7 +217,7 @@ function buildShiftBarsHTML(member, days, dayWidth, dayCount) {
             `${shift.start_time.slice(0, 5)}\u2013${shift.end_time.slice(0, 5)}`,
             shift.is_night_shift ? "Nachtdienst" : null
         ].filter(Boolean).join(" \u00b7 ");
-        const canDrag = isLoggedIn();
+        const canDrag = isLoggedIn() && (isManager() || member.id === currentMembership?.id);
         html += `
             <div class="reservation-bar plan-shift-bar ${cutLeft ? "cut-left" : ""} ${cutRight ? "cut-right" : ""}"
                  style="left:${left}px; width:${width}px; top:2px; height:calc(100% - 4px);"

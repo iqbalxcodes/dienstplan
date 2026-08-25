@@ -8,7 +8,7 @@ const DIENSTPLAN_NAVIGATION = [
     {
         label: "Dashboard",
         href: "index.html",
-        page: "index"
+        page: "dashboard"
     },
     {
         label: "Schedule",

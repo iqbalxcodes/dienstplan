@@ -27,6 +27,9 @@
             </div>
         </div>
 
+        <h3>My Recent Entries</h3>
+        <div id="myEntriesList"></div>
+
         <!-- ponytail: lokasi/kehadiran belum didetailkan, placeholder dulu -->
         <p style="color:#888;">Location check (only allow check-in on-site) — coming soon.</p>
 
@@ -52,6 +55,21 @@
             <div class="plan-modal-footer">
                 <button onclick="closeModal('checkOutModal')">Cancel</button>
                 <button class="primary" onclick="submitCheckOut()">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="complaintModal" class="plan-modal-backdrop" style="display:none;">
+        <div class="plan-modal">
+            <h3>File Complaint</h3>
+            <input type="hidden" id="complaintEntryId">
+            <label>What's wrong with this entry?</label>
+            <textarea id="complaintMessage" placeholder="e.g. my check-out was edited to an earlier time"></textarea>
+            <label>Evidence (optional — photo/screenshot/PDF)</label>
+            <input type="file" id="complaintEvidence" multiple accept="image/*,.pdf">
+            <div class="plan-modal-footer">
+                <button onclick="closeModal('complaintModal')">Cancel</button>
+                <button class="primary" onclick="submitComplaintForm()">Submit</button>
             </div>
         </div>
     </div>

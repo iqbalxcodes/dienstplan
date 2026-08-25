@@ -474,4 +474,18 @@ export async function renderMyEntries() {
         </div>
     `).join("");
 }
+// Bare-name shortcuts so inline onclick="" handlers work
+Object.assign(window, {
+    closeModal,
+    openCheckInModal,
+    submitCheckIn,
+    openCheckOutModal,
+    submitCheckOut,
+    openLeaveModal,
+    submitLeaveRequestForm,
+    openComplaintModal,
+    submitComplaintForm,
+    openManualEditModal,
+    submitManualEdit
+});
 //# sourceMappingURL=panels.js.map

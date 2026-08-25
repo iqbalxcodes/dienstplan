@@ -17,7 +17,7 @@ const DIENSTPLAN_NAVIGATION: NavItem[] = [
     {
         label: "Dashboard",
         href: "index.html",
-        page: "index"
+        page: "dashboard"
     },
     {
         label: "Schedule",

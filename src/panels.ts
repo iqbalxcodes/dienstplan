@@ -613,3 +613,18 @@ export async function renderMyEntries(): Promise<void> {
     `).join("");
 
 }
+
+// Bare-name shortcuts so inline onclick="" handlers work
+Object.assign(window as any, {
+    closeModal,
+    openCheckInModal,
+    submitCheckIn,
+    openCheckOutModal,
+    submitCheckOut,
+    openLeaveModal,
+    submitLeaveRequestForm,
+    openComplaintModal,
+    submitComplaintForm,
+    openManualEditModal,
+    submitManualEdit
+});
