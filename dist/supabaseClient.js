@@ -14,8 +14,8 @@ import { createClient } from "@supabase/supabase-js";
 // TODO: replace with your Dienstplan project's values
 // (Project Settings -> API in the Supabase dashboard).
 // These are safe to expose client-side; RLS does the real work.
-const DIENSTPLAN_SUPABASE_URL = "https://YOUR-DIENSTPLAN-PROJECT.supabase.co";
-const DIENSTPLAN_SUPABASE_ANON_KEY = "YOUR-ANON-KEY";
+const DIENSTPLAN_SUPABASE_URL = "https://rutuoolvofndmjjboosv.supabase.co";
+const DIENSTPLAN_SUPABASE_ANON_KEY = "sb_publishable_KWUNWEx-b9kM6qIxxlbgDA_DvTqjjcZ";
 export const supabaseClient = createClient(DIENSTPLAN_SUPABASE_URL, DIENSTPLAN_SUPABASE_ANON_KEY);
 // ======================================================
 // Tenant resolution
