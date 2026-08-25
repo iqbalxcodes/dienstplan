@@ -1,9 +1,8 @@
 /* ======================================================
    DIENSTPLAN — layout variables
-   Same variable names/structure as Hotel PMS's roomRack.css
-   on purpose, so both can share --rack-label-width /
-   --rack-col-width if this file is ever loaded alongside the
-   Hotel PMS one inside the same page (module mode).
+   Same variable names/structure as Hotel PMS's roomRack.css,
+   so both can share --rack-label-width / --rack-col-width if
+   ever loaded alongside it in the same page.
    ====================================================== */
 
 :root {
@@ -11,13 +10,9 @@
     --rack-col-width: 96px; /* overwritten inline by JS per breakpoint */
 }
 
-.rack-page {
-    overflow: hidden;
-}
+.rack-page { overflow: hidden; }
 
-.rack-page .header-menu input[type="date"] {
-    padding: 3px 6px;
-}
+.rack-page .header-menu input[type="date"] { padding: 3px 6px; }
 
 .rack-view-toggle {
     display: flex;
@@ -142,9 +137,7 @@
 }
 
 .rack-header-cell.is-weekend { background: rgba(0, 0, 0, 0.035); }
-
 .rack-header-cell.is-today { background: #fff3e0; }
-
 .rack-header-cell.is-today .rack-header-date { color: #e65100; }
 
 
@@ -175,22 +168,12 @@
     box-sizing: border-box;
 }
 
-.rack-room-number {
-    font-weight: 600;
-    font-size: 13px;
-}
+.rack-room-number { font-weight: 600; font-size: 13px; }
 
-.rack-status-dot {
-    font-size: 10px;
-    line-height: 1;
-}
-
+.rack-status-dot { font-size: 10px; line-height: 1; }
 .rack-status-dot.status-clean { color: #2e7d32; }
 
-.rack-conflict-flag {
-    font-size: 12px;
-    cursor: help;
-}
+.rack-conflict-flag { font-size: 12px; cursor: help; }
 
 
 /* ======================================================
@@ -226,8 +209,7 @@
 
 
 /* ======================================================
-   SHIFT BARS — reuses .reservation-bar's visual language
-   from Hotel PMS, restyled per shift/leave semantics.
+   SHIFT BARS
    ====================================================== */
 
 .reservation-bar,
@@ -279,9 +261,6 @@
 
 /* ======================================================
    LEAVE CHIPS (Freiwunsch / Urlaub / Krank)
-   Sits below the shift bar row visually via z-index/top offset
-   handled in JS; styled distinctly from shift bars (dashed
-   outline instead of solid fill) so they never look like a shift.
    ====================================================== */
 
 .plan-leave-chip {
@@ -319,7 +298,7 @@
     z-index: 2;
 }
 
-.bar-resize-handle.left { left: 0; }
+.bar-resize-handle.left  { left: 0; }
 .bar-resize-handle.right { right: 0; }
 
 .bar-resize-handle:hover { background: rgba(255, 255, 255, 0.35); }
@@ -342,7 +321,7 @@
 
 
 /* ======================================================
-   TIME-ENTRY / APPROVAL QUEUE (check-in/out review list)
+   TIME-ENTRY / APPROVAL QUEUE
    ====================================================== */
 
 .plan-entry-card {
@@ -358,19 +337,13 @@
     flex-wrap: wrap;
 }
 
-.plan-entry-card.status-pending { border-left: 3px solid #f9a825; }
+.plan-entry-card.status-pending  { border-left: 3px solid #f9a825; }
 .plan-entry-card.status-approved { border-left: 3px solid #43a047; }
 .plan-entry-card.status-rejected { border-left: 3px solid #c62828; opacity: 0.6; }
 
-.plan-entry-meta {
-    font-size: 12px;
-    color: #777;
-}
+.plan-entry-meta { font-size: 12px; color: #777; }
 
-.plan-entry-actions {
-    display: flex;
-    gap: 6px;
-}
+.plan-entry-actions { display: flex; gap: 6px; }
 
 .plan-entry-actions button {
     border: 1px solid #ccc;
@@ -384,7 +357,7 @@
 .plan-entry-actions button:hover { background: #f0f0f0; }
 
 .plan-entry-actions .btn-approve { border-color: #2e7d32; color: #2e7d32; }
-.plan-entry-actions .btn-reject { border-color: #c62828; color: #c62828; }
+.plan-entry-actions .btn-reject  { border-color: #c62828; color: #c62828; }
 
 
 /* ======================================================
@@ -410,13 +383,10 @@
 
 
 /* ======================================================
-   HOURS SUMMARY (Soll / Ist / \u00dcberstunden)
+   HOURS SUMMARY (Soll / Ist / Überstunden)
    ====================================================== */
 
-#hoursSummaryPanel table {
-    width: 100%;
-    border-collapse: collapse;
-}
+#hoursSummaryPanel table { width: 100%; border-collapse: collapse; }
 
 #hoursSummaryPanel th {
     text-align: left;
@@ -435,8 +405,7 @@
 
 
 /* ======================================================
-   PANEL SWITCHING (Plan / Hours / Approvals / Complaints /
-   Leave Requests toolbar buttons)
+   PANEL SWITCHING
    ====================================================== */
 
 .plan-panel {
@@ -448,51 +417,66 @@
 #rackPanel { display: flex; flex-direction: column; }
 #rackPanel .rack-scroll { flex: 1 1 auto; }
 
+
 /* ======================================================
-   LOGIN OVERLAY CARD
+   LOGIN CARD — overlay & form layout
    ====================================================== */
 
+/* Frosted glass overlay: dimmed blur over the app behind */
 #loginOverlay {
     z-index: 200;
-    background: rgba(255, 255, 255, 0.4);  
+    background: rgba(255, 255, 255, 0.4);
     backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);            
+    -webkit-backdrop-filter: blur(10px);
+    animation: authFadeIn 0.18s ease-out;
 }
 
 .auth-card h3 { text-align: center; }
 
+/* Keep the checkbox truly inline with its label text
+   (overrides the global .plan-modal input { width: 100% }) */
 .auth-check {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
     font-size: 13px;
     color: #444;
-    margin-top: 12px;
 }
 
-.auth-error {
-    margin-top: 10px;
-    padding: 6px 10px;
+.auth-check input[type="checkbox"] {
+    width: auto !important;
+    flex: none;
+    margin: 0;
+    accent-color: #1565c0;
+}
+
+/* One row: checkbox group left · Log in button far right */
+.auth-actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 14px;
+}
+
+.auth-actions-row .auth-check { flex: 1 1 auto; }
+
+/* Shared blue button style (Log in + Reset) */
+.auth-actions-row button.primary,
+.auth-forgot-row button {
+    border: 1px solid #1565c0;
+    background: #1565c0;
+    color: #fff;
     border-radius: 4px;
-    background: #ffebee;
-    color: #c62828;
+    padding: 6px 20px;
+    cursor: pointer;
     font-size: 13px;
 }
 
-.auth-hint { margin: 12px 0 0; font-size: 12px; color: #888; text-align: center; }
+.auth-actions-row button.primary:hover,
+.auth-forgot-row button:hover { background: #0d47a1; }
 
-.auth-link { margin: 6px 0 0; text-align: center; font-size: 12px; }
-.auth-link a { color: #1565c0; }
-
-.auth-org-row { border-top: 1px solid #eee; padding-top: 10px; margin-top: 14px; }
-
-.auth-card hr { border: none; border-top: 1px solid #eee; margin: 14px 0; }
-
-
-/* ======================================================
-   LOGIN CARD LAYOUT v2
-   ====================================================== */
-
+/* Password field + show/hide eye toggle */
 .auth-pass-row { display: flex; gap: 6px; }
 .auth-pass-row input { flex: 1 1 auto; }
 
@@ -504,35 +488,45 @@
     cursor: pointer;
     font-size: 14px;
 }
+
 .auth-eye:hover { background: #f0f0f0; }
 
-/* checkbox group kiri, tombol Log in nempel ujung kanan */
-.auth-actions-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-top: 14px;
-}
-.auth-actions-row .auth-check { margin-top: 0; flex: 1 1 auto; }
-.auth-actions-row button.primary { padding: 6px 20px; }
-
-/* forgot: input email makan sisa ruang, Reset di kanan */
+/* Forgot section: email fills remaining space, Reset at right */
 .auth-forgot-row { display: flex; gap: 8px; margin-top: 4px; }
 .auth-forgot-row input { flex: 1 1 auto; }
-.auth-forgot-row button {
-    border: 1px solid #1565c0;
-    background: #1565c0;
-    color: #fff;
+
+.auth-forgot-row button:disabled { opacity: 0.5; cursor: default; }
+
+/* Error message box */
+.auth-error {
+    margin-top: 10px;
+    padding: 6px 10px;
     border-radius: 4px;
-    padding: 6px 16px;
-    cursor: pointer;
+    background: #ffebee;
+    color: #c62828;
+    font-size: 13px;
 }
-.auth-forgot-row button:hover { background: #0d47a1; }
-.auth-forgot-row button:disabled { opacity: .5; cursor: default; }
+
+/* Hint texts under the form */
+.auth-hint {
+    margin: 12px 0 0;
+    font-size: 12px;
+    color: #888;
+    text-align: center;
+}
+
+.auth-hint a { color: #1565c0; }
+
+.auth-card hr {
+    border: none;
+    border-top: 1px solid #eee;
+    margin: 14px 0;
+}
+
 
 /* ======================================================
-   ENTRANCE ANIMATION — blur langsung, card menyusul halus
+   LOGIN CARD — entrance animation
+   (blur appears immediately, the card follows smoothly)
    ====================================================== */
 
 @keyframes authFadeIn {
@@ -541,31 +535,22 @@
 }
 
 @keyframes authCardIn {
-    from { opacity: 0; transform: translateY(14px) scale(.97); }
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
     to   { opacity: 1; transform: none; }
 }
 
-#loginOverlay {
-    animation: authFadeIn .18s ease-out;
-}
-
 #loginOverlay .auth-card {
-    animation: authCardIn .28s ease-out .1s backwards;
+    animation: authCardIn 0.28s ease-out 0.1s backwards;
 }
 
 
 /* ======================================================
-   RESPONSIVE — phone defaults to a 3-day window (yesterday /
-   today / tomorrow), handled by getPlanDayCount() in
-   dienstplan.ts. This just tightens spacing to fit.
+   RESPONSIVE
    ====================================================== */
 
 @media (max-width: 700px) {
-
     :root { --rack-label-width: 128px; }
-
     .rack-page .header-menu { flex-wrap: wrap; }
-
 }
 
 .table-container.rack-page { margin-top: 0; }
