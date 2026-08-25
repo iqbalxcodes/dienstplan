@@ -376,6 +376,11 @@ create policy "read evidence of visible complaints"
         )
     );
 
+create policy "employees can update own pending time entries"
+    on time_entries for update
+    using (membership_id = my_membership_id(organization_id) and status = 'pending')
+    with check (membership_id = my_membership_id(organization_id) and status = 'pending');
+
 create policy "employees can attach evidence to own complaints"
     on complaint_evidence for insert
     with check (

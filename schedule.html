@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dienstplan — Schedule</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dienstplan.css">
+</head>
+<body>
+
+    <h1 id="orgNameLabel">Loading…</h1>
+    <div id="pageNavigation" data-page="schedule"></div>
+
+    <div class="table-container detail-card rack-page">
+
+        <div class="reservation-header">
+            <div class="header-title"><h3>Schedule</h3></div>
+            <div class="header-menu">
+                <input type="date" id="planDateInput" onchange="dienstplan.changeSelectedDate(this.value)">
+                <div class="rack-view-toggle">
+                    <button class="rack-view-btn" data-mode="3" onclick="dienstplan.planSetViewMode('3')">3D</button>
+                    <button class="rack-view-btn" data-mode="7" onclick="dienstplan.planSetViewMode('7')">7D</button>
+                    <button class="rack-view-btn" data-mode="30" onclick="dienstplan.planSetViewMode('30')">30D</button>
+                    <button class="rack-view-btn" data-mode="auto" onclick="dienstplan.planSetViewMode('auto')">Auto</button>
+                </div>
+            </div>
+            <div class="header-clock"><span id="clock"></span></div>
+        </div>
+
+        <div class="rack-scroll" id="rackScroll">
+            <div id="rackHeaderRow" class="rack-header-row"></div>
+            <div id="rackBody"></div>
+        </div>
+
+    </div>
+
+    <div id="statusBar">
+        <div id="userArea"></div>
+        <div id="contextArea"></div>
+        <div id="paginationInfo"></div>
+        <div id="paginationNav"></div>
+    </div>
+
+    <script type="importmap">
+    { "imports": { "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2" } }
+    </script>
+    <script type="module" src="dist/dienstplan.js"></script>
+    <script type="module" src="dist/panels.js"></script>
+
+</body>
+</html>

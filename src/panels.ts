@@ -92,6 +92,11 @@ export async function submitLeaveRequestForm(): Promise<void> {
 
     if(!dateStart || !dateEnd) return;
 
+    if(dateEnd < dateStart){
+        alert("End date can't be before start date");
+        return;
+    }
+
     closeModal("leaveModal");
     await (window as any).dienstplan.requestLeave(type, dateStart, dateEnd, reason);
 
@@ -173,7 +178,7 @@ export async function submitManualEdit(): Promise<void> {
 // change requests, in one combined queue.
 // ======================================================
 
-async function renderApprovalsPanel(): Promise<void> {
+export async function renderApprovalsPanel(): Promise<void> {
 
     const list = document.getElementById("approvalsList");
     if(!list || !currentOrg || !isManager()) return;
@@ -319,7 +324,7 @@ export async function rejectShiftChange(requestId: string): Promise<void> {
 // Complaints panel
 // ======================================================
 
-async function renderComplaintsPanel(): Promise<void> {
+export async function renderComplaintsPanel(): Promise<void> {
 
     const list = document.getElementById("complaintsList");
     if(!list || !currentOrg || !isManager()) return;
@@ -393,7 +398,7 @@ export async function resolveComplaintPrompt(complaintId: string, outcome: "reso
 // Leave requests panel
 // ======================================================
 
-async function renderLeavePanel(): Promise<void> {
+export async function renderLeavePanel(): Promise<void> {
 
     const list = document.getElementById("leaveList");
     if(!list || !currentOrg || !isManager()) return;
@@ -437,6 +442,66 @@ export async function reviewLeaveRequestFromPanel(requestId: string, approve: bo
 
 
 // ======================================================
+// Admin: Add Crew (membership only — the auth account itself
+// is still created manually in Supabase Dashboard; pasting the
+// resulting User UID here is the intended flow, see admin.html)
+// ======================================================
+
+export async function addCrewMember(): Promise<void> {
+
+    if(!currentOrg || !isManager()) return;
+
+    const userId = (document.getElementById("addCrewUserId") as HTMLInputElement).value.trim();
+    const fullName = (document.getElementById("addCrewName") as HTMLInputElement).value.trim();
+    const role = (document.getElementById("addCrewRole") as HTMLSelectElement).value;
+    const weeklyHours = Number((document.getElementById("addCrewHours") as HTMLInputElement).value) || 40;
+
+    if(!userId || !fullName) return;
+
+    const { error } = await supabaseClient
+        .from("memberships")
+        .insert({
+            organization_id: currentOrg.id,
+            user_id: userId,
+            role,
+            full_name: fullName,
+            weekly_target_hours: weeklyHours
+        });
+
+    if(error){
+        alert(error.message);
+        return;
+    }
+
+    (document.getElementById("addCrewUserId") as HTMLInputElement).value = "";
+    (document.getElementById("addCrewName") as HTMLInputElement).value = "";
+
+    renderCrewList();
+
+}
+
+export async function renderCrewList(): Promise<void> {
+
+    const list = document.getElementById("crewList");
+    if(!list || !currentOrg || !isManager()) return;
+
+    const { data } = await supabaseClient
+        .from("memberships")
+        .select("*")
+        .eq("organization_id", currentOrg.id)
+        .order("full_name");
+
+    list.innerHTML = (data ?? []).map((m: any) => `
+        <div class="plan-entry-card">
+            <div><strong>${escapeHtml(m.full_name)}</strong> \u2014 ${m.role}</div>
+            <div class="plan-entry-meta">${m.active ? "active" : "inactive"} \u00b7 ${m.weekly_target_hours}h/week</div>
+        </div>
+    `).join("");
+
+}
+
+
+// ======================================================
 // Small helper
 // ======================================================
 
@@ -469,16 +534,74 @@ function escapeHtml(str: string | null | undefined): string {
     approveShiftChange,
     rejectShiftChange,
     resolveComplaintPrompt,
-    reviewLeaveRequest: reviewLeaveRequestFromPanel
+    reviewLeaveRequest: reviewLeaveRequestFromPanel,
+    addCrewMember,
+    renderCrewList
 };
 
-(window as any).showPanel = showPanel;
-(window as any).closeModal = closeModal;
-(window as any).openCheckInModal = openCheckInModal;
-(window as any).submitCheckIn = submitCheckIn;
-(window as any).openCheckOutModal = openCheckOutModal;
-(window as any).submitCheckOut = submitCheckOut;
-(window as any).openLeaveModal = openLeaveModal;
-(window as any).submitLeaveRequestForm = submitLeaveRequestForm;
-(window as any).submitComplaintForm = submitComplaintForm;
-(window as any).submitManualEdit = submitManualEdit;
+(window as any).panels = {
+    showPanel,
+    closeModal,
+    openCheckInModal,
+    submitCheckIn,
+    openCheckOutModal,
+    submitCheckOut,
+    openLeaveModal,
+    submitLeaveRequestForm,
+    openComplaintModal,
+    submitComplaintForm,
+    openManualEditModal,
+    submitManualEdit,
+    approveEntry,
+    rejectEntry,
+    approveShiftChange,
+    rejectShiftChange,
+    resolveComplaintPrompt,
+    reviewLeaveRequest: reviewLeaveRequestFromPanel,
+    addCrewMember,
+    renderCrewList,
+    renderMyEntries
+};
+
+// ======================================================
+// Employee: My Entries (dashboard.html) — lists own time
+// entries + lets them file a complaint on a non-pending one.
+// ======================================================
+
+export async function renderMyEntries(): Promise<void> {
+
+    const list = document.getElementById("myEntriesList");
+    if(!list || !currentOrg || !currentMembership) return;
+
+    const { data } = await supabaseClient
+        .from("time_entries")
+        .select("*")
+        .eq("organization_id", currentOrg.id)
+        .eq("membership_id", currentMembership.id)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+    if(!data || data.length === 0){
+        list.innerHTML = `<p style="color:#888;">No entries yet.</p>`;
+        return;
+    }
+
+    list.innerHTML = (data as any[]).map(entry => `
+        <div class="plan-entry-card status-${entry.status}">
+            <div>
+                <span class="status-badge status-${entry.status}">${entry.status}</span>
+                <div class="plan-entry-meta">
+                    In: ${entry.clock_in ? new Date(entry.clock_in).toLocaleString("de-DE") : "\u2014"} \u00b7
+                    Out: ${entry.clock_out ? new Date(entry.clock_out).toLocaleString("de-DE") : "\u2014"}
+                </div>
+                ${entry.manager_note ? `<div class="plan-entry-meta">Manager note: ${escapeHtml(entry.manager_note)}</div>` : ""}
+            </div>
+            ${entry.status !== "pending" ? `
+                <div class="plan-entry-actions">
+                    <button onclick="panels.openComplaintModal('${entry.id}')">File Complaint</button>
+                </div>
+            ` : ""}
+        </div>
+    `).join("");
+
+}

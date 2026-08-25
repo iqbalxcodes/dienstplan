@@ -50,6 +50,8 @@ export async function computeHoursSummary(
     periodLabel: string
 ): Promise<HoursSummary> {
 
+    const rangeEndExclusive = new Date(dateEnd.getTime() + 86400000); // include the whole last day
+
     const { data: entries, error } = await supabaseClient
         .from("time_entries")
         .select("*, shifts:shift_id(break_minutes)")
@@ -57,7 +59,7 @@ export async function computeHoursSummary(
         .eq("membership_id", membership.id)
         .eq("status", "approved")
         .gte("clock_in", dateStart.toISOString())
-        .lte("clock_in", dateEnd.toISOString());
+        .lt("clock_in", rangeEndExclusive.toISOString());
 
     if(error || !entries){
         console.error(error);

@@ -3,105 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dienstplan</title>
+    <title>Dienstplan — Dashboard</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dienstplan.css">
 </head>
 <body>
 
-    <h1>Dienstplan</h1>
+    <h1 id="orgNameLabel">Loading…</h1>
+    <div id="pageNavigation" data-page="dashboard"></div>
 
-    <div class="table-container detail-card rack-page">
+    <div class="table-container detail-card">
 
         <div class="reservation-header">
-
-            <div class="header-title">
-                <h3 id="orgNameLabel">Loading…</h3>
-            </div>
-
-            <div class="header-menu">
-                <input type="date" id="planDateInput" onchange="dienstplan.changeSelectedDate(this.value)">
-
-                <div class="rack-view-toggle">
-                    <button class="rack-view-btn" data-mode="3" onclick="dienstplan.planSetViewMode('3')">3D</button>
-                    <button class="rack-view-btn" data-mode="7" onclick="dienstplan.planSetViewMode('7')">7D</button>
-                    <button class="rack-view-btn" data-mode="30" onclick="dienstplan.planSetViewMode('30')">30D</button>
-                    <button class="rack-view-btn" data-mode="auto" onclick="dienstplan.planSetViewMode('auto')">Auto</button>
-                </div>
-            </div>
-
-            <div class="header-clock">
-                <span id="clock"></span>
-            </div>
-
+            <div class="header-title"><h3>Dashboard</h3></div>
+            <div class="header-menu"></div>
+            <div class="header-clock"><span id="clock"></span></div>
         </div>
 
         <div id="toolbar">
             <div id="normalToolbar">
-
                 <button class="auth-required" onclick="openCheckInModal()">✅ Check In</button>
                 <button class="auth-required" onclick="openCheckOutModal()">⏹ Check Out</button>
-
-                <span class="toolbar-divider"></span>
-
-                <button class="auth-required" onclick="openLeaveModal('freiwunsch')">📅 Freiwunsch</button>
-                <button class="auth-required" onclick="openLeaveModal('urlaub')">🏖 Urlaub</button>
-
-                <span class="toolbar-divider"></span>
-
-                <button class="manager-required" onclick="showPanel('approvals')">⚠️ Approvals</button>
-                <button class="manager-required" onclick="showPanel('complaints')">💬 Complaints</button>
-                <button class="manager-required" onclick="showPanel('leave')">📋 Leave Requests</button>
-                <button onclick="showPanel('hours')">⏱ Hours</button>
-                <button onclick="showPanel('rack')">📆 Plan</button>
-
             </div>
         </div>
 
-        <!-- ==================================================
-             RACK VIEW (default)
-             ================================================== -->
-        <div id="rackPanel" class="plan-panel">
-            <div class="rack-scroll" id="rackScroll">
-                <div id="rackHeaderRow" class="rack-header-row"></div>
-                <div id="rackBody"></div>
-            </div>
-        </div>
-
-        <!-- ==================================================
-             HOURS SUMMARY PANEL
-             ================================================== -->
-        <div id="hoursPanel" class="plan-panel" style="display:none;">
-            <div id="hoursSummaryPanel"></div>
-        </div>
-
-        <!-- ==================================================
-             MANAGER: APPROVAL QUEUE (check-in/out requests +
-             shift change requests)
-             ================================================== -->
-        <div id="approvalsPanel" class="plan-panel manager-required" style="display:none;">
-            <div id="approvalsList"></div>
-        </div>
-
-        <!-- ==================================================
-             MANAGER: COMPLAINTS
-             ================================================== -->
-        <div id="complaintsPanel" class="plan-panel manager-required" style="display:none;">
-            <div id="complaintsList"></div>
-        </div>
-
-        <!-- ==================================================
-             MANAGER: LEAVE REQUESTS (Freiwunsch / Urlaub)
-             ================================================== -->
-        <div id="leavePanel" class="plan-panel manager-required" style="display:none;">
-            <div id="leaveList"></div>
-        </div>
+        <!-- ponytail: lokasi/kehadiran belum didetailkan, placeholder dulu -->
+        <p style="color:#888;">Location check (only allow check-in on-site) — coming soon.</p>
 
     </div>
-
-    <!-- ======================================================
-         MODALS
-         ====================================================== -->
 
     <div id="checkInModal" class="plan-modal-backdrop" style="display:none;">
         <div class="plan-modal">
@@ -123,55 +52,6 @@
             <div class="plan-modal-footer">
                 <button onclick="closeModal('checkOutModal')">Cancel</button>
                 <button class="primary" onclick="submitCheckOut()">Submit</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="leaveModal" class="plan-modal-backdrop" style="display:none;">
-        <div class="plan-modal">
-            <h3 id="leaveModalTitle">Request Leave</h3>
-            <input type="hidden" id="leaveType">
-            <label>From</label>
-            <input type="date" id="leaveDateStart">
-            <label>To</label>
-            <input type="date" id="leaveDateEnd">
-            <label>Reason (optional)</label>
-            <textarea id="leaveReason"></textarea>
-            <div class="plan-modal-footer">
-                <button onclick="closeModal('leaveModal')">Cancel</button>
-                <button class="primary" onclick="submitLeaveRequestForm()">Submit</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="complaintModal" class="plan-modal-backdrop" style="display:none;">
-        <div class="plan-modal">
-            <h3>File a Complaint</h3>
-            <input type="hidden" id="complaintEntryId">
-            <label>What happened?</label>
-            <textarea id="complaintMessage" placeholder="Explain why you think the recorded time is wrong"></textarea>
-            <label>Evidence (optional — photo, screenshot, PDF)</label>
-            <input type="file" id="complaintEvidence" multiple>
-            <div class="plan-modal-footer">
-                <button onclick="closeModal('complaintModal')">Cancel</button>
-                <button class="primary" onclick="submitComplaintForm()">Submit</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="manualEditModal" class="plan-modal-backdrop" style="display:none;">
-        <div class="plan-modal">
-            <h3>Set Time Manually</h3>
-            <input type="hidden" id="manualEditEntryId">
-            <label>Clock In</label>
-            <input type="datetime-local" id="manualClockIn">
-            <label>Clock Out</label>
-            <input type="datetime-local" id="manualClockOut">
-            <label>Manager note (shown to employee)</label>
-            <textarea id="manualEditNote" placeholder="Explain the adjustment"></textarea>
-            <div class="plan-modal-footer">
-                <button onclick="closeModal('manualEditModal')">Cancel</button>
-                <button class="primary" onclick="submitManualEdit()">Save</button>
             </div>
         </div>
     </div>

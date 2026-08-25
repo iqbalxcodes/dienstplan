@@ -23,6 +23,8 @@ import {
     type MinuteRange
 } from "./shiftAvailability.js";
 import { computeHoursSummary, formatHours } from "./hoursCalculator.js";
+import { renderNavigation } from "./nav.js";
+import { renderApprovalsPanel, renderComplaintsPanel, renderLeavePanel, renderCrewList, renderMyEntries } from "./panels.js";
 import { submitLeaveRequest, fetchLeaveRequests, reviewLeaveRequest, LEAVE_TYPE_LABELS } from "./leaveRequests.js";
 import { fileComplaint } from "./complaints.js";
 import type { Membership, Shift, TimeEntry, LeaveRequest, LeaveType } from "./types.js";
@@ -127,7 +129,7 @@ function getPlanColWidth(dayCount: number): number {
 
     const width = window.innerWidth;
 
-    if(width <= 700) return Math.floor((width - 128) / Math.min(dayCount, 3));
+    if(width <= 700) return Math.floor((width - 128) / Math.max(1, dayCount));
     if(width <= 1100) return 96;
     if(width <= 1700) return 76;
 
@@ -1031,7 +1033,10 @@ export async function renderHoursSummary(): Promise<void> {
 
     const membersToShow = isManager() ? planMembers : (currentMembership ? [currentMembership] : []);
 
-    const weekStart = addDays(startOfToday(), -startOfToday().getDay() + 1);
+    const today = startOfToday();
+    const dow = today.getDay(); // 0 = Sunday
+    const daysSinceMonday = dow === 0 ? 6 : dow - 1;
+    const weekStart = addDays(today, -daysSinceMonday);
     const weekEnd = addDays(weekStart, 6);
 
     const rows = await Promise.all(membersToShow.map(async member => {
@@ -1123,6 +1128,7 @@ export async function refreshPlan(): Promise<void> {
     renderPlanHeader(days, dayWidth);
     renderPlanBody(days, dayWidth, planDayCount);
     await renderHoursSummary();
+    await Promise.all([renderApprovalsPanel(), renderComplaintsPanel(), renderLeavePanel(), renderCrewList(), renderMyEntries()]);
 
     applyAuthVisibility();
 
@@ -1175,6 +1181,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const loggedIn = await initAuthContext();
     renderOrgLabel();
     renderUserArea();
+    renderNavigation(currentMembership?.role ?? null);
 
     centerPlanOnDate(startOfToday());
 

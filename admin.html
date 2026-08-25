@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dienstplan — Admin</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dienstplan.css">
+</head>
+<body>
+
+    <h1 id="orgNameLabel">Loading…</h1>
+    <div id="pageNavigation" data-page="admin"></div>
+
+    <div class="table-container detail-card">
+
+        <div class="reservation-header">
+            <div class="header-title"><h3>Admin</h3></div>
+            <div class="header-menu"></div>
+            <div class="header-clock"><span id="clock"></span></div>
+        </div>
+
+        <div class="table-scroll">
+
+            <h3>Pending Approvals</h3>
+            <div id="approvalsList" class="manager-required"></div>
+
+            <h3>Complaints</h3>
+            <div id="complaintsList" class="manager-required"></div>
+
+            <h3>Leave Requests</h3>
+            <div id="leaveList" class="manager-required"></div>
+
+            <h3>Add Crew</h3>
+            <!-- ponytail: akun auth tetap dibuat manual di Supabase Dashboard;
+                 form ini cuma insert baris membership. Paste User UID dari
+                 Dashboard -> Authentication setelah bikin akunnya. -->
+            <p style="color:#888; font-size:12px;">
+                Buat akun login-nya dulu di Supabase Dashboard (Authentication → Add user),
+                lalu paste User UID di sini.
+            </p>
+            <div class="manager-required">
+                <input type="text" id="addCrewUserId" placeholder="User UID (dari Supabase Dashboard)" style="width:320px;">
+                <input type="text" id="addCrewName" placeholder="Full name" style="width:160px;">
+                <select id="addCrewRole">
+                    <option value="employee">Crew</option>
+                    <option value="manager">Chief/Bos</option>
+                    <option value="owner">Admin</option>
+                </select>
+                <input type="number" id="addCrewHours" placeholder="Hours/week" value="40" style="width:100px;">
+                <button onclick="panels.addCrewMember()">Add</button>
+            </div>
+            <div id="crewList" style="margin-top:12px;"></div>
+
+        </div>
+
+    </div>
+
+    <div id="manualEditModal" class="plan-modal-backdrop" style="display:none;">
+        <div class="plan-modal">
+            <h3>Set Time Manually</h3>
+            <input type="hidden" id="manualEditEntryId">
+            <label>Clock In</label>
+            <input type="datetime-local" id="manualClockIn">
+            <label>Clock Out</label>
+            <input type="datetime-local" id="manualClockOut">
+            <label>Manager note (shown to employee)</label>
+            <textarea id="manualEditNote" placeholder="Explain the adjustment"></textarea>
+            <div class="plan-modal-footer">
+                <button onclick="closeModal('manualEditModal')">Cancel</button>
+                <button class="primary" onclick="submitManualEdit()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="statusBar">
+        <div id="userArea"></div>
+        <div id="contextArea"></div>
+        <div id="paginationInfo"></div>
+        <div id="paginationNav"></div>
+    </div>
+
+    <script type="importmap">
+    { "imports": { "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2" } }
+    </script>
+    <script type="module" src="dist/dienstplan.js"></script>
+    <script type="module" src="dist/panels.js"></script>
+
+</body>
+</html>

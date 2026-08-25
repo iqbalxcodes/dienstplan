@@ -29,6 +29,7 @@ export async function initAuthContext(): Promise<boolean> {
 
     if(!slug){
         console.error("No organization slug in URL (expected ?org=slug)");
+        applyAuthVisibility();
         return false;
     }
 
@@ -40,6 +41,7 @@ export async function initAuthContext(): Promise<boolean> {
 
     if(orgError || !org){
         console.error("Organization not found for slug:", slug, orgError);
+        applyAuthVisibility();
         return false;
     }
 
