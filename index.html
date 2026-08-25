@@ -16,7 +16,7 @@
         <div class="reservation-header">
 
             <div class="header-title">
-                <h3 id="orgNameLabel">Loading\u2026</h3>
+                <h3 id="orgNameLabel">Loading…</h3>
             </div>
 
             <div class="header-menu">
@@ -39,21 +39,21 @@
         <div id="toolbar">
             <div id="normalToolbar">
 
-                <button class="auth-required" onclick="openCheckInModal()">\u2705 Check In</button>
-                <button class="auth-required" onclick="openCheckOutModal()">\u23f9 Check Out</button>
+                <button class="auth-required" onclick="openCheckInModal()">✅ Check In</button>
+                <button class="auth-required" onclick="openCheckOutModal()">⏹ Check Out</button>
 
                 <span class="toolbar-divider"></span>
 
-                <button class="auth-required" onclick="openLeaveModal('freiwunsch')">\ud83d\udcc5 Freiwunsch</button>
-                <button class="auth-required" onclick="openLeaveModal('urlaub')">\ud83c\udfd6 Urlaub</button>
+                <button class="auth-required" onclick="openLeaveModal('freiwunsch')">📅 Freiwunsch</button>
+                <button class="auth-required" onclick="openLeaveModal('urlaub')">🏖 Urlaub</button>
 
                 <span class="toolbar-divider"></span>
 
-                <button class="manager-required" onclick="showPanel('approvals')">\u26a0\ufe0f Approvals</button>
-                <button class="manager-required" onclick="showPanel('complaints')">\ud83d\udcac Complaints</button>
-                <button class="manager-required" onclick="showPanel('leave')">\ud83d\udccb Leave Requests</button>
-                <button onclick="showPanel('hours')">\u23f1 Hours</button>
-                <button onclick="showPanel('rack')">\ud83d\udcc6 Plan</button>
+                <button class="manager-required" onclick="showPanel('approvals')">⚠️ Approvals</button>
+                <button class="manager-required" onclick="showPanel('complaints')">💬 Complaints</button>
+                <button class="manager-required" onclick="showPanel('leave')">📋 Leave Requests</button>
+                <button onclick="showPanel('hours')">⏱ Hours</button>
+                <button onclick="showPanel('rack')">📆 Plan</button>
 
             </div>
         </div>
@@ -106,7 +106,7 @@
     <div id="checkInModal" class="plan-modal-backdrop" style="display:none;">
         <div class="plan-modal">
             <h3>Check In</h3>
-            <label>Note (optional \u2014 e.g. if you're checking in late)</label>
+            <label>Note (optional — e.g. if you're checking in late)</label>
             <textarea id="checkInNote" placeholder="e.g. traffic, arrived 10 min late"></textarea>
             <div class="plan-modal-footer">
                 <button onclick="closeModal('checkInModal')">Cancel</button>
@@ -118,7 +118,7 @@
     <div id="checkOutModal" class="plan-modal-backdrop" style="display:none;">
         <div class="plan-modal">
             <h3>Check Out</h3>
-            <label>Note (optional \u2014 e.g. if you forgot to check in earlier)</label>
+            <label>Note (optional — e.g. if you forgot to check in earlier)</label>
             <textarea id="checkOutNote" placeholder="e.g. forgot to check in, started around 9am"></textarea>
             <div class="plan-modal-footer">
                 <button onclick="closeModal('checkOutModal')">Cancel</button>
@@ -150,7 +150,7 @@
             <input type="hidden" id="complaintEntryId">
             <label>What happened?</label>
             <textarea id="complaintMessage" placeholder="Explain why you think the recorded time is wrong"></textarea>
-            <label>Evidence (optional \u2014 photo, screenshot, PDF)</label>
+            <label>Evidence (optional — photo, screenshot, PDF)</label>
             <input type="file" id="complaintEvidence" multiple>
             <div class="plan-modal-footer">
                 <button onclick="closeModal('complaintModal')">Cancel</button>
@@ -183,7 +183,9 @@
         <div id="paginationNav"></div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="importmap">
+    { "imports": { "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2" } }
+    </script>
     <script type="module" src="dist/dienstplan.js"></script>
     <script type="module" src="dist/panels.js"></script>
 

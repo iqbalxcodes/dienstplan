@@ -43,7 +43,7 @@ dienstplan/
 ├── css/
 │   ├── style.css                # base — disalin 1:1 dari css/style.css Hotel PMS
 │   └── dienstplan.css           # adaptasi css/roomRack.css Hotel PMS
-├── dienstplan.html
+├── index.html
 ├── tsconfig.json
 └── package.json
 ```
@@ -67,7 +67,7 @@ dienstplan/
 8. Buat user via Supabase Auth (dashboard atau `supabase.auth.signUp`), lalu masukkan ke
    `memberships` dengan role `owner` untuk pemilik resto, `manager` untuk kepala/bos,
    `employee` untuk staf biasa.
-9. Akses `https://domainmu.com/dienstplan.html?org=resto1`.
+9. Akses `https://domainmu.com/index.html?org=resto1`.
 
 ### Nambah organization kedua (resto lain / bisnis lain)
 
@@ -102,7 +102,7 @@ Karena ini sudah TypeScript + Supabase (bukan campur JS biasa), integrasinya nan
    project Hotel PMS), satu lagi `dist/supabaseClient.js` (project Dienstplan). Dua project
    Supabase yang berbeda bisa hidup berdampingan di satu halaman tanpa konflik.
 3. Tambah 1 tab baru di navigasi Hotel PMS (`js/navigation.js`) yang mengarah ke
-   `dienstplan.html`, styling-nya otomatis nyambung karena sudah pakai kelas yang sama
+   `index.html`, styling-nya otomatis nyambung karena sudah pakai kelas yang sama
    (`.rack-page`, `.reservation-bar`, `.rack-row`, dst).
 4. Hotel (sebagai bisnis) tinggal jadi satu baris di `organizations` juga — jadi Hotel PMS
    dan restoran pacarmu bisa 100% terpisah datanya walau bentuk modulnya identik.
