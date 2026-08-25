@@ -10,6 +10,7 @@ import { supabaseClient } from "./supabaseClient.js";
 import { currentOrg, currentMembership, isManager } from "./auth.js";
 import { LEAVE_TYPE_LABELS } from "./leaveRequests.js";
 import { fetchComplaintEvidence, resolveComplaint } from "./complaints.js";
+import { findShiftConflicts } from "./shiftAvailability.js";
 export function showPanel(panel) {
     ["rack", "hours", "approvals", "complaints", "leave"].forEach(p => {
         const el = document.getElementById(`${p}Panel`);
@@ -211,13 +212,33 @@ export async function rejectEntry(entryId) {
     renderApprovalsPanel();
 }
 export async function approveShiftChange(requestId, shiftId) {
+    if (!isManager())
+        return;
     const { data: req } = await supabaseClient
         .from("shift_change_requests")
         .select("*")
         .eq("id", requestId)
+        .eq("status", "pending")
         .single();
     if (!req)
         return;
+    // ambil membership pemilik shift untuk cek konflik
+    const { data: shift } = await supabaseClient
+        .from("shifts")
+        .select("membership_id")
+        .eq("id", shiftId)
+        .single();
+    if (!shift)
+        return;
+    const { conflicts, error: conflictError } = await findShiftConflicts(req.organization_id, shift.membership_id, req.proposed_shift_date, req.proposed_start_time, req.proposed_end_time, shiftId);
+    if (conflictError) {
+        alert("Failed to check for conflicts");
+        return;
+    }
+    if (conflicts.length > 0) {
+        alert("Cannot approve — this overlaps another shift");
+        return;
+    }
     await supabaseClient
         .from("shifts")
         .update({
@@ -393,28 +414,6 @@ function escapeHtml(str) {
 // ======================================================
 // Expose on window.panels for inline onclick="" handlers
 // ======================================================
-window.panels = {
-    showPanel,
-    closeModal,
-    openCheckInModal,
-    submitCheckIn,
-    openCheckOutModal,
-    submitCheckOut,
-    openLeaveModal,
-    submitLeaveRequestForm,
-    openComplaintModal,
-    submitComplaintForm,
-    openManualEditModal,
-    submitManualEdit,
-    approveEntry,
-    rejectEntry,
-    approveShiftChange,
-    rejectShiftChange,
-    resolveComplaintPrompt,
-    reviewLeaveRequest: reviewLeaveRequestFromPanel,
-    addCrewMember,
-    renderCrewList
-};
 window.panels = {
     showPanel,
     closeModal,

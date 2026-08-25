@@ -12,6 +12,7 @@ import { currentOrg, currentMembership, isManager } from "./auth.js";
 import type { TimeEntry, Complaint, LeaveRequest, ShiftChangeRequest } from "./types.js";
 import { LEAVE_TYPE_LABELS } from "./leaveRequests.js";
 import { fetchComplaintEvidence, resolveComplaint } from "./complaints.js";
+import { findShiftConflicts } from "./shiftAvailability.js";
 
 type PanelName = "rack" | "hours" | "approvals" | "complaints" | "leave";
 
@@ -277,13 +278,44 @@ export async function rejectEntry(entryId: string): Promise<void> {
 
 export async function approveShiftChange(requestId: string, shiftId: string): Promise<void> {
 
+    if(!isManager()) return;
+
     const { data: req } = await supabaseClient
         .from("shift_change_requests")
         .select("*")
         .eq("id", requestId)
+        .eq("status", "pending")
         .single();
 
     if(!req) return;
+
+    // ambil membership pemilik shift untuk cek konflik
+    const { data: shift } = await supabaseClient
+        .from("shifts")
+        .select("membership_id")
+        .eq("id", shiftId)
+        .single();
+
+    if(!shift) return;
+
+    const { conflicts, error: conflictError } = await findShiftConflicts(
+        req.organization_id,
+        shift.membership_id,
+        req.proposed_shift_date,
+        req.proposed_start_time,
+        req.proposed_end_time,
+        shiftId
+    );
+
+    if(conflictError){
+        alert("Failed to check for conflicts");
+        return;
+    }
+
+    if(conflicts.length > 0){
+        alert("Cannot approve — this overlaps another shift");
+        return;
+    }
 
     await supabaseClient
         .from("shifts")
@@ -303,7 +335,6 @@ export async function approveShiftChange(requestId: string, shiftId: string): Pr
         .eq("id", requestId);
 
     renderApprovalsPanel();
-
 }
 
 export async function rejectShiftChange(requestId: string): Promise<void> {
@@ -515,29 +546,6 @@ function escapeHtml(str: string | null | undefined): string {
 // ======================================================
 // Expose on window.panels for inline onclick="" handlers
 // ======================================================
-
-(window as any).panels = {
-    showPanel,
-    closeModal,
-    openCheckInModal,
-    submitCheckIn,
-    openCheckOutModal,
-    submitCheckOut,
-    openLeaveModal,
-    submitLeaveRequestForm,
-    openComplaintModal,
-    submitComplaintForm,
-    openManualEditModal,
-    submitManualEdit,
-    approveEntry,
-    rejectEntry,
-    approveShiftChange,
-    rejectShiftChange,
-    resolveComplaintPrompt,
-    reviewLeaveRequest: reviewLeaveRequestFromPanel,
-    addCrewMember,
-    renderCrewList
-};
 
 (window as any).panels = {
     showPanel,

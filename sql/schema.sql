@@ -437,3 +437,19 @@ create policy "managers can review shift change requests"
 -- Supabase dashboard or CLI, policies mirror complaint_evidence)
 -- ======================================================
 -- insert into storage.buckets (id, name, public) values ('complaint-evidence', 'complaint-evidence', false);
+
+create or replace function protect_time_entry_columns()
+returns trigger language plpgsql as $$
+begin
+    if is_org_manager(new.organization_id) then return new; end if;
+    if old.clock_in           is distinct from new.clock_in
+    or old.original_clock_in  is distinct from new.original_clock_in
+    or old.source             is distinct from new.source then
+        raise exception 'Employees cannot modify clock/source fields';
+    end if;
+    return new;
+end $$;
+
+create trigger trg_protect_time_entry
+    before update on time_entries
+    for each row execute function protect_time_entry_columns();
