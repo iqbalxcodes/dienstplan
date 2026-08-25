@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dienstplan — Reset Password</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dienstplan.css">
+</head>
+<body>
+
+    <h1>Dienstplan</h1>
+
+    <div class="table-container detail-card" style="max-width:420px; margin:40px auto;">
+        <div class="reservation-header">
+            <div class="header-title"><h3>Set a new password</h3></div>
+        </div>
+
+        <div id="resetStatus" style="color:#888;">Validating recovery link\u2026</div>
+
+        <div id="resetForm" style="display:none;">
+            <label>New password</label>
+            <input type="password" id="newPassword" autocomplete="new-password">
+            <label>Repeat new password</label>
+            <input type="password" id="newPassword2" autocomplete="new-password">
+            <div id="resetError" class="auth-error" style="display:none;"></div>
+            <div class="plan-modal-footer">
+                <button class="primary" id="resetSaveBtn">Save password</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    { "imports": { "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2" } }
+    </script>
+    <script type="module" src="dist/reset.js"></script>
+
+</body>
+</html>

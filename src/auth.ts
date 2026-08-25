@@ -13,11 +13,19 @@ import { supabaseClient, resolveOrgSlugFromUrl, getStoredOrgSlug, setStoredOrgSl
 
 export let currentOrg: Organization | null = null;
 export let currentMembership: Membership | null = null;
+const REMEMBER_KEY = "dienstplan_remember";
+const TAB_ALIVE_KEY = "dienstplan_tab_alive";
 
 export async function initAuthContext(): Promise<boolean> {
-
+    
+    if(localStorage.getItem(REMEMBER_KEY) === "0"){
+        if(!sessionStorage.getItem(TAB_ALIVE_KEY)){
+            await supabaseClient.auth.signOut();
+        }
+        sessionStorage.setItem(TAB_ALIVE_KEY, "1");
+    }
     const { data: { session } } = await supabaseClient.auth.getSession();
-
+    
     if(!session){
         currentOrg = null;
         currentMembership = null;
@@ -122,65 +130,158 @@ export function renderUserArea(): void {
 
         document.getElementById("logoutBtn")!.addEventListener("click", async () => {
             await logout();
-            renderUserArea();
             window.location.reload();
         });
 
-    } else {
-
-        // belum ada org terpilih -> minta pilih org dulu
-        if(!getStoredOrgSlug()){
-
-            area.innerHTML = `
-                <span class="login-form">
-                    <span style="color:#777;">Organization:</span>
-                    <input type="text" id="orgSlugInput" placeholder="e.g. inselcafe">
-                    <button id="orgGoBtn">Go</button>
-                </span>
-            `;
-
-            document.getElementById("orgGoBtn")!.addEventListener("click", () => {
-
-                const slug = (document.getElementById("orgSlugInput") as HTMLInputElement).value.trim().toLowerCase();
-
-                if(!slug) return;
-
-                setStoredOrgSlug(slug);
-                window.location.reload();
-
-            });
-
-            return;
-
-        }
-
-        // org sudah ada tapi user belum login -> form login biasa
-        area.innerHTML = `
-            <span class="login-form">
-                <input type="email" id="loginEmail" placeholder="Email">
-                <input type="password" id="loginPassword" placeholder="Password">
-                <button id="loginBtn">Login</button>
-            </span>
-        `;
-
-        document.getElementById("loginBtn")!.addEventListener("click", async () => {
-
-            const email = (document.getElementById("loginEmail") as HTMLInputElement).value;
-            const password = (document.getElementById("loginPassword") as HTMLInputElement).value;
-
-            const error = await login(email, password);
-
-            if(error){
-                alert(error);
-                return;
-            }
-
-            renderUserArea();
-            window.location.reload();
-
-        });
+        return;
 
     }
+
+    showLoginOverlay();
+
+}
+
+// ======================================================
+// Centered login card (first visit / logged out)
+// ======================================================
+
+function showLoginOverlay(): void {
+
+    if(document.getElementById("loginOverlay")) return;
+
+    const overlay = document.createElement("div");
+    overlay.id = "loginOverlay";
+    overlay.className = "plan-modal-backdrop";
+
+    overlay.innerHTML = `
+        <div class="plan-modal auth-card">
+
+            <h3>Dienstplan Login</h3>
+
+            <label>Email</label>
+            <input type="email" id="authEmail" autocomplete="username">
+
+            <label>Password</label>
+            <input type="password" id="authPassword" autocomplete="current-password">
+
+            <label class="auth-check">
+                <input type="checkbox" id="authRemember" checked>
+                Remember me on this device
+            </label>
+
+            <div id="authError" class="auth-error" style="display:none;"></div>
+
+            <div class="plan-modal-footer">
+                <button class="primary" id="authLoginBtn">Log in</button>
+            </div>
+
+            <p class="auth-hint">No account yet? Please ask your admin / boss.</p>
+            <p class="auth-link"><a href="#" id="forgotToggle">Forgot password?</a></p>
+
+            <div id="forgotSection" style="display:none;">
+                <hr>
+                <label>Email for the recovery link</label>
+                <input type="email" id="forgotEmail" autocomplete="email">
+                <div class="plan-modal-footer">
+                    <button id="forgotResetBtn">Reset</button>
+                </div>
+                <p class="auth-hint" id="forgotMsg"></p>
+            </div>
+
+            <p class="auth-hint auth-org-row">
+                Organization: <strong>${escapeHtml(getStoredOrgSlug() ?? "(not set)")}</strong>
+                \u00b7 <a href="#" id="orgChangeToggle">change</a>
+            </p>
+            <div id="orgChangeSection" style="display:none;">
+                <input type="text" id="orgChangeInput" placeholder="e.g. inselcafe">
+                <div class="plan-modal-footer">
+                    <button id="orgChangeBtn">Use</button>
+                </div>
+            </div>
+
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    document.getElementById("authLoginBtn")!.addEventListener("click", handleLoginSubmit);
+    document.getElementById("authPassword")!.addEventListener("keydown", e => {
+        if(e.key === "Enter") handleLoginSubmit();
+    });
+
+    document.getElementById("forgotToggle")!.addEventListener("click", e => {
+        e.preventDefault();
+        const sec = document.getElementById("forgotSection")!;
+        sec.style.display = sec.style.display === "none" ? "" : "none";
+    });
+
+    document.getElementById("forgotResetBtn")!.addEventListener("click", handleForgotSubmit);
+
+    document.getElementById("orgChangeToggle")!.addEventListener("click", e => {
+        e.preventDefault();
+        const sec = document.getElementById("orgChangeSection")!;
+        sec.style.display = sec.style.display === "none" ? "" : "none";
+    });
+
+    document.getElementById("orgChangeBtn")!.addEventListener("click", () => {
+        const val = (document.getElementById("orgChangeInput") as HTMLInputElement).value.trim().toLowerCase();
+        if(!val) return;
+        setStoredOrgSlug(val);
+        window.location.reload();
+    });
+
+}
+
+async function handleLoginSubmit(): Promise<void> {
+
+    const emailEl = document.getElementById("authEmail") as HTMLInputElement;
+    const passEl  = document.getElementById("authPassword") as HTMLInputElement;
+    const remEl   = document.getElementById("authRemember") as HTMLInputElement;
+    const errEl   = document.getElementById("authError")!;
+
+    errEl.style.display = "none";
+
+    if(!emailEl.value.trim() || !passEl.value){
+        errEl.textContent = "Please fill in email and password.";
+        errEl.style.display = "";
+        return;
+    }
+
+    localStorage.setItem(REMEMBER_KEY, remEl.checked ? "1" : "0");
+
+    const { error } = await supabaseClient.auth.signInWithPassword({
+        email: emailEl.value.trim(),
+        password: passEl.value
+    });
+
+    if(error){
+        errEl.textContent = error.message;
+        errEl.style.display = "";
+        return;
+    }
+
+    window.location.reload();
+
+}
+
+async function handleForgotSubmit(): Promise<void> {
+
+    const emailEl = document.getElementById("forgotEmail") as HTMLInputElement;
+    const msgEl   = document.getElementById("forgotMsg")!;
+    const btn     = document.getElementById("forgotResetBtn") as HTMLButtonElement;
+
+    if(!emailEl.value.trim()) return;
+
+    btn.disabled = true;
+
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(
+        emailEl.value.trim(),
+        { redirectTo: `${window.location.origin}/reset.html` }
+    );
+
+    msgEl.textContent = error
+        ? error.message
+        : "Recovery email sent \u2014 check your inbox (and spam folder).";
 
 }
 
