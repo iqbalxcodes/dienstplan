@@ -21,6 +21,7 @@ export async function initAuthContext() {
     const slug = resolveOrgSlugFromUrl();
     if (!slug) {
         console.error("No organization slug in URL (expected ?org=slug)");
+        applyAuthVisibility();
         return false;
     }
     const { data: org, error: orgError } = await supabaseClient
@@ -30,6 +31,7 @@ export async function initAuthContext() {
         .single();
     if (orgError || !org) {
         console.error("Organization not found for slug:", slug, orgError);
+        applyAuthVisibility();
         return false;
     }
     currentOrg = org;

@@ -17,6 +17,8 @@ import { supabaseClient } from "./supabaseClient.js";
 import { currentOrg, currentMembership, isManager, isLoggedIn, initAuthContext, applyAuthVisibility, renderUserArea } from "./auth.js";
 import { getShiftRange, rangeToShiftFields, findShiftConflicts } from "./shiftAvailability.js";
 import { computeHoursSummary, formatHours } from "./hoursCalculator.js";
+import { renderNavigation } from "./nav.js";
+import { renderApprovalsPanel, renderComplaintsPanel, renderLeavePanel, renderCrewList, renderMyEntries } from "./panels.js";
 import { submitLeaveRequest, fetchLeaveRequests, reviewLeaveRequest, LEAVE_TYPE_LABELS } from "./leaveRequests.js";
 import { fileComplaint } from "./complaints.js";
 const PLAN_VIEW_MODE_KEY = "dienstplan_view_mode_v1";
@@ -83,7 +85,7 @@ function getPlanDayCount() {
 function getPlanColWidth(dayCount) {
     const width = window.innerWidth;
     if (width <= 700)
-        return Math.floor((width - 128) / Math.min(dayCount, 3));
+        return Math.floor((width - 128) / Math.max(1, dayCount));
     if (width <= 1100)
         return 96;
     if (width <= 1700)
@@ -731,7 +733,10 @@ export async function renderHoursSummary() {
     if (!panel || !currentOrg)
         return;
     const membersToShow = isManager() ? planMembers : (currentMembership ? [currentMembership] : []);
-    const weekStart = addDays(startOfToday(), -startOfToday().getDay() + 1);
+    const today = startOfToday();
+    const dow = today.getDay(); // 0 = Sunday
+    const daysSinceMonday = dow === 0 ? 6 : dow - 1;
+    const weekStart = addDays(today, -daysSinceMonday);
     const weekEnd = addDays(weekStart, 6);
     const rows = await Promise.all(membersToShow.map(async (member) => {
         const summary = await computeHoursSummary(currentOrg.id, member, weekStart, weekEnd, "This week");
@@ -800,6 +805,7 @@ export async function refreshPlan() {
     renderPlanHeader(days, dayWidth);
     renderPlanBody(days, dayWidth, planDayCount);
     await renderHoursSummary();
+    await Promise.all([renderApprovalsPanel(), renderComplaintsPanel(), renderLeavePanel(), renderCrewList(), renderMyEntries()]);
     applyAuthVisibility();
 }
 function startClock() {
@@ -836,6 +842,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const loggedIn = await initAuthContext();
     renderOrgLabel();
     renderUserArea();
+    renderNavigation(currentMembership?.role ?? null);
     centerPlanOnDate(startOfToday());
     if (loggedIn) {
         try {

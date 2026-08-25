@@ -7,7 +7,7 @@
 // Approvals, Complaints, Leave Requests.
 // ======================================================
 import { supabaseClient } from "./supabaseClient.js";
-import { currentOrg, isManager } from "./auth.js";
+import { currentOrg, currentMembership, isManager } from "./auth.js";
 import { LEAVE_TYPE_LABELS } from "./leaveRequests.js";
 import { fetchComplaintEvidence, resolveComplaint } from "./complaints.js";
 export function showPanel(panel) {
@@ -73,6 +73,10 @@ export async function submitLeaveRequestForm() {
     const reason = document.getElementById("leaveReason").value;
     if (!dateStart || !dateEnd)
         return;
+    if (dateEnd < dateStart) {
+        alert("End date can't be before start date");
+        return;
+    }
     closeModal("leaveModal");
     await window.dienstplan.requestLeave(type, dateStart, dateEnd, reason);
 }
@@ -125,7 +129,7 @@ export async function submitManualEdit() {
 // Approvals panel — pending time entries + pending shift
 // change requests, in one combined queue.
 // ======================================================
-async function renderApprovalsPanel() {
+export async function renderApprovalsPanel() {
     const list = document.getElementById("approvalsList");
     if (!list || !currentOrg || !isManager())
         return;
@@ -241,7 +245,7 @@ export async function rejectShiftChange(requestId) {
 // ======================================================
 // Complaints panel
 // ======================================================
-async function renderComplaintsPanel() {
+export async function renderComplaintsPanel() {
     const list = document.getElementById("complaintsList");
     if (!list || !currentOrg || !isManager())
         return;
@@ -296,7 +300,7 @@ export async function resolveComplaintPrompt(complaintId, outcome) {
 // ======================================================
 // Leave requests panel
 // ======================================================
-async function renderLeavePanel() {
+export async function renderLeavePanel() {
     const list = document.getElementById("leaveList");
     if (!list || !currentOrg || !isManager())
         return;
@@ -332,6 +336,53 @@ export async function reviewLeaveRequestFromPanel(requestId, approve) {
     renderLeavePanel();
 }
 // ======================================================
+// Admin: Add Crew (membership only — the auth account itself
+// is still created manually in Supabase Dashboard; pasting the
+// resulting User UID here is the intended flow, see admin.html)
+// ======================================================
+export async function addCrewMember() {
+    if (!currentOrg || !isManager())
+        return;
+    const userId = document.getElementById("addCrewUserId").value.trim();
+    const fullName = document.getElementById("addCrewName").value.trim();
+    const role = document.getElementById("addCrewRole").value;
+    const weeklyHours = Number(document.getElementById("addCrewHours").value) || 40;
+    if (!userId || !fullName)
+        return;
+    const { error } = await supabaseClient
+        .from("memberships")
+        .insert({
+        organization_id: currentOrg.id,
+        user_id: userId,
+        role,
+        full_name: fullName,
+        weekly_target_hours: weeklyHours
+    });
+    if (error) {
+        alert(error.message);
+        return;
+    }
+    document.getElementById("addCrewUserId").value = "";
+    document.getElementById("addCrewName").value = "";
+    renderCrewList();
+}
+export async function renderCrewList() {
+    const list = document.getElementById("crewList");
+    if (!list || !currentOrg || !isManager())
+        return;
+    const { data } = await supabaseClient
+        .from("memberships")
+        .select("*")
+        .eq("organization_id", currentOrg.id)
+        .order("full_name");
+    list.innerHTML = (data ?? []).map((m) => `
+        <div class="plan-entry-card">
+            <div><strong>${escapeHtml(m.full_name)}</strong> \u2014 ${m.role}</div>
+            <div class="plan-entry-meta">${m.active ? "active" : "inactive"} \u00b7 ${m.weekly_target_hours}h/week</div>
+        </div>
+    `).join("");
+}
+// ======================================================
 // Small helper
 // ======================================================
 function escapeHtml(str) {
@@ -360,16 +411,68 @@ window.panels = {
     approveShiftChange,
     rejectShiftChange,
     resolveComplaintPrompt,
-    reviewLeaveRequest: reviewLeaveRequestFromPanel
+    reviewLeaveRequest: reviewLeaveRequestFromPanel,
+    addCrewMember,
+    renderCrewList
 };
-window.showPanel = showPanel;
-window.closeModal = closeModal;
-window.openCheckInModal = openCheckInModal;
-window.submitCheckIn = submitCheckIn;
-window.openCheckOutModal = openCheckOutModal;
-window.submitCheckOut = submitCheckOut;
-window.openLeaveModal = openLeaveModal;
-window.submitLeaveRequestForm = submitLeaveRequestForm;
-window.submitComplaintForm = submitComplaintForm;
-window.submitManualEdit = submitManualEdit;
+window.panels = {
+    showPanel,
+    closeModal,
+    openCheckInModal,
+    submitCheckIn,
+    openCheckOutModal,
+    submitCheckOut,
+    openLeaveModal,
+    submitLeaveRequestForm,
+    openComplaintModal,
+    submitComplaintForm,
+    openManualEditModal,
+    submitManualEdit,
+    approveEntry,
+    rejectEntry,
+    approveShiftChange,
+    rejectShiftChange,
+    resolveComplaintPrompt,
+    reviewLeaveRequest: reviewLeaveRequestFromPanel,
+    addCrewMember,
+    renderCrewList,
+    renderMyEntries
+};
+// ======================================================
+// Employee: My Entries (dashboard.html) — lists own time
+// entries + lets them file a complaint on a non-pending one.
+// ======================================================
+export async function renderMyEntries() {
+    const list = document.getElementById("myEntriesList");
+    if (!list || !currentOrg || !currentMembership)
+        return;
+    const { data } = await supabaseClient
+        .from("time_entries")
+        .select("*")
+        .eq("organization_id", currentOrg.id)
+        .eq("membership_id", currentMembership.id)
+        .order("created_at", { ascending: false })
+        .limit(10);
+    if (!data || data.length === 0) {
+        list.innerHTML = `<p style="color:#888;">No entries yet.</p>`;
+        return;
+    }
+    list.innerHTML = data.map(entry => `
+        <div class="plan-entry-card status-${entry.status}">
+            <div>
+                <span class="status-badge status-${entry.status}">${entry.status}</span>
+                <div class="plan-entry-meta">
+                    In: ${entry.clock_in ? new Date(entry.clock_in).toLocaleString("de-DE") : "\u2014"} \u00b7
+                    Out: ${entry.clock_out ? new Date(entry.clock_out).toLocaleString("de-DE") : "\u2014"}
+                </div>
+                ${entry.manager_note ? `<div class="plan-entry-meta">Manager note: ${escapeHtml(entry.manager_note)}</div>` : ""}
+            </div>
+            ${entry.status !== "pending" ? `
+                <div class="plan-entry-actions">
+                    <button onclick="panels.openComplaintModal('${entry.id}')">File Complaint</button>
+                </div>
+            ` : ""}
+        </div>
+    `).join("");
+}
 //# sourceMappingURL=panels.js.map

@@ -27,22 +27,29 @@ export async function fileComplaint(timeEntryId, message, evidenceFiles) {
         return error?.message ?? "Failed to file complaint";
     }
     for (const file of evidenceFiles) {
-        const path = `${complaint.id}/${Date.now()}_${file.name}`;
+        const safeName = file.name
+            .normalize("NFKD")
+            .replace(/[^a-zA-Z0-9._-]/g, "_")
+            .slice(-100); // keep it short too
+        const path = `${complaint.id}/${Date.now()}_${safeName}`;
         const { error: uploadError } = await supabaseClient
             .storage
             .from(EVIDENCE_BUCKET)
             .upload(path, file);
         if (uploadError) {
-            console.error("Evidence upload failed:", uploadError);
-            continue;
+            console.error(uploadError);
+            continue; // one bad file shouldn't kill the whole complaint
         }
-        await supabaseClient
+        const { error: evidenceError } = await supabaseClient
             .from("complaint_evidence")
             .insert({
             complaint_id: complaint.id,
             file_path: path,
             file_name: file.name
         });
+        if (evidenceError) {
+            console.error(evidenceError);
+        }
     }
     return null;
 }
