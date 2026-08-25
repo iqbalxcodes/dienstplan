@@ -31,6 +31,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     fillRoleSelect();
     initMap();
+    setTimeout(() => map?.invalidateSize(), 200);
+    window.addEventListener("resize", () => map?.invalidateSize());
     void refresh();
 
     document.getElementById("attBtn")!.addEventListener("click", onMainButton);

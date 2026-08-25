@@ -4,50 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dienstplan — Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dienstplan.css">
 </head>
 <body>
-
-    <div id="loginOverlay" class="plan-modal-backdrop">
-        <div class="plan-modal auth-card">
-
-            <h3>Dienstplan Login</h3>
-
-            <label>Email</label>
-            <input type="email" id="authEmail" autocomplete="username">
-
-            <label>Password</label>
-            <div class="auth-pass-row">
-                <input type="password" id="authPassword" autocomplete="current-password">
-                <button type="button" class="auth-eye" id="authEyeBtn" title="Show / hide password">&#128065;</button>
-            </div>
-
-            <div class="auth-actions-row">
-                <label class="auth-check">
-                    <input type="checkbox" id="authRemember" checked>
-                    <span>Remember me on this device</span>
-                </label>
-                <button class="primary" id="authLoginBtn">Log in</button>
-            </div>
-
-            <div id="authError" class="auth-error" style="display:none;"></div>
-
-            <p class="auth-hint">No account yet? Please ask your admin / boss.</p>
-            <p class="auth-link"><a href="#" id="forgotToggle">Forgot password?</a></p>
-
-            <div id="forgotSection" style="display:none;">
-                <hr>
-                <label>Email for the recovery link</label>
-                <div class="auth-forgot-row">
-                    <input type="email" id="forgotEmail" autocomplete="email">
-                    <button type="button" id="forgotResetBtn">Reset</button>
-                </div>
-                <p class="auth-hint" id="forgotMsg"></p>
-            </div>
-
-        </div>
-    </div>
 
     <h1 id="orgNameLabel">Loading…</h1>
     <div id="pageNavigation" data-page="dashboard"></div>
@@ -60,106 +21,52 @@
             <div class="header-clock"><span id="clock"></span></div>
         </div>
 
-        <div id="toolbar">
-            <div id="normalToolbar">
-                <button class="auth-required" onclick="openCheckInModal()">✅ Check In</button>
-                <button class="auth-required" onclick="openCheckOutModal()">⏹ Check Out</button>
-            </div>
-        </div>
+        <div class="dash-stack">
 
-        <h3>My Recent Entries</h3>
-        <div id="myEntriesList"></div>
-
-        <!-- ponytail: lokasi/kehadiran belum didetailkan, placeholder dulu -->
-        <p style="color:#888;">Location check (only allow check-in on-site) — coming soon.</p>
-
-    </div>
-
-    <div id="checkInModal" class="plan-modal-backdrop" style="display:none;">
-        <div class="plan-modal">
-            <h3>Check In</h3>
-            <label>Note (optional — e.g. if you're checking in late)</label>
-            <textarea id="checkInNote" placeholder="e.g. traffic, arrived 10 min late"></textarea>
-            <div class="plan-modal-footer">
-                <button onclick="closeModal('checkInModal')">Cancel</button>
-                <button class="primary" onclick="submitCheckIn()">Submit</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="checkOutModal" class="plan-modal-backdrop" style="display:none;">
-        <div class="plan-modal">
-            <h3>Check Out</h3>
-            <label>Note (optional — e.g. if you forgot to check in earlier)</label>
-            <textarea id="checkOutNote" placeholder="e.g. forgot to check in, started around 9am"></textarea>
-            <div class="plan-modal-footer">
-                <button onclick="closeModal('checkOutModal')">Cancel</button>
-                <button class="primary" onclick="submitCheckOut()">Submit</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="complaintModal" class="plan-modal-backdrop" style="display:none;">
-        <div class="plan-modal">
-            <h3>File Complaint</h3>
-            <input type="hidden" id="complaintEntryId">
-            <label>What's wrong with this entry?</label>
-            <textarea id="complaintMessage" placeholder="e.g. my check-out was edited to an earlier time"></textarea>
-            <label>Evidence (optional — photo/screenshot/PDF)</label>
-            <input type="file" id="complaintEvidence" multiple accept="image/*,.pdf">
-            <div class="plan-modal-footer">
-                <button onclick="closeModal('complaintModal')">Cancel</button>
-                <button class="primary" onclick="submitComplaintForm()">Submit</button>
-            </div>
-        </div>
-    </div>
-
-    <h1 id="orgNameLabel">Loading…</h1>
-    <div id="pageNavigation" data-page="dashboard"></div>
-
-    <div class="dash-cards">
-
-        <!-- CARD 1: My Shift -->
-        <section class="detail-card dash-card">
-            <h3>My Shift</h3>
-            <div id="shiftStrip" class="shift-strip">
-                <p class="plan-entry-meta" style="padding:0 12px;">Loading…</p>
-            </div>
-        </section>
-
-        <!-- CARD 2: Attendance -->
-        <section class="detail-card dash-card">
-            <h3 id="attTitle">Check In</h3>
-            <p id="attSub" class="plan-entry-meta">Locating you…</p>
-
-            <div id="map" class="att-map"></div>
-
-            <div class="att-info">
-                <div>
-                    <span class="plan-entry-meta">Role</span>
-                    <select id="attRole" disabled></select>
+            <!-- CARD: My Shift -->
+            <section class="dash-section">
+                <h3>My Shift</h3>
+                <div id="shiftStrip" class="shift-strip">
+                    <p class="plan-entry-meta" style="margin:0;">Loading…</p>
                 </div>
-                <div>
-                    <span class="plan-entry-meta">Scheduled</span>
-                    <strong id="attHours">–</strong>
+            </section>
+
+            <!-- CARD: Attendance -->
+            <section class="dash-section">
+                <h3 id="attTitle">Check In</h3>
+                <p id="attSub" class="plan-entry-meta" style="margin-top:2px;">Locating you…</p>
+
+                <div id="map" class="att-map"></div>
+
+                <div class="att-info">
+                    <div>
+                        <span class="plan-entry-meta">Role</span>
+                        <select id="attRole" disabled></select>
+                    </div>
+                    <div>
+                        <span class="plan-entry-meta">Scheduled</span>
+                        <strong id="attHours">–</strong>
+                    </div>
+                    <div>
+                        <span class="plan-entry-meta">Elapsed</span>
+                        <strong id="attTimer">00:00:00</strong>
+                    </div>
                 </div>
-                <div>
-                    <span class="plan-entry-meta">Elapsed</span>
-                    <strong id="attTimer">00:00:00</strong>
-                </div>
-            </div>
 
-            <label class="att-label" for="attComment">Comment (optional)</label>
-            <textarea id="attComment" rows="2" placeholder="e.g. forgot to check in earlier…"></textarea>
+                <label class="att-label" for="attComment">Comment (optional)</label>
+                <textarea id="attComment" rows="2"
+                    placeholder="e.g. forgot to check in earlier…"></textarea>
 
-            <button id="attBtn" class="att-btn">Check In</button>
-        </section>
+                <button id="attBtn" class="att-btn">Check In</button>
+            </section>
 
-        <!-- CARD 3: History -->
-        <section class="detail-card dash-card">
-            <h3>Recent Entries</h3>
-            <div id="myEntriesList"></div>
-        </section>
+            <!-- CARD: History -->
+            <section class="dash-section">
+                <h3>Recent Entries</h3>
+                <div id="myEntriesList"></div>
+            </section>
+
+        </div>
 
     </div>
 
@@ -170,19 +77,13 @@
         <div id="paginationNav"></div>
     </div>
 
-    <div id="statusBar">
-        <div id="userArea"></div>
-        <div id="contextArea"></div>
-        <div id="paginationInfo"></div>
-        <div id="paginationNav"></div>
-    </div>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="importmap">
     { "imports": { "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2" } }
     </script>
     <script type="module" src="dist/dienstplan.js"></script>
     <script type="module" src="dist/panels.js"></script>
+    <script type="module" src="dist/dashboard.js"></script>
 
 </body>
 </html>
