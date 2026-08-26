@@ -7,6 +7,7 @@
 // Also owns the centered login card ("remember me" +
 // password recovery with SVG eye toggle) and role-based
 // visibility gating.
+// Roles: employee < manager < admin (technical/IT)
 // ======================================================
 import { supabaseClient } from "./supabaseClient.js";
 export let currentOrg = null;
@@ -20,6 +21,17 @@ export function bootstrapAuth() {
 }
 const REMEMBER_KEY = "dienstplan_remember";
 const TAB_ALIVE_KEY = "dienstplan_tab_alive";
+// ======================================================
+// Role helpers
+// ======================================================
+// business level: manager OR admin (admin inherits everything)
+export function isManager() {
+    return currentMembership?.role === "manager" || currentMembership?.role === "admin";
+}
+// technical level: admin only
+export function isAdmin() {
+    return currentMembership?.role === "admin";
+}
 export async function initAuthContext() {
     // "Don't remember me": if the tab-sentinel is gone, every
     // browser window was closed -> wipe the stored session.
@@ -79,9 +91,6 @@ export async function initAuthContext() {
 }
 export function isLoggedIn() {
     return currentMembership !== null;
-}
-export function isManager() {
-    return currentMembership?.role === "owner" || currentMembership?.role === "manager";
 }
 export function hasRole(...roles) {
     return currentMembership !== null && roles.includes(currentMembership.role);

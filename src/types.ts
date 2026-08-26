@@ -5,7 +5,7 @@
 // app can stay strongly typed.
 // ======================================================
 
-export type MembershipRole = "owner" | "manager" | "employee";
+export type MembershipRole = "employee" | "manager" | "admin";
 
 export interface Organization {
     id: string;
@@ -17,11 +17,23 @@ export interface Organization {
 }
 
 export interface OrganizationSettings {
-    night_shift_enabled?: boolean;   // show/hide Nachtdienst handling in the UI
-    half_day_mode?: boolean;         // optional AM/PM split, off by default (see roomRack.js heritage)
+    night_shift_enabled?: boolean;
+    half_day_mode?: boolean;
     default_break_minutes?: number;
+
+    // location & attendance
     workplace_lat?: number;
     workplace_lng?: number;
+    checkin_radius_m?: number;
+    checkin_strict?: "off" | "warn" | "enforce";
+
+    // staff role labels shown in dashboard dropdown
+    role_labels?: string[];
+
+    // scheduling rules
+    leave_cutoff_days?: number;
+    shift_min_hours?: number;
+    shift_max_hours?: number;
 }
 
 export interface Membership {
