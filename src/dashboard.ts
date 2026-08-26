@@ -15,7 +15,45 @@ import type { Shift, TimeEntry } from "./types.js";
 
 declare const L: any;
 
-// fallback only — the real list comes from Admin Settings
+// ======================================================
+// Audit trail writer — inlined (not imported) so this
+// module has zero external dependencies for logging.
+// ======================================================
+
+async function logActivity(
+    action: string,
+    summary: string,
+    details: Record<string, unknown> = {},
+    entityType?: string,
+    entityId?: string
+): Promise<void> {
+
+    if(!currentOrg || !currentMembership){
+        console.warn("logActivity skipped \u2014 no active session context");
+        return;
+    }
+
+    const { error } = await supabaseClient.from("activity_log").insert({
+        organization_id: currentOrg.id,
+        actor_membership_id: currentMembership.id,
+        action,
+        entity_type: entityType ?? null,
+        entity_id: entityId ?? null,
+        summary,
+        details: {
+            actor_role: currentMembership.role,
+            ...details
+        }
+    });
+
+    if(error){
+        console.error("activity_log insert failed:", error);
+    }
+
+}
+
+// ======================================================
+
 const DEFAULT_ROLES = ["Service crew", "Kitchen", "Bar", "Cashier", "Runner"];
 
 let todayShift: Shift | null = null;
@@ -28,12 +66,7 @@ let workMarker: any = null;
 let timerHandle: number | undefined;
 let geoWatchId: number | null = null;
 
-// remembers where the camera was last fitted, so small GPS
-// wiggles don't make the map dance on every update
 let lastFitPos: [number, number] | null = null;
-
-
-// ---- settings readers (with sane defaults) ----
 
 function nearMeters(): number {
     return currentOrg?.settings?.checkin_radius_m ?? 150;
@@ -47,13 +80,11 @@ function roleLabels(): string[] {
     return currentOrg?.settings?.role_labels ?? DEFAULT_ROLES;
 }
 
-
 document.addEventListener("DOMContentLoaded", async () => {
 
     const loggedIn = await authReady;
 
     if(!loggedIn || !currentOrg || !currentMembership){
-        // not authenticated: leave NOTHING behind for DOM tamperers
         document.getElementById("shiftStrip")!.innerHTML = "";
         document.getElementById("myEntriesList")!.innerHTML = "";
         document.getElementById("attSub")!.textContent =
@@ -91,8 +122,6 @@ async function refresh(): Promise<void> {
     renderAttendance();
 }
 
-// ---------------- data ----------------
-
 async function loadUpcomingShifts(): Promise<void> {
 
     const todayIso = formatDateISO(new Date());
@@ -128,8 +157,6 @@ async function loadOpenEntry(): Promise<void> {
 
 }
 
-// ---------------- card 1: shift strip ----------------
-
 const DOW = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
 const MONTH_ABBR = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 
@@ -154,26 +181,21 @@ function renderShiftStrip(): void {
 
 }
 
-// ---------------- card 2: attendance & live map ----------------
-
 function initMap(): void {
 
     map = L.map("map", {
-        zoomControl:     false,   // no manual +/- buttons
-        scrollWheelZoom: false,   // no wheel zooming
+        zoomControl:     false,
+        scrollWheelZoom: false,
         doubleClickZoom: false,
         touchZoom:       false,
         boxZoom:         false,
         keyboard:        false
-        // dragging stays enabled for peeking around,
-        // but every location update snaps the view back
     });
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap"
     }).addTo(map);
 
-    // start centered on workplace when known, else a neutral view
     const wp = workplacePos();
     if(wp){ map.setView(wp, 15); } else { map.setView([-6.2, 106.816666], 13); }
 
@@ -184,22 +206,18 @@ function initMap(): void {
         return;
     }
 
-    // continuous tracking: userPos stays fresh while the tab is open
     geoWatchId = navigator.geolocation.watchPosition(
         onPositionUpdate,
-
         () => {
             document.getElementById("attSub")!.textContent =
                 "Location permission denied \u2014 showing workplace only.";
             drawWorkPinOnly();
         },
-
         { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
     );
 
 }
 
-// Called on EVERY location fix (first one and subsequent moves)
 function onPositionUpdate(pos: GeolocationPosition): void {
 
     const isFirstFix = userPos === null;
@@ -207,8 +225,8 @@ function onPositionUpdate(pos: GeolocationPosition): void {
     userPos = [pos.coords.latitude, pos.coords.longitude];
 
     updateUserPin();
-    autoFitView(isFirstFix);   // force a refit on the very first fix
-    renderAttendance();        // subtitle distance refresh
+    autoFitView(isFirstFix);
+    renderAttendance();
 
 }
 
@@ -217,27 +235,21 @@ function updateUserPin(): void {
     if(!userPos) return;
 
     if(!userMarker){
-        // create once…
         userMarker = L.circleMarker(userPos, {
             radius: 10, color: "#1565c0", fillOpacity: 0.8
         }).addTo(map).bindPopup("You are here");
     } else {
-        // …then just move it smoothly
         userMarker.setLatLng(userPos);
     }
 
 }
 
-// Auto zoom: ALWAYS frame both pins.
-// Near the workplace -> zooms IN tightly.
-// Far away          -> zooms OUT until both are visible.
 function autoFitView(force = false): void {
 
     if(!userPos || !map) return;
 
     const wp = workplacePos();
 
-    // no workplace coordinates configured -> just follow the user
     if(!wp){
         updateUserPin();
         map.setView(userPos, 16, { animate: true });
@@ -245,15 +257,12 @@ function autoFitView(force = false): void {
         return;
     }
 
-    // make sure the workplace pin always exists
     if(!workMarker){
         workMarker = L.marker(wp).addTo(map).bindPopup("Workplace");
     }
 
     updateUserPin();
 
-    // refit only when the user actually moved far enough
-    // (prevents constant re-zooming from tiny GPS jitter)
     const movedFar = force
         || !lastFitPos
         || haversineMeters(lastFitPos, userPos) > 50;
@@ -281,7 +290,6 @@ function workplacePos(): [number, number] | null {
     return [s.workplace_lat, s.workplace_lng];
 }
 
-
 function renderAttendance(): void {
 
     const title  = document.getElementById("attTitle")!;
@@ -292,19 +300,17 @@ function renderAttendance(): void {
 
     const checkedIn = openEntry !== null;
 
-    // ---- title & scheduled row ----
     if(todayShift){
         title.textContent = checkedIn ? "Check Out" : "Check In";
         hrsEl.textContent = `${todayShift.start_time.slice(0,5)}\u2013${todayShift.end_time.slice(0,5)}`;
         roleEl.value = todayShift.role_label ?? "";
-        if(roleEl.selectedIndex === -1) roleEl.selectedIndex = 0;   // unknown label -> first option
+        if(roleEl.selectedIndex === -1) roleEl.selectedIndex = 0;
     } else {
         title.textContent = checkedIn ? "Extra Shift \u2014 Check Out" : "Working extra shift today?";
         hrsEl.textContent = "\u2014";
     }
-    roleEl.disabled = checkedIn;   // role is frozen once checked in
+    roleEl.disabled = checkedIn;
 
-    // ---- subtitle ----
     const wp = workplacePos();
     const dist = (wp && userPos) ? Math.round(haversineMeters(userPos, wp)) : null;
     sub.textContent = checkedIn
@@ -315,7 +321,6 @@ function renderAttendance(): void {
                 : `Not at workplace (~${dist} m away)` )
             : "");
 
-    // ---- button ----
     btn.textContent = checkedIn ? "Check Out" : "Check In";
     btn.classList.toggle("checkout", checkedIn);
 
@@ -349,9 +354,7 @@ function startOrStopTimer(): void {
 }
 
 async function onMainButton(): Promise<void> {
-
     if(openEntry){ await doCheckOut(); } else { await doCheckIn(); }
-
 }
 
 async function doCheckIn(): Promise<void> {
@@ -359,7 +362,6 @@ async function doCheckIn(): Promise<void> {
     const comment = (document.getElementById("attComment") as HTMLTextAreaElement).value.trim() || null;
     const roleSel = (document.getElementById("attRole") as HTMLSelectElement).value;
 
-    // strict mode: block check-in when outside the allowed radius
     const wp   = workplacePos();
     const dist = (wp && userPos) ? haversineMeters(userPos, wp) : null;
 
@@ -371,22 +373,34 @@ async function doCheckIn(): Promise<void> {
 
     const now = new Date().toISOString();
 
-    const { error } = await supabaseClient.from("time_entries").insert({
-        organization_id: currentOrg!.id,
-        membership_id: currentMembership!.id,
-        shift_id: todayShift?.id ?? null,
-        role_label: todayShift?.role_label ?? roleSel,
-        clock_in: now,
-        original_clock_in: now,
-        source: "employee",
-        status: "pending",
-        employee_note: comment
-    });
+    const { data: entry, error } = await supabaseClient
+        .from("time_entries")
+        .insert({
+            organization_id: currentOrg!.id,
+            membership_id: currentMembership!.id,
+            shift_id: todayShift?.id ?? null,
+            role_label: todayShift?.role_label ?? roleSel,
+            clock_in: now,
+            original_clock_in: now,
+            source: "employee",
+            status: "pending",
+            employee_note: comment
+        })
+        .select("id")
+        .single();
 
     if(error){
         alert(error.message);
         return;
     }
+
+    void logActivity(
+        "attendance.check_in",
+        `Checked in${wp ? " at workplace" : ""}`,
+        { workplace: currentOrg?.name, distance_m: dist ? Math.round(dist) : null },
+        "time_entry",
+        entry.id
+    );
 
     (document.getElementById("attComment") as HTMLTextAreaElement).value = "";
     await refresh();
@@ -396,8 +410,11 @@ async function doCheckIn(): Promise<void> {
 async function doCheckOut(): Promise<void> {
 
     const comment = (document.getElementById("attComment") as HTMLTextAreaElement).value.trim();
-
     const now = new Date().toISOString();
+
+    const elapsed = openEntry?.clock_in
+        ? formatElapsed(Date.now() - Date.parse(openEntry.clock_in))
+        : "unknown duration";
 
     const { error } = await supabaseClient
         .from("time_entries")
@@ -416,11 +433,23 @@ async function doCheckOut(): Promise<void> {
         return;
     }
 
+    void logActivity(
+        "attendance.check_out",
+        `Checked out after ${elapsed}`,
+        { workplace: currentOrg?.name, elapsed }
+    );
+
     await refresh();
 
 }
 
-// ---------------- utils ----------------
+function formatElapsed(ms: number): string {
+    const sec = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
 
 function haversineMeters(a: [number,number], b: [number,number]): number {
     const R = 6371000;

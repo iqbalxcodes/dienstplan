@@ -18,7 +18,30 @@ import { currentOrg, currentMembership, isManager } from "./auth.js";
 import { LEAVE_TYPE_LABELS } from "./leaveRequests.js";
 import { fetchComplaintEvidence, resolveComplaint } from "./complaints.js";
 import { findShiftConflicts } from "./shiftAvailability.js";
-import { logActivity } from "./activityLog.js";
+// ======================================================
+// Audit trail writer — inlined (not imported).
+// ======================================================
+async function logActivity(action, summary, details = {}, entityType, entityId) {
+    if (!currentOrg || !currentMembership) {
+        console.warn("logActivity skipped \u2014 no active session context");
+        return;
+    }
+    const { error } = await supabaseClient.from("activity_log").insert({
+        organization_id: currentOrg.id,
+        actor_membership_id: currentMembership.id,
+        action,
+        entity_type: entityType ?? null,
+        entity_id: entityId ?? null,
+        summary,
+        details: {
+            actor_role: currentMembership.role,
+            ...details
+        }
+    });
+    if (error) {
+        console.error("activity_log insert failed:", error);
+    }
+}
 export function showPanel(panel) {
     ["rack", "hours", "approvals", "complaints", "leave"].forEach(p => {
         const el = document.getElementById(`${p}Panel`);

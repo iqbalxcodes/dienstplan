@@ -169,3 +169,16 @@ export interface HoursSummary {
     istHours: number;         // actual approved hours worked
     ueberstunden: number;     // istHours - sollHours (can be negative = Minusstunden)
 }
+
+export interface ActivityLog {
+    id: string;
+    organization_id: string;
+    actor_membership_id: string | null;
+    action: string;
+    entity_type: string | null;
+    entity_id: string | null;
+    summary: string;
+    details: Record<string, any>;
+    created_at: string;
+    memberships?: { full_name: string } | null;
+}

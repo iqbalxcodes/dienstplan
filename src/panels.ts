@@ -20,9 +20,44 @@ import type { TimeEntry, Complaint, LeaveRequest, ShiftChangeRequest } from "./t
 import { LEAVE_TYPE_LABELS } from "./leaveRequests.js";
 import { fetchComplaintEvidence, resolveComplaint } from "./complaints.js";
 import { findShiftConflicts } from "./shiftAvailability.js";
-import { logActivity } from "./activityLog.js";
 
 type PanelName = "rack" | "hours" | "approvals" | "complaints" | "leave";
+
+// ======================================================
+// Audit trail writer — inlined (not imported).
+// ======================================================
+
+async function logActivity(
+    action: string,
+    summary: string,
+    details: Record<string, unknown> = {},
+    entityType?: string,
+    entityId?: string
+): Promise<void> {
+
+    if(!currentOrg || !currentMembership){
+        console.warn("logActivity skipped \u2014 no active session context");
+        return;
+    }
+
+    const { error } = await supabaseClient.from("activity_log").insert({
+        organization_id: currentOrg.id,
+        actor_membership_id: currentMembership.id,
+        action,
+        entity_type: entityType ?? null,
+        entity_id: entityId ?? null,
+        summary,
+        details: {
+            actor_role: currentMembership.role,
+            ...details
+        }
+    });
+
+    if(error){
+        console.error("activity_log insert failed:", error);
+    }
+
+}
 
 export function showPanel(panel: PanelName): void {
 
