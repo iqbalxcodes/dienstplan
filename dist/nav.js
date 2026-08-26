@@ -1,8 +1,8 @@
 // ======================================================
 // nav.ts
-// Global Dienstplan navigation (same pattern as Hotel PMS's
-// navigation.js, adapted for the schedule/dashboard/hours/
-// admin pages and role-gated tabs).
+// Global Dienstplan navigation. Role-gated tabs:
+//   - Manager tab : manager + admin roles
+//   - Admin tab   : admin (technical) role only
 // ======================================================
 const DIENSTPLAN_NAVIGATION = [
     {
@@ -21,18 +21,24 @@ const DIENSTPLAN_NAVIGATION = [
         page: "hours"
     },
     {
+        label: "Manager",
+        href: "manager.html",
+        page: "manager",
+        roles: ["manager", "admin"]
+    },
+    {
         label: "Admin",
         href: "admin.html",
         page: "admin",
-        roles: ["manager", "owner"]
+        roles: ["admin"]
     }
 ];
 // ======================================================
 // renderNavigation
 // role = currentMembership?.role ?? null (passed in from
-// dienstplan.ts after initAuthContext() resolves). Tabs with
-// a `roles` allowlist are skipped entirely if role isn't in
-// it — logged-out (role === null) never sees them either.
+// dienstplan.ts after bootstrapAuth() resolves). Tabs with a
+// `roles` allowlist are skipped entirely if the role isn't in
+// it — logged-out users never see gated tabs either.
 // ======================================================
 export function renderNavigation(role = null) {
     const container = document.getElementById("pageNavigation");
