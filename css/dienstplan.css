@@ -427,6 +427,7 @@
     flex-direction: column;
     gap: 16px;
     padding: 2px 2px 10px;
+    min-height: 0;
 }
 
 /* Section box: thin gray border with the h3 sitting ON the
@@ -437,6 +438,7 @@
     border: 1px solid #ddd;
     border-radius: 10px;
     padding: 18px 14px 12px;
+    min-height: 0;
 }
 
 .dash-section > h3 {
@@ -740,6 +742,7 @@
 @media (max-width: 700px) {
     :root { --rack-label-width: 128px; }
     .rack-page .header-menu { flex-wrap: wrap; }
+    h1 { margin: 6px 12px 4px; font-size: 18px; }
 }
 
 .table-container.rack-page { margin-top: 0; }

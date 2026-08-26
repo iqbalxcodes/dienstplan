@@ -71,6 +71,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.addEventListener("resize", () => map?.invalidateSize());
     void refresh();
     document.getElementById("attBtn").addEventListener("click", onMainButton);
+    // Greeting animation: show "Good Morning/Afternoon/Evening [name]!"
+    // for 3 seconds, then revert to org name.
+    showGreeting();
 });
 function fillRoleSelect() {
     const sel = document.getElementById("attRole");
@@ -361,6 +364,25 @@ function addDays(d, n) {
 function parseDateOnly(s) {
     const [y, m, d] = s.split("-").map(Number);
     return new Date(y, m - 1, d);
+}
+function showGreeting() {
+    const el = document.getElementById("orgNameLabel");
+    if (!el || !currentMembership)
+        return;
+    const hour = new Date().getHours();
+    let greeting;
+    if (hour < 12)
+        greeting = "Good Morning";
+    else if (hour < 18)
+        greeting = "Good Afternoon";
+    else
+        greeting = "Good Evening";
+    const firstName = currentMembership.full_name.split(" ")[0];
+    const orgName = currentOrg?.name ?? "Dienstplan";
+    el.textContent = `${greeting}, ${firstName}!`;
+    setTimeout(() => {
+        el.textContent = `${orgName} \u2014 Dienstplan`;
+    }, 3000);
 }
 function escapeHtml(s) {
     const div = document.createElement("div");

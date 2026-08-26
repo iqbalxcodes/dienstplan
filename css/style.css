@@ -24,7 +24,8 @@ body {
 
 h1 {
     flex: none;
-    margin: 12px 16px 8px;
+    margin: 8px 16px 4px;
+    font-size: 20px;
 }
 
 #addReservationPanel {
@@ -100,6 +101,8 @@ h1 {
     padding: 12px 16px;
     background-color: #fff;
     box-sizing: border-box;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 
@@ -243,6 +246,55 @@ h1 {
     width: 110px;
 }
 
+/* ======================================================
+   MANAGER — Add Crew form: uniform inputs, no overflow
+   ====================================================== */
+
+.manager-form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+.manager-form-row > input,
+.manager-form-row > select {
+    flex: 1 1 140px;
+    max-width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.manager-form-row > button {
+    flex: 0 0 auto;
+    border: 1px solid #1565c0;
+    background: #1565c0;
+    color: #fff;
+    border-radius: 6px;
+    padding: 8px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.manager-form-row > button:hover {
+    background: #0d47a1;
+}
+
+@media (max-width: 700px) {
+    .manager-form-row {
+        flex-direction: column;
+    }
+    .manager-form-row > input,
+    .manager-form-row > select,
+    .manager-form-row > button {
+        width: 100%;
+    }
+}
 
 /* ======================================================
    RESPONSIVE CHROME
