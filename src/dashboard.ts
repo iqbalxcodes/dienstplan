@@ -490,7 +490,9 @@ function showGreeting(): void {
     const firstName = currentMembership.full_name.split(" ")[0];
     const orgName = currentOrg?.name ?? "Dienstplan";
 
-    el.textContent = `${greeting}, ${firstName}!`;
+    const hc = document.getElementById("headerClock");
+    el.textContent = orgName;
+    if(hc) hc.textContent = "\u2014 Dienstplan";
 
     setTimeout(() => {
         el.textContent = `${orgName} \u2014 Dienstplan`;

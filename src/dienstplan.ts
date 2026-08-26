@@ -1134,14 +1134,30 @@ export async function refreshPlan(): Promise<void> {
 function startClock(): void {
 
     const clock = document.getElementById("clock");
-    if(!clock) return;
+
+    // Create clock span next to org name dynamically
+    const h1 = document.getElementById("orgNameLabel");
+    if(h1 && !document.getElementById("headerClock")){
+        const span = document.createElement("span");
+        span.id = "headerClock";
+        span.className = "header-clock-text";
+        h1.appendChild(span);
+    }
 
     function updateClock(){
         const now = new Date();
-        clock!.innerText = now.toLocaleString("de-DE", {
-            day: "2-digit", month: "2-digit", year: "numeric",
-            hour: "2-digit", minute: "2-digit", second: "2-digit"
-        });
+        const timeStr = now.toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"});
+        const dateStr = now.toLocaleDateString("de-DE", {day:"2-digit", month:"2-digit", year:"numeric"});
+
+        const hc = document.getElementById("headerClock");
+        if(hc) hc.textContent = `\u00b7 ${dateStr} ${timeStr}`;
+
+        if(clock){
+            clock.innerText = now.toLocaleString("de-DE", {
+                day: "2-digit", month: "2-digit", year: "numeric",
+                hour: "2-digit", minute: "2-digit", second: "2-digit"
+            });
+        }
     }
 
     updateClock();
