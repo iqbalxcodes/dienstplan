@@ -15,13 +15,8 @@
 // ======================================================
 
 import { supabaseClient } from "./supabaseClient.js";
-import { currentOrg, currentMembership, isManager, isLoggedIn, initAuthContext, applyAuthVisibility, renderUserArea } from "./auth.js";
-import {
-    getShiftRange,
-    rangeToShiftFields,
-    findShiftConflicts,
-    type MinuteRange
-} from "./shiftAvailability.js";
+import { currentOrg, currentMembership, isManager, isLoggedIn, bootstrapAuth, applyAuthVisibility, renderUserArea } from "./auth.js";
+import {getShiftRange, rangeToShiftFields, findShiftConflicts, type MinuteRange} from "./shiftAvailability.js";
 import { computeHoursSummary, formatHours } from "./hoursCalculator.js";
 import { renderNavigation } from "./nav.js";
 import { renderApprovalsPanel, renderComplaintsPanel, renderLeavePanel, renderCrewList, renderMyEntries } from "./panels.js";

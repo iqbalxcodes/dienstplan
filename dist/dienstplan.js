@@ -14,7 +14,7 @@
 // BEFORE any conflict check in this file).
 // ======================================================
 import { supabaseClient } from "./supabaseClient.js";
-import { currentOrg, currentMembership, isManager, isLoggedIn, applyAuthVisibility, renderUserArea } from "./auth.js";
+import { currentOrg, currentMembership, isManager, isLoggedIn, bootstrapAuth, applyAuthVisibility, renderUserArea } from "./auth.js";
 import { getShiftRange, rangeToShiftFields, findShiftConflicts } from "./shiftAvailability.js";
 import { computeHoursSummary, formatHours } from "./hoursCalculator.js";
 import { renderNavigation } from "./nav.js";
