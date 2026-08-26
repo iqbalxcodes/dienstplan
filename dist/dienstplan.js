@@ -841,19 +841,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     startClock();
     updatePlanViewModeButtons();
     setupPlanDragAndDrop();
-    const { bootstrapAuth } = await import("./auth.js"); // atau tambah ke import atas file
-    const loggedIn = await bootstrapAuth();
+    const loggedIn = await bootstrapAuth().catch(err => {
+        console.error("bootstrapAuth failed:", err);
+        return false;
+    });
+    // Buang / pasang login card SEBELUM apa pun yang bisa crash,
+    // supaya user tidak pernah terjebak di balik card
     renderOrgLabel();
     renderUserArea();
     renderNavigation(currentMembership?.role ?? null);
     centerPlanOnDate(startOfToday());
-    if (loggedIn) {
-        try {
-            await refreshPlan();
-        }
-        catch (err) {
-            console.error("refreshPlan failed:", err);
-        }
+    if (!loggedIn) {
+        applyAuthVisibility();
+        return;
+    }
+    try {
+        await refreshPlan();
+    }
+    catch (err) {
+        console.error("Dashboard init failed:", err);
     }
     window.addEventListener("resize", debounce(() => {
         const newDayCount = getPlanDayCount();
