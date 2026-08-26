@@ -1222,7 +1222,6 @@ function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
 }
 document.addEventListener("DOMContentLoaded", async () => {
 
-    startClock();
     updatePlanViewModeButtons();
     setupPlanDragAndDrop();
 
@@ -1231,9 +1230,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         return false;
     });
 
-    // Buang / pasang login card SEBELUM apa pun yang bisa crash,
-    // supaya user tidak pernah terjebak di balik card
     renderOrgLabel();
+    startClock();
     showGreeting();
     renderUserArea();
     renderNavigation(currentMembership?.role ?? null);
