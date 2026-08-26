@@ -1,11 +1,13 @@
 // ======================================================
 // dashboard.ts — mobile-first attendance card:
 // shift strip, live map, check-in/out with timer.
+// Reads admin-configurable values (check-in radius, strict
+// mode, staff role labels) from organizations.settings.
 // ======================================================
 import { supabaseClient } from "./supabaseClient.js";
 import { currentOrg, currentMembership, authReady } from "./auth.js";
-const ROLE_OPTIONS = ["Service crew", "Kitchen", "Bar", "Cashier", "Runner"];
-const NEAR_METERS = 150;
+// fallback only — the real list comes from Admin Settings
+const DEFAULT_ROLES = ["Service crew", "Kitchen", "Bar", "Cashier", "Runner"];
 let todayShift = null;
 let upcomingShifts = [];
 let openEntry = null;
@@ -14,6 +16,16 @@ let map = null;
 let userMarker = null;
 let workMarker = null;
 let timerHandle;
+// ---- settings readers (with sane defaults) ----
+function nearMeters() {
+    return currentOrg?.settings?.checkin_radius_m ?? 150;
+}
+function strictMode() {
+    return currentOrg?.settings?.checkin_strict ?? "warn";
+}
+function roleLabels() {
+    return currentOrg?.settings?.role_labels ?? DEFAULT_ROLES;
+}
 document.addEventListener("DOMContentLoaded", async () => {
     const loggedIn = await authReady;
     if (!loggedIn || !currentOrg || !currentMembership) {
@@ -33,7 +45,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 function fillRoleSelect() {
     const sel = document.getElementById("attRole");
-    ROLE_OPTIONS.forEach(r => {
+    sel.innerHTML = "";
+    roleLabels().forEach(r => {
         const o = document.createElement("option");
         o.value = r;
         o.textContent = r;
@@ -74,6 +87,7 @@ async function loadOpenEntry() {
 }
 // ---------------- card 1: shift strip ----------------
 const DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+const MONTH_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 function renderShiftStrip() {
     const wrap = document.getElementById("shiftStrip");
     const todayIso = formatDateISO(new Date());
@@ -85,21 +99,28 @@ function renderShiftStrip() {
         <div class="shift-mini ${s.shift_date === todayIso ? "is-today" : ""}">
             <div class="shift-mini-dow">${DOW[parseDateOnly(s.shift_date).getDay()]}</div>
             <div class="shift-mini-date">${s.shift_date.slice(8)} ${MONTH_ABBR[parseDateOnly(s.shift_date).getMonth()]}</div>
-            <div class="shift-mini-role">${escapeHtml(s.role_label ?? "Service crew")}</div>
-            <div class="shift-mini-time">${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)}</div>
+            <div class="shift-mini-role">${escapeHtml(s.role_label ?? roleLabels()[0])}</div>
+            <div class="shift-mini-time">${s.start_time.slice(0, 5)}\u2013${s.end_time.slice(0, 5)}</div>
         </div>
     `).join("");
 }
-const MONTH_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 // ---------------- card 2: attendance ----------------
 function initMap() {
-    map = L.map("map").setView([-6.2, 106.816666], 13);
+    map = L.map("map");
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap"
     }).addTo(map);
+    // start centered on workplace when known, else a neutral view
+    const wp = workplacePos();
+    if (wp) {
+        map.setView(wp, 15);
+    }
+    else {
+        map.setView([-6.2, 106.816666], 13);
+    }
     if (!navigator.geolocation) {
         document.getElementById("attSub").textContent =
-            "Geolocation not supported — showing workplace.";
+            "Geolocation not supported \u2014 showing workplace.";
         drawWorkPinOnly();
         return;
     }
@@ -110,7 +131,7 @@ function initMap() {
         renderAttendance(); // subtitle depends on distance
     }, () => {
         document.getElementById("attSub").textContent =
-            "Location permission denied — showing workplace only.";
+            "Location permission denied \u2014 showing workplace only.";
         drawWorkPinOnly();
     }, { enableHighAccuracy: true, timeout: 10000 });
 }
@@ -137,18 +158,18 @@ function renderMarkers() {
         map.removeLayer(workMarker);
         workMarker = null;
     }
-    if (userMarker === null && userPos) {
+    if (userPos) {
         userMarker = L.circleMarker(userPos, {
             radius: 10, color: "#1565c0", fillOpacity: .8
         }).addTo(map).bindPopup("You are here");
     }
     const wp = workplacePos();
     const dist = (wp && userPos) ? haversineMeters(userPos, wp) : Infinity;
-    if (wp && dist <= NEAR_METERS) {
+    // workplace pin is only drawn when the user is nearby
+    if (wp && dist <= nearMeters()) {
         workMarker = L.marker(wp).addTo(map).bindPopup("Workplace");
         map.fitBounds(L.latLngBounds([wp, userPos]).pad(0.4));
     }
-    // kalau jauh -> pin tempat kerja sengaja tidak digambar
 }
 function renderAttendance() {
     const title = document.getElementById("attTitle");
@@ -160,21 +181,23 @@ function renderAttendance() {
     // ---- title & scheduled row ----
     if (todayShift) {
         title.textContent = checkedIn ? "Check Out" : "Check In";
-        hrsEl.textContent = `${todayShift.start_time.slice(0, 5)}–${todayShift.end_time.slice(0, 5)}`;
-        roleEl.value = todayShift.role_label ?? "Service crew";
+        hrsEl.textContent = `${todayShift.start_time.slice(0, 5)}\u2013${todayShift.end_time.slice(0, 5)}`;
+        roleEl.value = todayShift.role_label ?? "";
+        if (roleEl.selectedIndex === -1)
+            roleEl.selectedIndex = 0; // unknown label -> first option
     }
     else {
-        title.textContent = checkedIn ? "Extra Shift — Check Out" : "Working extra shift today?";
-        hrsEl.textContent = "—";
+        title.textContent = checkedIn ? "Extra Shift \u2014 Check Out" : "Working extra shift today?";
+        hrsEl.textContent = "\u2014";
     }
-    roleEl.disabled = checkedIn; // role dibekukan saat sudah check-in
+    roleEl.disabled = checkedIn; // role is frozen once checked in
     // ---- subtitle ----
     const wp = workplacePos();
     const dist = (wp && userPos) ? Math.round(haversineMeters(userPos, wp)) : null;
     sub.textContent = checkedIn
         ? `Since ${new Date(openEntry.clock_in).toLocaleTimeString("de-DE")}`
         : (dist !== null
-            ? (dist <= NEAR_METERS
+            ? (dist <= nearMeters()
                 ? `At workplace (~${dist} m away)`
                 : `Not at workplace (~${dist} m away)`)
             : "");
@@ -215,6 +238,14 @@ async function onMainButton() {
 async function doCheckIn() {
     const comment = document.getElementById("attComment").value.trim() || null;
     const roleSel = document.getElementById("attRole").value;
+    // strict mode: block check-in when outside the allowed radius
+    const wp = workplacePos();
+    const dist = (wp && userPos) ? haversineMeters(userPos, wp) : null;
+    if (strictMode() === "enforce"
+        && wp && dist !== null && dist > nearMeters()) {
+        alert(`Check-in blocked \u2014 you are ~${Math.round(dist)} m from the workplace.`);
+        return;
+    }
     const now = new Date().toISOString();
     const { error } = await supabaseClient.from("time_entries").insert({
         organization_id: currentOrg.id,
@@ -259,7 +290,7 @@ function haversineMeters(a, b) {
     const R = 6371000;
     const dLat = (b[0] - a[0]) * Math.PI / 180;
     const dLon = (b[1] - a[1]) * Math.PI / 180;
-    const la1 = a[0] * Math.PI / 180, la2 = b[0] * Math.PI / 180;
+    const la1 = a[0] * Math.PI / 180, la2 = b[1] * Math.PI / 180;
     const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLon / 2) ** 2;
     return 2 * R * Math.asin(Math.sqrt(h));
 }
