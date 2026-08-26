@@ -3,6 +3,9 @@
 // shift strip, live map, check-in/out with timer.
 // Reads admin-configurable values (check-in radius, strict
 // mode, staff role labels) from organizations.settings.
+// Location tracking uses navigator.geolocation.watchPosition:
+// the map auto-pans / auto-zooms to keep the user's pin in
+// view — no manual zoom controls.
 // ======================================================
 import { supabaseClient } from "./supabaseClient.js";
 import { currentOrg, currentMembership, authReady } from "./auth.js";
@@ -16,6 +19,7 @@ let map = null;
 let userMarker = null;
 let workMarker = null;
 let timerHandle;
+let geoWatchId = null;
 // ---- settings readers (with sane defaults) ----
 function nearMeters() {
     return currentOrg?.settings?.checkin_radius_m ?? 150;
@@ -104,9 +108,18 @@ function renderShiftStrip() {
         </div>
     `).join("");
 }
-// ---------------- card 2: attendance ----------------
+// ---------------- card 2: attendance & live map ----------------
 function initMap() {
-    map = L.map("map");
+    map = L.map("map", {
+        zoomControl: false, // no manual +/- buttons
+        scrollWheelZoom: false, // no wheel zooming
+        doubleClickZoom: false,
+        touchZoom: false,
+        boxZoom: false,
+        keyboard: false
+        // dragging stays enabled for peeking around,
+        // but every location update snaps the view back
+    });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap"
     }).addTo(map);
@@ -124,16 +137,56 @@ function initMap() {
         drawWorkPinOnly();
         return;
     }
-    navigator.geolocation.getCurrentPosition(pos => {
-        userPos = [pos.coords.latitude, pos.coords.longitude];
-        map.setView(userPos, 16);
-        renderMarkers();
-        renderAttendance(); // subtitle depends on distance
-    }, () => {
+    // continuous tracking: userPos stays fresh while the tab is open
+    geoWatchId = navigator.geolocation.watchPosition(onPositionUpdate, () => {
         document.getElementById("attSub").textContent =
             "Location permission denied \u2014 showing workplace only.";
         drawWorkPinOnly();
-    }, { enableHighAccuracy: true, timeout: 10000 });
+    }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 });
+}
+// Called on EVERY location fix (first one and subsequent moves)
+function onPositionUpdate(pos) {
+    userPos = [pos.coords.latitude, pos.coords.longitude];
+    updateUserPin();
+    autoFitView();
+    renderAttendance(); // subtitle distance refresh
+}
+function updateUserPin() {
+    if (!userPos)
+        return;
+    if (!userMarker) {
+        // create once…
+        userMarker = L.circleMarker(userPos, {
+            radius: 10, color: "#1565c0", fillOpacity: 0.8
+        }).addTo(map).bindPopup("You are here");
+    }
+    else {
+        // …then just move it smoothly
+        userMarker.setLatLng(userPos);
+    }
+}
+// Auto zoom: frame BOTH pins when near the workplace,
+// otherwise center on the user at street level.
+function autoFitView() {
+    if (!userPos || !map)
+        return;
+    const wp = workplacePos();
+    const dist = wp ? haversineMeters(userPos, wp) : Infinity;
+    if (wp && dist <= nearMeters()) {
+        if (!workMarker) {
+            workMarker = L.marker(wp).addTo(map).bindPopup("Workplace");
+        }
+        // zoom automatically so both pins stay inside the card
+        map.fitBounds(L.latLngBounds([wp, userPos]).pad(0.4), { animate: true });
+    }
+    else {
+        // far away: workplace pin hidden, camera follows the user
+        if (workMarker) {
+            map.removeLayer(workMarker);
+            workMarker = null;
+        }
+        map.setView(userPos, 16, { animate: true });
+    }
 }
 function drawWorkPinOnly() {
     const c = workplacePos();
@@ -147,29 +200,6 @@ function workplacePos() {
     if (!s?.workplace_lat || !s?.workplace_lng)
         return null;
     return [s.workplace_lat, s.workplace_lng];
-}
-function renderMarkers() {
-    // clear old pins
-    if (userMarker) {
-        map.removeLayer(userMarker);
-        userMarker = null;
-    }
-    if (workMarker) {
-        map.removeLayer(workMarker);
-        workMarker = null;
-    }
-    if (userPos) {
-        userMarker = L.circleMarker(userPos, {
-            radius: 10, color: "#1565c0", fillOpacity: .8
-        }).addTo(map).bindPopup("You are here");
-    }
-    const wp = workplacePos();
-    const dist = (wp && userPos) ? haversineMeters(userPos, wp) : Infinity;
-    // workplace pin is only drawn when the user is nearby
-    if (wp && dist <= nearMeters()) {
-        workMarker = L.marker(wp).addTo(map).bindPopup("Workplace");
-        map.fitBounds(L.latLngBounds([wp, userPos]).pad(0.4));
-    }
 }
 function renderAttendance() {
     const title = document.getElementById("attTitle");
