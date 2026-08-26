@@ -140,46 +140,7 @@
 .rack-header-cell.is-today { background: #fff3e0; }
 .rack-header-cell.is-today .rack-header-date { color: #e65100; }
 
-/* ======================================================
-   DASHBOARD — sections inside the parent Dashboard card
-   ====================================================== */
 
-.dash-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding: 2px 2px 10px;
-}
-
-/* Section box: thin gray border, with the h3 sitting ON
-   the border like a <fieldset> legend — the white padding
-   behind the title hides the border under the text */
-.dash-section {
-    position: relative;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    padding: 18px 14px 12px;
-}
-
-.dash-section > h3 {
-    position: absolute;
-    top: -9px;              /* half-outside the border */
-    left: 14px;
-    margin: 0;
-    padding: 0 8px;         /* white cover over the border */
-    background: #fff;
-    font-size: 13px;
-    color: #444;
-    line-height: 1.2;
-}
-
-/* Comment box always spans the full card width */
-#attComment {
-    width: 100%;
-    box-sizing: border-box;
-    margin-top: 4px;
-    resize: vertical;
-}
 /* ======================================================
    STAFF ROW
    ====================================================== */
@@ -458,6 +419,153 @@
 
 
 /* ======================================================
+   DASHBOARD — sections inside the parent Dashboard card
+   ====================================================== */
+
+.dash-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 2px 2px 10px;
+}
+
+/* Section box: thin gray border with the h3 sitting ON the
+   border like a <fieldset> legend — the white padding behind
+   the title hides the border under the text */
+.dash-section {
+    position: relative;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 18px 14px 12px;
+}
+
+.dash-section > h3 {
+    position: absolute;
+    top: -9px;              /* half-outside the border */
+    left: 14px;
+    margin: 0;
+    padding: 0 8px;         /* white cover over the border */
+    background: #fff;
+    font-size: 13px;
+    color: #444;
+    line-height: 1.2;
+}
+
+/* Comment box always spans the full card width */
+#attComment {
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 4px;
+    resize: vertical;
+}
+
+
+/* ======================================================
+   DASHBOARD — Card 1: horizontally scrollable shift strip
+   ====================================================== */
+
+.shift-strip {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+}
+
+.shift-mini {
+    flex: none;
+    min-width: 118px;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: #fafafa;
+}
+
+.shift-mini.is-today {
+    border-color: #1565c0;
+    background: #e3f2fd;
+}
+
+.shift-mini-dow  { font-size: 11px; color: #888; font-weight: 700; }
+.shift-mini-date { font-size: 11px; color: #aaa; margin-bottom: 6px; }
+.shift-mini-role { font-size: 13px; font-weight: 600; color: #333; }
+.shift-mini-time { font-size: 12px; color: #555; }
+
+
+/* ======================================================
+   DASHBOARD — Card 2: map & attendance controls
+   ====================================================== */
+
+.att-map {
+    height: 210px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    margin-top: 8px;
+    z-index: 1;             /* stay below the sticky page header */
+}
+
+.att-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.att-info > div { display: flex; flex-direction: column; gap: 2px; }
+.att-info strong { font-size: 14px; }
+
+.att-info select {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 13px;
+}
+
+.att-label { display: block; font-size: 12px; color: #777; margin-top: 12px; }
+
+.att-btn {
+    width: 100%;
+    margin-top: 12px;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    border-radius: 10px;
+    border: none;
+    background: #2e7d32;
+    color: #fff;
+    cursor: pointer;
+}
+
+.att-btn:hover { filter: brightness(1.08); }
+
+.att-btn.checkout { background: #c62828; }
+
+
+/* ======================================================
+   MANAGER — crew list scrolls inside its section card,
+   so the card never grows unbounded
+   ====================================================== */
+
+#crewList {
+    max-height: 360px;      /* adjust to taste */
+    overflow-y: auto;
+    padding-right: 6px;     /* room for the scrollbar track */
+    scrollbar-width: thin;
+}
+
+/* slim scrollbar for WebKit browsers (Chrome/Edge/Safari) */
+#crewList::-webkit-scrollbar { width: 8px; }
+#crewList::-webkit-scrollbar-thumb {
+    background: #cfd8dc;
+    border-radius: 4px;
+}
+#crewList::-webkit-scrollbar-thumb:hover { background: #b0bec5; }
+
+/* keep crew cards from being cut awkwardly while scrolling */
+#crewList .plan-entry-card { margin-bottom: 8px; }
+
+
+/* ======================================================
    LOGIN CARD — overlay & form layout
    ====================================================== */
 
@@ -533,7 +641,13 @@
     color: #666;
 }
 
-.auth-eye:hover { background: #f0f0f0; }
+.auth-eye:hover { background: #f0f0f0; color: #333; }
+
+/* THE critical part: constrain the injected SVG */
+.auth-eye svg {
+    width: 18px;
+    height: 18px;
+}
 
 /* Forgot section: email fills remaining space, Reset at right */
 .auth-forgot-row { display: flex; gap: 8px; margin-top: 4px; }
@@ -568,12 +682,6 @@
 }
 
 
-/* THE critical part: constrain the injected SVG */
-.auth-eye svg {
-    width: 18px;
-    height: 18px;
-}
-
 /* ======================================================
    ADMIN SETTINGS FORMS
    ====================================================== */
@@ -603,6 +711,7 @@
     padding: 8px 10px;
     font-size: 13px;
 }
+
 
 /* ======================================================
    LOGIN CARD — entrance animation
