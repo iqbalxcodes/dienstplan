@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dienstplan — History</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dienstplan.css">
+</head>
+<body>
+
+    <div id="loginOverlay" class="plan-modal-backdrop">
+        <div class="plan-modal auth-card">
+            <h3>Dienstplan Login</h3>
+            <label>Email</label>
+            <input type="email" id="authEmail" autocomplete="username">
+            <label>Password</label>
+            <div class="auth-pass-row">
+                <input type="password" id="authPassword" autocomplete="current-password">
+                <button type="button" class="auth-eye" id="authEyeBtn"
+                    title="Show / hide password"
+                    aria-label="Show password"></button>
+            </div>
+            <div class="auth-actions-row">
+                <label class="auth-check">
+                    <input type="checkbox" id="authRemember" checked>
+                    <span>Remember me on this device</span>
+                </label>
+                <button class="primary" id="authLoginBtn">Log in</button>
+            </div>
+            <div id="authError" class="auth-error" style="display:none;"></div>
+            <p class="auth-hint">No account yet? Please ask your admin / boss, or
+                <a href="#" id="forgotToggle">Forgot password?</a>
+            </p>
+            <div id="forgotSection" style="display:none;">
+                <hr>
+                <label>Email for the recovery link</label>
+                <div class="auth-forgot-row">
+                    <input type="email" id="forgotEmail" autocomplete="email">
+                    <button type="button" id="forgotResetBtn">Reset</button>
+                </div>
+                <p class="auth-hint" id="forgotMsg"></p>
+            </div>
+        </div>
+    </div>
+
+    <h1 id="orgNameLabel">Loading…</h1>
+    <div id="pageNavigation" data-page="history"></div>
+
+    <div class="table-container detail-card">
+
+        <div class="reservation-header">
+            <div class="header-title"><h3>Activity History</h3></div>
+            <div class="header-menu"></div>
+            <div class="header-clock"><span id="clock"></span></div>
+        </div>
+
+        <div id="roleHint" class="hist-role-hint"></div>
+
+        <div class="hist-toolbar">
+            <input type="search" id="searchInput" placeholder="Search action or summary…">
+            <select id="actionFilter" onchange="historyPage.changeAction(this.value)">
+                <option value="all">All actions</option>
+                <option value="attendance.check_in">Check In</option>
+                <option value="attendance.check_out">Check Out</option>
+                <option value="settings.update">Settings Changed</option>
+                <option value="crew.add">Crew Added</option>
+                <option value="crew.update">Crew Updated</option>
+                <option value="crew.deactivate">Crew Deactivated</option>
+                <option value="crew.reactivate">Crew Reactivated</option>
+                <option value="crew.role_changed">Role Changed</option>
+                <option value="shift.reschedule">Shift Moved</option>
+                <option value="shift.change_approved">Shift Change Approved</option>
+                <option value="time.manual_edit">Manual Time Edit</option>
+                <option value="leave.requested">Leave Requested</option>
+                <option value="leave.approved">Leave Approved</option>
+                <option value="leave.rejected">Leave Rejected</option>
+                <option value="auth.login">Login</option>
+                <option value="auth.logout">Logout</option>
+                <option value="recovery.sent">Recovery Sent</option>
+                <option value="export.performed">Data Exported</option>
+            </select>
+            <button class="btn-export" onclick="historyPage.exportCsv()">Export CSV</button>
+        </div>
+
+        <div class="table-scroll">
+            <table>
+                <colgroup id="historyColgroup"></colgroup>
+                <thead>
+                    <tr id="historyHeaderRow"></tr>
+                </thead>
+                <tbody id="historyTableBody">
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <div id="statusBar">
+        <div id="userArea"></div>
+        <div id="contextArea"></div>
+        <div id="paginationInfo"></div>
+        <div id="paginationNav"></div>
+    </div>
+
+    <script type="importmap">
+    { "imports": { "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2" } }
+    </script>
+    <script type="module" src="dist/dienstplan.js"></script>
+    <script type="module" src="dist/history.js"></script>
+
+</body>
+</html>
