@@ -7,15 +7,18 @@
 //   - Approvals queue (time entries + shift change requests)
 //   - Complaints panel
 //   - Leave requests panel
-//   - Manager crew management (add/edit/deactivate/
-//     reactivate/resend recovery — works even when a member
-//     has no login account yet: user_id = null)
+//   - Manager crew management (add/edit/role-change/
+//     deactivate/reactivate/resend recovery — members can
+//     exist without a login account yet: user_id = null)
+// Every state-changing action writes an entry to the
+// activity_log audit trail via activityLog.ts.
 // ======================================================
 import { supabaseClient } from "./supabaseClient.js";
 import { currentOrg, currentMembership, isManager } from "./auth.js";
 import { LEAVE_TYPE_LABELS } from "./leaveRequests.js";
 import { fetchComplaintEvidence, resolveComplaint } from "./complaints.js";
 import { findShiftConflicts } from "./shiftAvailability.js";
+import { logActivity } from "./activityLog.js";
 export function showPanel(panel) {
     ["rack", "hours", "approvals", "complaints", "leave"].forEach(p => {
         const el = document.getElementById(`${p}Panel`);
@@ -107,12 +110,20 @@ export async function submitComplaintForm() {
 }
 // ======================================================
 // Manual time edit modal (manager only)
+// The ORIGINAL clock values are stashed on the modal
+// element so the audit trail can record before/after.
 // ======================================================
 export function openManualEditModal(entryId, clockIn, clockOut) {
     document.getElementById("manualEditEntryId").value = entryId;
-    document.getElementById("manualClockIn").value = clockIn ? toLocalInputValue(clockIn) : "";
-    document.getElementById("manualClockOut").value = clockOut ? toLocalInputValue(clockOut) : "";
+    document.getElementById("manualClockIn").value =
+        clockIn ? toLocalInputValue(clockIn) : "";
+    document.getElementById("manualClockOut").value =
+        clockOut ? toLocalInputValue(clockOut) : "";
     document.getElementById("manualEditNote").value = "";
+    // stash original values for the audit trail
+    const modal = document.getElementById("manualEditModal");
+    modal.dataset.beforeIn = clockIn ?? "";
+    modal.dataset.beforeOut = clockOut ?? "";
     openModal("manualEditModal");
 }
 function toLocalInputValue(iso) {
@@ -129,6 +140,13 @@ export async function submitManualEdit() {
         return;
     closeModal("manualEditModal");
     await window.dienstplan.managerSetTimeEntry(entryId, new Date(clockInLocal).toISOString(), new Date(clockOutLocal).toISOString(), note);
+    await logActivity("time.manual_edit", "Manual time edit applied", {
+        before_in: document.getElementById("manualEditModal").dataset.beforeIn || null,
+        before_out: document.getElementById("manualEditModal").dataset.beforeOut || null,
+        after_in: new Date(clockInLocal).toISOString(),
+        after_out: new Date(clockOutLocal).toISOString(),
+        note
+    }, "time_entry", entryId);
     renderApprovalsPanel();
 }
 // ======================================================
@@ -241,7 +259,7 @@ export async function approveShiftChange(requestId, shiftId) {
         return;
     }
     if (conflicts.length > 0) {
-        alert("Cannot approve — this overlaps another shift");
+        alert("Cannot approve \u2014 this overlaps another shift");
         return;
     }
     await supabaseClient
@@ -258,6 +276,11 @@ export async function approveShiftChange(requestId, shiftId) {
         .from("shift_change_requests")
         .update({ status: "approved", reviewed_by: user?.id ?? null, reviewed_at: new Date().toISOString() })
         .eq("id", requestId);
+    await logActivity("shift.change_approved", `Shift change approved for ${req.proposed_shift_date}`, {
+        proposed_date: req.proposed_shift_date,
+        proposed_start: req.proposed_start_time,
+        proposed_end: req.proposed_end_time
+    }, "shift", shiftId);
     renderApprovalsPanel();
 }
 export async function rejectShiftChange(requestId) {
@@ -366,6 +389,8 @@ export async function reviewLeaveRequestFromPanel(requestId, approve) {
 // Members can exist WITHOUT a login account (user_id = null):
 // the manager adds them to the roster immediately and the
 // admin provisions credentials later.
+// Every action is written to the audit trail, including
+// role changes (crew.role_changed).
 // ======================================================
 // local dataset backing the last rendered crew list
 let _crewCacheRows = [];
@@ -400,6 +425,7 @@ export async function addCrewMember() {
         alert(error.message);
         return;
     }
+    await logActivity("crew.add", `Crew added: ${fullName}`, { email, role, weekly_hours: weeklyHours });
     document.getElementById("addCrewName").value = "";
     document.getElementById("addCrewEmail").value = "";
     renderCrewList();
@@ -448,7 +474,7 @@ export function openCrewEditModal(id) {
     document.getElementById("editCrewId").value = card.id;
     document.getElementById("editCrewName").value = card.full_name;
     document.getElementById("editCrewHours").value = String(card.weekly_target_hours);
-    // admins cannot be edited to/through this UI — clamp display
+    // admin accounts cannot be edited through this UI — clamp display
     document.getElementById("editCrewRole").value =
         card.role === "admin" ? "manager" : card.role;
     document.getElementById("editCrewEmail").value = card.email ?? "";
@@ -466,6 +492,7 @@ export async function saveCrewEdit() {
         alert("Name and email are required.");
         return;
     }
+    const before = findCrew(id);
     closeModal("crewEditModal");
     const { error } = await supabaseClient
         .from("memberships")
@@ -473,6 +500,19 @@ export async function saveCrewEdit() {
         .eq("id", id);
     if (error) {
         alert(error.message);
+        renderCrewList();
+        return;
+    }
+    // ROLE CHANGES are the most security-sensitive action — logged separately
+    if (before && before.role !== patch.role) {
+        await logActivity("crew.role_changed", `${patch.full_name}: ${before.role} \u2192 ${patch.role}`, {
+            member_email: patch.email,
+            before_role: before.role,
+            after_role: patch.role
+        }, "membership", id);
+    }
+    else {
+        await logActivity("crew.update", `Crew updated: ${patch.full_name}`, { after: patch }, "membership", id);
     }
     renderCrewList();
 }
@@ -497,17 +537,30 @@ export async function toggleCrewActive(id, activate) {
         .eq("id", id);
     if (error) {
         alert(error.message);
+        renderCrewList();
+        return;
     }
+    await logActivity(activate ? "crew.reactivate" : "crew.deactivate", `${target?.full_name ?? id} ${activate ? "reactivated" : "deactivated"}`, {}, "membership", id);
     renderCrewList();
 }
 export async function resendRecovery(id) {
     const member = findCrew(id);
     if (!member?.email) {
-        alert("This member has no email yet — add one first.");
+        alert("This member has no email yet \u2014 add one first.");
         return;
     }
     const { error } = await supabaseClient.auth.resetPasswordForEmail(member.email, { redirectTo: `${window.location.origin}/reset.html` });
-    alert(error ? error.message : `Recovery email sent to ${member.email}.`);
+    if (error) {
+        alert(error.message);
+        return;
+    }
+    // recovery.sent is recorded server-side via the
+    // log_recovery_sent() RPC (works even when the target
+    // member has no active session)
+    await supabaseClient.rpc("log_recovery_sent", {
+        p_email: member.email
+    });
+    alert(`Recovery email sent to ${member.email}.`);
 }
 // ======================================================
 // Small helper
