@@ -5,7 +5,8 @@
 // user belongs to — no org slug in URLs, no manual input.
 // Multi-org users get a one-click chooser instead.
 // Also owns the centered login card ("remember me" +
-// password recovery) and role-based visibility gating.
+// password recovery with SVG eye toggle) and role-based
+// visibility gating.
 // ======================================================
 
 import type { Organization, Membership, MembershipRole } from "./types.js";
@@ -120,6 +121,28 @@ export async function logout(): Promise<void> {
 
 }
 
+
+// ======================================================
+// Inline SVG eye icons (Feather-style, stroke=currentColor)
+// ======================================================
+
+const EYE_OPEN_SVG = `
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>
+</svg>`;
+
+const EYE_OFF_SVG = `
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+    <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+    <line x1="1" y1="1" x2="23" y2="23"/>
+</svg>`;
+
+
 // ======================================================
 // Status bar user area — identity + logout when logged in;
 // falls back to the centered login card when not.
@@ -133,21 +156,28 @@ export function renderUserArea(): void {
     if(!area) return;
 
     if(currentMembership){
-        overlay?.remove();          // sudah login -> buang card
+
+        overlay?.remove();          // logged in -> drop the login card
+
         area.innerHTML = `
             <span>${escapeHtml(currentMembership.full_name)} \u00b7 ${escapeHtml(currentMembership.role)}</span>
             <button id="logoutBtn" style="margin-left:8px;">Logout</button>
         `;
+
         document.getElementById("logoutBtn")!.addEventListener("click", async () => {
             await logout();
             window.location.reload();
         });
+
         return;
+
     }
 
+    area.innerHTML = `<span class="plan-entry-meta">Not signed in</span>`;
     wireLoginOverlay();
 
 }
+
 
 // ======================================================
 // Wire the STATIC login card from HTML (no injection ->
@@ -161,18 +191,27 @@ function wireLoginOverlay(): void {
     overlay.dataset.wired = "1";
 
     document.getElementById("authLoginBtn")!.addEventListener("click", handleLoginSubmit);
+
     document.getElementById("authPassword")!.addEventListener("keydown", e => {
         if(e.key === "Enter") handleLoginSubmit();
     });
 
-    // eye toggle: show / hide password
+    // eye toggle: show / hide password (icon reflects resulting state)
     const passInput = document.getElementById("authPassword") as HTMLInputElement;
-    const eyeBtn = document.getElementById("authEyeBtn") as HTMLButtonElement;
+    const eyeBtn    = document.getElementById("authEyeBtn") as HTMLButtonElement;
+
+    const syncEye = () => {
+        const hidden = passInput.type === "password";
+        eyeBtn.innerHTML   = hidden ? EYE_OPEN_SVG : EYE_OFF_SVG;
+        eyeBtn.title       = hidden ? "Show password" : "Hide password";
+        eyeBtn.setAttribute("aria-label", eyeBtn.title);
+    };
+
+    syncEye();   // draw the initial icon
 
     eyeBtn.addEventListener("click", () => {
-        const hidden = passInput.type === "password";
-        passInput.type = hidden ? "text" : "password";
-        eyeBtn.textContent = hidden ? "\u{1F648}" : "\u{1F441}";  // 🙈 / 👁
+        passInput.type = passInput.type === "password" ? "text" : "password";
+        syncEye();
     });
 
     document.getElementById("forgotToggle")!.addEventListener("click", e => {
@@ -184,6 +223,7 @@ function wireLoginOverlay(): void {
     document.getElementById("forgotResetBtn")!.addEventListener("click", handleForgotSubmit);
 
 }
+
 
 async function handleLoginSubmit(): Promise<void> {
 
@@ -217,6 +257,7 @@ async function handleLoginSubmit(): Promise<void> {
 
 }
 
+
 async function handleForgotSubmit(): Promise<void> {
 
     const emailEl = document.getElementById("forgotEmail") as HTMLInputElement;
@@ -237,8 +278,10 @@ async function handleForgotSubmit(): Promise<void> {
         : "Recovery email sent \u2014 check your inbox (and spam folder).";
 
 }
+
+
 // ======================================================
-// Centered login card (first visit / logged out)
+// Multi-org users pick where to log in to
 // ======================================================
 
 function promptOrgChoice(options: { id: string; label: string }[]): Promise<string | null> {
@@ -271,11 +314,13 @@ function promptOrgChoice(options: { id: string; label: string }[]): Promise<stri
     });
 }
 
+
 function escapeHtml(str: string | null | undefined): string {
     const div = document.createElement("div");
     div.textContent = str ?? "";
     return div.innerHTML;
 }
+
 
 export function applyAuthVisibility(): void {
 
