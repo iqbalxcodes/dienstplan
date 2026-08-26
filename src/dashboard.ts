@@ -3,9 +3,10 @@
 // shift strip, live map, check-in/out with timer.
 // Reads admin-configurable values (check-in radius, strict
 // mode, staff role labels) from organizations.settings.
-// Location tracking uses navigator.geolocation.watchPosition:
-// the map auto-pans / auto-zooms to keep the user's pin in
-// view — no manual zoom controls.
+// Location tracking uses navigator.geolocation.watchPosition.
+// Map behavior: BOTH pins (user + workplace) are always
+// visible — the map auto-zooms in/out to frame them, no
+// manual zoom controls.
 // ======================================================
 
 import { supabaseClient } from "./supabaseClient.js";
@@ -26,6 +27,10 @@ let userMarker: any = null;
 let workMarker: any = null;
 let timerHandle: number | undefined;
 let geoWatchId: number | null = null;
+
+// remembers where the camera was last fitted, so small GPS
+// wiggles don't make the map dance on every update
+let lastFitPos: [number, number] | null = null;
 
 
 // ---- settings readers (with sane defaults) ----
@@ -197,11 +202,13 @@ function initMap(): void {
 // Called on EVERY location fix (first one and subsequent moves)
 function onPositionUpdate(pos: GeolocationPosition): void {
 
+    const isFirstFix = userPos === null;
+
     userPos = [pos.coords.latitude, pos.coords.longitude];
 
     updateUserPin();
-    autoFitView();
-    renderAttendance();   // subtitle distance refresh
+    autoFitView(isFirstFix);   // force a refit on the very first fix
+    renderAttendance();        // subtitle distance refresh
 
 }
 
@@ -221,29 +228,42 @@ function updateUserPin(): void {
 
 }
 
-// Auto zoom: frame BOTH pins when near the workplace,
-// otherwise center on the user at street level.
-function autoFitView(): void {
+// Auto zoom: ALWAYS frame both pins.
+// Near the workplace -> zooms IN tightly.
+// Far away          -> zooms OUT until both are visible.
+function autoFitView(force = false): void {
 
     if(!userPos || !map) return;
 
     const wp = workplacePos();
-    const dist = wp ? haversineMeters(userPos, wp) : Infinity;
 
-    if(wp && dist <= nearMeters()){
-
-        if(!workMarker){
-            workMarker = L.marker(wp).addTo(map).bindPopup("Workplace");
-        }
-        // zoom automatically so both pins stay inside the card
-        map.fitBounds(L.latLngBounds([wp, userPos]).pad(0.4), { animate: true });
-
-    } else {
-
-        // far away: workplace pin hidden, camera follows the user
-        if(workMarker){ map.removeLayer(workMarker); workMarker = null; }
+    // no workplace coordinates configured -> just follow the user
+    if(!wp){
+        updateUserPin();
         map.setView(userPos, 16, { animate: true });
+        lastFitPos = null;
+        return;
+    }
 
+    // make sure the workplace pin always exists
+    if(!workMarker){
+        workMarker = L.marker(wp).addTo(map).bindPopup("Workplace");
+    }
+
+    updateUserPin();
+
+    // refit only when the user actually moved far enough
+    // (prevents constant re-zooming from tiny GPS jitter)
+    const movedFar = force
+        || !lastFitPos
+        || haversineMeters(lastFitPos, userPos) > 50;
+
+    if(movedFar){
+        map.fitBounds(
+            L.latLngBounds([wp, userPos]).pad(0.4),
+            { animate: true }
+        );
+        lastFitPos = [userPos[0], userPos[1]];
     }
 
 }
