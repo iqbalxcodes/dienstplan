@@ -1075,6 +1075,32 @@ function escapeHtml(str: string | null | undefined): string {
     return div.innerHTML;
 }
 
+function showGreeting(): void {
+    const el = document.getElementById("orgNameLabel");
+    if(!el || !currentMembership) return;
+
+    const hour = new Date().getHours();
+    let greeting: string;
+    if(hour < 12)      greeting = "Good Morning";
+    else if(hour < 18) greeting = "Good Afternoon";
+    else                greeting = "Good Evening";
+
+    const firstName = currentMembership.full_name.split(" ")[0];
+
+    let titleText = el.querySelector(".title-text") as HTMLElement;
+    if(!titleText){
+        titleText = document.createElement("span");
+        titleText.className = "title-text";
+        el.insertBefore(titleText, el.firstChild);
+    }
+
+    titleText.textContent = `${greeting}, ${firstName}!`;
+
+    setTimeout(() => {
+        titleText.textContent = currentOrg?.name ?? "Dienstplan";
+    }, 3000);
+}
+
 function showMessage(text: string, type: "info" | "success" | "error" = "info"): void {
 
     const contextArea = document.getElementById("contextArea");
@@ -1134,9 +1160,9 @@ export async function refreshPlan(): Promise<void> {
 function startClock(): void {
 
     const clock = document.getElementById("clock");
-
-    // Create clock span next to org name dynamically
     const h1 = document.getElementById("orgNameLabel");
+
+    // Create clock span next to org name (only once)
     if(h1 && !document.getElementById("headerClock")){
         const span = document.createElement("span");
         span.id = "headerClock";
@@ -1166,12 +1192,16 @@ function startClock(): void {
 }
 
 function renderOrgLabel(): void {
-
     const label = document.getElementById("orgNameLabel");
     if(!label) return;
 
-    label.innerText = currentOrg ? currentOrg.name : "Dienstplan";
-
+    let titleText = label.querySelector(".title-text") as HTMLElement;
+    if(!titleText){
+        titleText = document.createElement("span");
+        titleText.className = "title-text";
+        label.insertBefore(titleText, label.firstChild);
+    }
+    titleText.textContent = currentOrg ? currentOrg.name : "Dienstplan";
 }
 
 function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
@@ -1198,6 +1228,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Buang / pasang login card SEBELUM apa pun yang bisa crash,
     // supaya user tidak pernah terjebak di balik card
     renderOrgLabel();
+    showGreeting();
     renderUserArea();
     renderNavigation(currentMembership?.role ?? null);
 
