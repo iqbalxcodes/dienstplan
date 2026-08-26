@@ -34,7 +34,7 @@ h1 {
 .header-clock-text {
     font-size: 13px;
     font-weight: 400;
-    color: #888;
+    color: black;
     white-space: nowrap;
 }
 
@@ -149,10 +149,7 @@ h1 {
 }
 
 .header-clock {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    margin-left: 0;
+    display: none;
 }
 
 

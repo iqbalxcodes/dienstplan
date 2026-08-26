@@ -170,7 +170,8 @@ export function renderUserArea(): void {
 
     if(currentMembership){
 
-        overlay?.remove();          // logged in -> drop the login card
+        // Logged in: hide overlay (never remove!)
+        if(overlay) overlay.style.display = "none";
 
         area.innerHTML = `
             <span>${escapeHtml(currentMembership.full_name)} \u00b7 ${escapeHtml(currentMembership.role)}</span>
@@ -186,11 +187,15 @@ export function renderUserArea(): void {
 
     }
 
+    // Not logged in: show overlay + status text
     area.innerHTML = `<span class="plan-entry-meta">Not signed in</span>`;
-    wireLoginOverlay();
+
+    if(overlay){
+        overlay.style.display = "";
+        wireLoginOverlay();
+    }
 
 }
-
 
 // ======================================================
 // Wire the STATIC login card from HTML (no injection ->

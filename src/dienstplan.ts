@@ -1162,6 +1162,12 @@ function startClock(): void {
     const clock = document.getElementById("clock");
     const h1 = document.getElementById("orgNameLabel");
 
+    // Remove old clock from card header if it exists
+    const oldClock = document.querySelector(".header-clock #clock");
+    if(oldClock && oldClock.parentElement){
+        oldClock.parentElement.style.display = "none";
+    }
+
     // Create clock span next to org name (only once)
     if(h1 && !document.getElementById("headerClock")){
         const span = document.createElement("span");
