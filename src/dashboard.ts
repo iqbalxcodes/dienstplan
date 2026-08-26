@@ -25,7 +25,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const loggedIn = await authReady;
 
-    if(!currentOrg || !currentMembership){
+    if(!loggedIn || !currentOrg || !currentMembership){
+        // not authenticated: leave NOTHING behind for DOM tamperers
+        document.getElementById("shiftStrip")!.innerHTML = "";
+        document.getElementById("myEntriesList")!.innerHTML = "";
         document.getElementById("attSub")!.textContent =
             "Log in to record your attendance.";
         return;
