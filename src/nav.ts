@@ -40,7 +40,14 @@ const DIENSTPLAN_NAVIGATION: NavItem[] = [
         href: "admin.html",
         page: "admin",
         roles: ["admin"]
-    }
+    },
+    
+    {
+    label: "History",
+    href: "history.html",
+    page: "history",
+    roles: ["manager", "admin"]
+    },
 ];
 
 // ======================================================

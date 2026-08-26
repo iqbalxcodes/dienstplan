@@ -31,7 +31,13 @@ const DIENSTPLAN_NAVIGATION = [
         href: "admin.html",
         page: "admin",
         roles: ["admin"]
-    }
+    },
+    {
+        label: "History",
+        href: "history.html",
+        page: "history",
+        roles: ["manager", "admin"]
+    },
 ];
 // ======================================================
 // renderNavigation
