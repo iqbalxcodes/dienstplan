@@ -17,11 +17,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         root.innerHTML = `<p class="auth-error">Admin access required.</p>`;
         return;
     }
-
+    populateTimezones();
     populate();
     document.getElementById("saveSettingsBtn")!.addEventListener("click", save);
 
 });
+
+function populateTimezones(): void {
+
+    const sel = document.getElementById("setTimezone") as HTMLSelectElement;
+
+    // full IANA list from the browser itself (fallback: short list)
+    const list: string[] =
+        ((Intl as any).supportedValuesOf?.("timeZone") as string[] | undefined)
+        ?? ["Europe/Berlin", "Europe/London", "UTC", "Asia/Jakarta"];
+
+    sel.innerHTML = "";
+    [...list].sort().forEach(tz => {
+        const o = document.createElement("option");
+        o.value = tz;
+        o.textContent = tz.replace(/_/g, " ");
+        sel.appendChild(o);
+    });
+
+}
 
 function populate(): void {
 
@@ -29,7 +48,10 @@ function populate(): void {
 
     (document.getElementById("setName")     as HTMLInputElement).value = currentOrg!.name;
     (document.getElementById("setSlug")     as HTMLInputElement).value = currentOrg!.slug;
-    (document.getElementById("setTimezone") as HTMLInputElement).value = currentOrg!.timezone;
+    populateTimezones();
+    const tzSel = document.getElementById("setTimezone") as HTMLSelectElement;
+    tzSel.value = currentOrg!.timezone;
+    if(!tzSel.value && tzSel.options.length) tzSel.selectedIndex = 0;   // fallback
 
     (document.getElementById("setLat")    as HTMLInputElement).value = String(s.workplace_lat ?? "");
     (document.getElementById("setLng")    as HTMLInputElement).value = String(s.workplace_lng ?? "");
@@ -96,5 +118,43 @@ async function save(): Promise<void> {
 
     stat.textContent = `Saved ✓ ${new Date().toLocaleTimeString("de-DE")}`;
     btn.disabled = false;
+
+}
+
+// Supports: /@lat,lng,z · ?q|ll|query=lat,lng · raw "lat, lng"
+function parseMapsInput(raw: string): [number, number] | null {
+
+    const s = decodeURIComponent(raw.trim());
+
+    let m = s.match(/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/);
+    if(!m) m = s.match(/[?&](?:q|ll|query)=(-?\d{1,3}\.\d+)(?:%2C|,)+(-?\d{1,3}\.\d+)/i);
+    if(!m) m = s.match(/^(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)$/);
+
+    return m ? [parseFloat(m[1]), parseFloat(m[2])] : null;
+
+}
+
+function wireCoordinateExtractor(): void {
+
+    const btn = document.getElementById("extractCoordsBtn") as HTMLButtonElement | null;
+    if(!btn) return;
+
+    btn.addEventListener("click", () => {
+
+        const raw = (document.getElementById("setMapsUrl") as HTMLInputElement).value;
+        const stat = document.getElementById("saveStatus")!;
+
+        const c = parseMapsInput(raw);
+
+        if(!c){
+            stat.textContent = "\u26a0 Could not find coordinates in that link/text.";
+            return;
+        }
+
+        (document.getElementById("setLat") as HTMLInputElement).value = String(c[0]);
+        (document.getElementById("setLng") as HTMLInputElement).value = String(c[1]);
+        stat.textContent = `Extracted: ${c[0]}, ${c[1]} \u2014 remember to Save.`;
+
+    });
 
 }

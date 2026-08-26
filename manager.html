@@ -64,35 +64,54 @@
             <div class="header-clock"><span id="clock"></span></div>
         </div>
 
-        <div class="table-scroll">
+        <div class="dash-stack">
 
-            <h3>Pending Approvals</h3>
-            <div id="approvalsList"></div>
+            <!-- Pending Approvals -->
+            <section class="dash-section">
+                <h3>Pending Approvals</h3>
+                <div id="approvalsList"></div>
+            </section>
 
-            <h3>Complaints</h3>
-            <div id="complaintsList"></div>
+            <!-- Complaints -->
+            <section class="dash-section">
+                <h3>Complaints</h3>
+                <div id="complaintsList"></div>
+            </section>
 
-            <h3>Leave Requests</h3>
-            <div id="leaveList"></div>
+            <!-- Leave Requests -->
+            <section class="dash-section">
+                <h3>Leave Requests</h3>
+                <div id="leaveList"></div>
+            </section>
 
-            <h3>Add Crew Member</h3>
-            <p class="plan-entry-meta">
-                Anggota langsung muncul di roster. Akun login bisa disiapkan belakangan
-                oleh Admin — selama itu statusnya “login belum disiap”.
-            </p>
-            <div class="manager-required" style="margin-top:8px;">
-                <input type="text" id="addCrewName" placeholder="Full name" style="width:180px;">
-                <input type="email" id="addCrewEmail" placeholder="Email (untuk login nanti)" style="width:220px;">
-                <select id="addCrewRole">
-                    <option value="employee">Crew</option>
-                    <option value="manager">Chief/Bos</option>
-                </select>
-                <input type="number" id="addCrewHours" placeholder="Hours/week" value="40" style="width:100px;">
-                <button onclick="panels.addCrewMember()">Add</button>
-            </div>
+            <!-- Add Crew Member -->
+            <section class="dash-section">
+                <h3>Add Crew Member</h3>
+                <p class="plan-entry-meta" style="margin-top:0;">
+                    Members appear on the roster immediately. Login accounts can be
+                    provisioned later by the Admin — until then their status shows
+                    “login not set up”.
+                </p>
+                <div class="manager-required" style="margin-top:10px;">
+                    <input type="text" id="addCrewName"
+                        placeholder="Full name" style="width:180px;">
+                    <input type="email" id="addCrewEmail"
+                        placeholder="Email (for login later)" style="width:220px;">
+                    <select id="addCrewRole">
+                        <option value="employee">Crew</option>
+                        <option value="manager">Chief/Bos</option>
+                    </select>
+                    <input type="number" id="addCrewHours"
+                        placeholder="Weekly hours (e.g. 40)" style="width:180px;">
+                    <button onclick="panels.addCrewMember()">Add</button>
+                </div>
+            </section>
 
-            <h3>Crew Members</h3>
-            <div id="crewList"></div>
+            <!-- Crew Members -->
+            <section class="dash-section">
+                <h3>Crew Members</h3>
+                <div id="crewList"></div>
+            </section>
 
         </div>
 
@@ -121,6 +140,7 @@
         </div>
     </div>
 
+    <!-- MANUAL TIME EDIT MODAL -->
     <div id="manualEditModal" class="plan-modal-backdrop" style="display:none;">
         <div class="plan-modal">
             <h3>Set Time Manually</h3>

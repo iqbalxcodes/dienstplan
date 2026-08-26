@@ -64,86 +64,93 @@
             <div class="header-clock"><span id="clock"></span></div>
         </div>
 
-        <div id="settingsRoot">
+        <div class="dash-stack">
 
-            <div class="dash-stack">
-
-                <!-- Identity -->
-                <section class="dash-section">
-                    <h3>Organization</h3>
-                    <div class="settings-grid">
-                        <div>
-                            <span class="plan-entry-meta">Name</span>
-                            <input type="text" id="setName">
-                        </div>
-                        <div>
-                            <span class="plan-entry-meta">Slug (URL)</span>
-                            <input type="text" id="setSlug" disabled>
-                        </div>
-                        <div>
-                            <span class="plan-entry-meta">Timezone</span>
-                            <input type="text" id="setTimezone" placeholder="Europe/Berlin">
-                        </div>
+            <!-- Organization identity -->
+            <section class="dash-section">
+                <h3>Organization</h3>
+                <div class="settings-grid">
+                    <div>
+                        <span class="plan-entry-meta">Name</span>
+                        <input type="text" id="setName">
                     </div>
-                </section>
-
-                <!-- Location -->
-                <section class="dash-section">
-                    <h3>Location &amp; Check-in</h3>
-                    <div class="settings-grid">
-                        <div>
-                            <span class="plan-entry-meta">Workplace latitude</span>
-                            <input type="number" id="setLat" step="any">
-                        </div>
-                        <div>
-                            <span class="plan-entry-meta">Workplace longitude</span>
-                            <input type="number" id="setLng" step="any">
-                        </div>
-                        <div>
-                            <span class="plan-entry-meta">Check-in radius (meters)</span>
-                            <input type="number" id="setRadius" min="10">
-                        </div>
-                        <div>
-                            <span class="plan-entry-meta">Outside-radius behavior</span>
-                            <select id="setStrict">
-                                <option value="off">Allow silently</option>
-                                <option value="warn">Warn only</option>
-                                <option value="enforce">Block check-in</option>
-                            </select>
-                        </div>
+                    <div>
+                        <span class="plan-entry-meta">Slug (URL)</span>
+                        <input type="text" id="setSlug" disabled>
                     </div>
-                </section>
-
-                <!-- Roles -->
-                <section class="dash-section">
-                    <h3>Staff Role Labels</h3>
-                    <span class="plan-entry-meta">One per line — appears in the dashboard role dropdown.</span>
-                    <textarea id="setRoles" rows="5"></textarea>
-                </section>
-
-                <!-- Rules -->
-                <section class="dash-section">
-                    <h3>Scheduling Rules</h3>
-                    <div class="settings-grid">
-                        <div>
-                            <span class="plan-entry-meta">Leave request cut-off (days ahead)</span>
-                            <input type="number" id="setLeaveCutoff" min="0">
-                        </div>
-                        <div>
-                            <span class="plan-entry-meta">Min shift duration (hours)</span>
-                            <input type="number" id="setShiftMin" min="1">
-                        </div>
-                        <div>
-                            <span class="plan-entry-meta">Max shift duration (hours)</span>
-                            <input type="number" id="setShiftMax" min="1">
-                        </div>
+                    <div>
+                        <span class="plan-entry-meta">Timezone</span>
+                        <select id="setTimezone"></select>
                     </div>
-                </section>
+                </div>
+            </section>
 
-                <div id="saveStatus" class="plan-entry-meta"></div>
-                <button id="saveSettingsBtn" class="att-btn">Save Settings</button>
+            <!-- Location & check-in -->
+            <section class="dash-section">
+                <h3>Location &amp; Check-in</h3>
 
-            </div>
+                <div class="settings-grid">
+                    <div>
+                        <span class="plan-entry-meta">Workplace latitude</span>
+                        <input type="number" id="setLat" step="any">
+                    </div>
+                    <div>
+                        <span class="plan-entry-meta">Workplace longitude</span>
+                        <input type="number" id="setLng" step="any">
+                    </div>
+                    <div>
+                        <span class="plan-entry-meta">Check-in radius (meters)</span>
+                        <input type="number" id="setRadius" min="10">
+                    </div>
+                    <div>
+                        <span class="plan-entry-meta">Outside-radius behavior</span>
+                        <select id="setStrict">
+                            <option value="off">Allow silently</option>
+                            <option value="warn">Warn only</option>
+                            <option value="enforce">Block check-in</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-top:12px;">
+                    <span class="plan-entry-meta">Paste a Google Maps link or “lat, lng” — coordinates are extracted automatically</span>
+                    <div class="auth-pass-row" style="margin-top:4px;">
+                        <input type="text" id="setMapsUrl"
+                            placeholder="https://maps.google.com/… or -6.2562, 106.6641">
+                        <button type="button" class="auth-eye" id="extractCoordsBtn"
+                            title="Extract coordinates">Extract</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Staff role labels -->
+            <section class="dash-section">
+                <h3>Staff Role Labels</h3>
+                <span class="plan-entry-meta">One per line — these fill the role dropdown on the Dashboard.</span>
+                <textarea id="setRoles" rows="5"></textarea>
+            </section>
+
+            <!-- Scheduling rules -->
+            <section class="dash-section">
+                <h3>Scheduling Rules</h3>
+                <div class="settings-grid">
+                    <div>
+                        <span class="plan-entry-meta">Leave request cut-off (days ahead)</span>
+                        <input type="number" id="setLeaveCutoff" min="0">
+                    </div>
+                    <div>
+                        <span class="plan-entry-meta">Min shift duration (hours)</span>
+                        <input type="number" id="setShiftMin" min="1">
+                    </div>
+                    <div>
+                        <span class="plan-entry-meta">Max shift duration (hours)</span>
+                        <input type="number" id="setShiftMax" min="1">
+                    </div>
+                </div>
+            </section>
+
+            <div id="saveStatus" class="plan-entry-meta"></div>
+            <button id="saveSettingsBtn" class="att-btn">Save Settings</button>
 
         </div>
 
