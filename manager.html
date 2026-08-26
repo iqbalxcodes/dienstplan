@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dienstplan — Manager</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dienstplan.css">
+</head>
+<body>
+
+    <!-- LOGIN OVERLAY -->
+    <div id="loginOverlay" class="plan-modal-backdrop">
+        <div class="plan-modal auth-card">
+
+            <h3>Dienstplan Login</h3>
+
+            <label>Email</label>
+            <input type="email" id="authEmail" autocomplete="username">
+
+            <label>Password</label>
+            <div class="auth-pass-row">
+                <input type="password" id="authPassword" autocomplete="current-password">
+                <button type="button" class="auth-eye" id="authEyeBtn"
+                    title="Show / hide password"
+                    aria-label="Show password"></button>
+            </div>
+
+            <div class="auth-actions-row">
+                <label class="auth-check">
+                    <input type="checkbox" id="authRemember" checked>
+                    <span>Remember me on this device</span>
+                </label>
+                <button class="primary" id="authLoginBtn">Log in</button>
+            </div>
+
+            <div id="authError" class="auth-error" style="display:none;"></div>
+
+            <p class="auth-hint">No account yet? Please ask your admin / boss, or
+                <a href="#" id="forgotToggle">Forgot password?</a>
+            </p>
+
+            <div id="forgotSection" style="display:none;">
+                <hr>
+                <label>Email for the recovery link</label>
+                <div class="auth-forgot-row">
+                    <input type="email" id="forgotEmail" autocomplete="email">
+                    <button type="button" id="forgotResetBtn">Reset</button>
+                </div>
+                <p class="auth-hint" id="forgotMsg"></p>
+            </div>
+
+        </div>
+    </div>
+
+    <h1 id="orgNameLabel">Loading…</h1>
+    <div id="pageNavigation" data-page="manager"></div>
+
+    <div class="table-container detail-card">
+
+        <div class="reservation-header">
+            <div class="header-title"><h3>Manager</h3></div>
+            <div class="header-menu"></div>
+            <div class="header-clock"><span id="clock"></span></div>
+        </div>
+
+        <div class="table-scroll">
+
+            <h3>Pending Approvals</h3>
+            <div id="approvalsList"></div>
+
+            <h3>Complaints</h3>
+            <div id="complaintsList"></div>
+
+            <h3>Leave Requests</h3>
+            <div id="leaveList"></div>
+
+            <h3>Add Crew Member</h3>
+            <p class="plan-entry-meta">
+                Anggota langsung muncul di roster. Akun login bisa disiapkan belakangan
+                oleh Admin — selama itu statusnya “login belum disiap”.
+            </p>
+            <div class="manager-required" style="margin-top:8px;">
+                <input type="text" id="addCrewName" placeholder="Full name" style="width:180px;">
+                <input type="email" id="addCrewEmail" placeholder="Email (untuk login nanti)" style="width:220px;">
+                <select id="addCrewRole">
+                    <option value="employee">Crew</option>
+                    <option value="manager">Chief/Bos</option>
+                </select>
+                <input type="number" id="addCrewHours" placeholder="Hours/week" value="40" style="width:100px;">
+                <button onclick="panels.addCrewMember()">Add</button>
+            </div>
+
+            <h3>Crew Members</h3>
+            <div id="crewList"></div>
+
+        </div>
+
+    </div>
+
+    <!-- EDIT CREW MODAL -->
+    <div id="crewEditModal" class="plan-modal-backdrop" style="display:none;">
+        <div class="plan-modal">
+            <h3>Edit Crew Member</h3>
+            <input type="hidden" id="editCrewId">
+            <label>Full name</label>
+            <input type="text" id="editCrewName">
+            <label>Weekly target hours</label>
+            <input type="number" id="editCrewHours">
+            <label>Role</label>
+            <select id="editCrewRole">
+                <option value="employee">Crew</option>
+                <option value="manager">Chief/Bos</option>
+            </select>
+            <label>Email (for login &amp; recovery)</label>
+            <input type="email" id="editCrewEmail">
+            <div class="plan-modal-footer">
+                <button onclick="closeModal('crewEditModal')">Cancel</button>
+                <button class="primary" onclick="saveCrewEdit()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="manualEditModal" class="plan-modal-backdrop" style="display:none;">
+        <div class="plan-modal">
+            <h3>Set Time Manually</h3>
+            <input type="hidden" id="manualEditEntryId">
+            <label>Clock In</label>
+            <input type="datetime-local" id="manualClockIn">
+            <label>Clock Out</label>
+            <input type="datetime-local" id="manualClockOut">
+            <label>Manager note (shown to employee)</label>
+            <textarea id="manualEditNote" placeholder="Explain the adjustment"></textarea>
+            <div class="plan-modal-footer">
+                <button onclick="closeModal('manualEditModal')">Cancel</button>
+                <button class="primary" onclick="submitManualEdit()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="statusBar">
+        <div id="userArea"></div>
+        <div id="contextArea"></div>
+        <div id="paginationInfo"></div>
+        <div id="paginationNav"></div>
+    </div>
+
+    <script type="importmap">
+    { "imports": { "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2" } }
+    </script>
+    <script type="module" src="dist/dienstplan.js"></script>
+    <script type="module" src="dist/panels.js"></script>
+
+</body>
+</html>

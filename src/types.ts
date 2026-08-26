@@ -39,7 +39,7 @@ export interface OrganizationSettings {
 export interface Membership {
     id: string;
     organization_id: string;
-    user_id: string;
+    user_id: string | null;    
     role: MembershipRole;
     full_name: string;
     employee_code: string | null;
@@ -47,6 +47,7 @@ export interface Membership {
     weekly_target_hours: number;
     active: boolean;
     created_at: string;
+    email: string | null;    
 }
 
 export type ShiftStatus = "draft" | "published";

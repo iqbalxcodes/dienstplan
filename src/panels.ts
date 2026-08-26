@@ -1,10 +1,15 @@
 // ======================================================
 // panels.ts
-// Glue between the plain HTML in dienstplan.html (inline
-// onclick="" handlers, same style as Hotel PMS) and the
-// exported functions in dienstplan.ts / complaints.ts /
-// leaveRequests.ts. Also owns the manager-only side panels:
-// Approvals, Complaints, Leave Requests.
+// Glue between the plain HTML pages (inline onclick=""
+// handlers) and the exported functions in dienstplan.ts /
+// complaints.ts / leaveRequests.ts.
+// Owns:
+//   - Approvals queue (time entries + shift change requests)
+//   - Complaints panel
+//   - Leave requests panel
+//   - Manager crew management (add/edit/deactivate/
+//     reactivate/resend recovery — works even when a member
+//     has no login account yet: user_id = null)
 // ======================================================
 
 import { supabaseClient } from "./supabaseClient.js";
@@ -105,7 +110,7 @@ export async function submitLeaveRequestForm(): Promise<void> {
 
 
 // ======================================================
-// Complaint modal (opened from an approvals-panel entry)
+// Complaint modal (opened from My Entries on dashboard)
 // ======================================================
 
 export function openComplaintModal(entryId: string): void {
@@ -473,27 +478,43 @@ export async function reviewLeaveRequestFromPanel(requestId: string, approve: bo
 
 
 // ======================================================
-// Admin: Add Crew (membership only — the auth account itself
-// is still created manually in Supabase Dashboard; pasting the
-// resulting User UID here is the intended flow, see admin.html)
+// MANAGER: Crew Management
+// Members can exist WITHOUT a login account (user_id = null):
+// the manager adds them to the roster immediately and the
+// admin provisions credentials later.
 // ======================================================
+
+// local dataset backing the last rendered crew list
+let _crewCacheRows: any[] = [];
+
+function cacheCrew(rows: any[]): void {
+    _crewCacheRows = rows;
+}
+
+function findCrew(id: string): any | null {
+    return _crewCacheRows.find(c => c.id === id) ?? null;
+}
 
 export async function addCrewMember(): Promise<void> {
 
     if(!currentOrg || !isManager()) return;
 
-    const userId = (document.getElementById("addCrewUserId") as HTMLInputElement).value.trim();
     const fullName = (document.getElementById("addCrewName") as HTMLInputElement).value.trim();
-    const role = (document.getElementById("addCrewRole") as HTMLSelectElement).value;
+    const email    = (document.getElementById("addCrewEmail") as HTMLInputElement).value.trim().toLowerCase();
+    const role     = (document.getElementById("addCrewRole") as HTMLSelectElement).value;
     const weeklyHours = Number((document.getElementById("addCrewHours") as HTMLInputElement).value) || 40;
 
-    if(!userId || !fullName) return;
+    if(!fullName || !email){
+        alert("Full name and email are required.");
+        return;
+    }
 
     const { error } = await supabaseClient
         .from("memberships")
         .insert({
             organization_id: currentOrg.id,
-            user_id: userId,
+            user_id: null,              // account provisioned later by Admin
+            email,
             role,
             full_name: fullName,
             weekly_target_hours: weeklyHours
@@ -504,8 +525,8 @@ export async function addCrewMember(): Promise<void> {
         return;
     }
 
-    (document.getElementById("addCrewUserId") as HTMLInputElement).value = "";
     (document.getElementById("addCrewName") as HTMLInputElement).value = "";
+    (document.getElementById("addCrewEmail") as HTMLInputElement).value = "";
 
     renderCrewList();
 
@@ -522,12 +543,131 @@ export async function renderCrewList(): Promise<void> {
         .eq("organization_id", currentOrg.id)
         .order("full_name");
 
-    list.innerHTML = (data ?? []).map((m: any) => `
-        <div class="plan-entry-card">
-            <div><strong>${escapeHtml(m.full_name)}</strong> \u2014 ${m.role}</div>
-            <div class="plan-entry-meta">${m.active ? "active" : "inactive"} \u00b7 ${m.weekly_target_hours}h/week</div>
+    cacheCrew(data ?? []);
+
+    list.innerHTML = (data ?? []).map((m: any) => {
+
+        const loginState = m.user_id
+            ? `<span title="Has login">\ud83d\udfe2</span>`
+            : `<span title="Login not set up yet">\ud83d\udfe1</span>`;
+
+        return `
+        <div class="plan-entry-card ${m.active ? "" : "status-rejected"}">
+            <div>
+                <strong>${escapeHtml(m.full_name)}</strong>
+                ${loginState}
+                <span class="status-badge">${escapeHtml(m.role)}</span>
+                ${m.active ? "" : `<span class="status-badge status-rejected">inactive</span>`}
+                <div class="plan-entry-meta">
+                    ${escapeHtml(m.email ?? "no email")} \u00b7 ${m.weekly_target_hours}h/week
+                </div>
+            </div>
+            <div class="plan-entry-actions">
+                <button onclick="panels.openCrewEditModal('${m.id}')">Edit</button>
+                <button onclick="panels.resendRecovery('${m.id}')"
+                    ${(m.email && m.active) ? "" : "disabled"}>Resend Recovery</button>
+                <button onclick="panels.toggleCrewActive('${m.id}', ${!m.active})">
+                    ${m.active ? "Deactivate" : "Reactivate"}
+                </button>
+            </div>
         </div>
-    `).join("");
+        `;
+
+    }).join("");
+
+}
+
+export function openCrewEditModal(id: string): void {
+
+    const card = findCrew(id);
+    if(!card) return;
+
+    (document.getElementById("editCrewId")    as HTMLInputElement).value = card.id;
+    (document.getElementById("editCrewName")  as HTMLInputElement).value = card.full_name;
+    (document.getElementById("editCrewHours") as HTMLInputElement).value = String(card.weekly_target_hours);
+    // admins cannot be edited to/through this UI — clamp display
+    (document.getElementById("editCrewRole")  as HTMLSelectElement).value =
+        card.role === "admin" ? "manager" : card.role;
+    (document.getElementById("editCrewEmail") as HTMLInputElement).value = card.email ?? "";
+
+    openModal("crewEditModal");
+
+}
+
+export async function saveCrewEdit(): Promise<void> {
+
+    const id = (document.getElementById("editCrewId") as HTMLInputElement).value;
+
+    const patch = {
+        full_name:           (document.getElementById("editCrewName") as HTMLInputElement).value.trim(),
+        weekly_target_hours: Number((document.getElementById("editCrewHours") as HTMLInputElement).value) || 40,
+        role:                (document.getElementById("editCrewRole") as HTMLSelectElement).value,
+        email:               (document.getElementById("editCrewEmail") as HTMLInputElement).value.trim().toLowerCase()
+    };
+
+    if(!patch.full_name || !patch.email){
+        alert("Name and email are required.");
+        return;
+    }
+
+    closeModal("crewEditModal");
+
+    const { error } = await supabaseClient
+        .from("memberships")
+        .update(patch)
+        .eq("id", id);
+
+    if(error){ alert(error.message); }
+    renderCrewList();
+
+}
+
+export async function toggleCrewActive(id: string, activate: boolean): Promise<void> {
+
+    // client-side safety net mirroring the DB trigger
+    const target = findCrew(id);
+    if(target && target.role !== "employee" && !activate && currentOrg){
+
+        const { data: leaders } = await supabaseClient
+            .from("memberships")
+            .select("role")
+            .eq("organization_id", currentOrg.id)
+            .eq("active", true);
+
+        const activeLeaders = (leaders ?? []).filter((l: any) =>
+            l.role === "manager" || l.role === "admin");
+
+        if(activeLeaders.length <= 1){
+            alert("Organization must keep at least one active manager/admin.");
+            return;
+        }
+    }
+
+    const { error } = await supabaseClient
+        .from("memberships")
+        .update({ active: activate })
+        .eq("id", id);
+
+    if(error){ alert(error.message); }
+    renderCrewList();
+
+}
+
+export async function resendRecovery(id: string): Promise<void> {
+
+    const member = findCrew(id);
+
+    if(!member?.email){
+        alert("This member has no email yet — add one first.");
+        return;
+    }
+
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(
+        member.email,
+        { redirectTo: `${window.location.origin}/reset.html` }
+    );
+
+    alert(error ? error.message : `Recovery email sent to ${member.email}.`);
 
 }
 
@@ -544,36 +684,8 @@ function escapeHtml(str: string | null | undefined): string {
 
 
 // ======================================================
-// Expose on window.panels for inline onclick="" handlers
-// ======================================================
-
-(window as any).panels = {
-    showPanel,
-    closeModal,
-    openCheckInModal,
-    submitCheckIn,
-    openCheckOutModal,
-    submitCheckOut,
-    openLeaveModal,
-    submitLeaveRequestForm,
-    openComplaintModal,
-    submitComplaintForm,
-    openManualEditModal,
-    submitManualEdit,
-    approveEntry,
-    rejectEntry,
-    approveShiftChange,
-    rejectShiftChange,
-    resolveComplaintPrompt,
-    reviewLeaveRequest: reviewLeaveRequestFromPanel,
-    addCrewMember,
-    renderCrewList,
-    renderMyEntries
-};
-
-// ======================================================
-// Employee: My Entries (dashboard.html) — lists own time
-// entries + lets them file a complaint on a non-pending one.
+// Employee: My Entries (dashboard) — lists own time entries
+// + lets them file a complaint on a non-pending one.
 // ======================================================
 
 export async function renderMyEntries(): Promise<void> {
@@ -613,6 +725,39 @@ export async function renderMyEntries(): Promise<void> {
     `).join("");
 
 }
+
+
+// ======================================================
+// Expose on window.panels for inline onclick="" handlers
+// ======================================================
+
+(window as any).panels = {
+    showPanel,
+    closeModal,
+    openCheckInModal,
+    submitCheckIn,
+    openCheckOutModal,
+    submitCheckOut,
+    openLeaveModal,
+    submitLeaveRequestForm,
+    openComplaintModal,
+    submitComplaintForm,
+    openManualEditModal,
+    submitManualEdit,
+    approveEntry,
+    rejectEntry,
+    approveShiftChange,
+    rejectShiftChange,
+    resolveComplaintPrompt,
+    reviewLeaveRequest: reviewLeaveRequestFromPanel,
+    addCrewMember,
+    renderCrewList,
+    openCrewEditModal,
+    saveCrewEdit,
+    toggleCrewActive,
+    resendRecovery,
+    renderMyEntries
+};
 
 // Bare-name shortcuts so inline onclick="" handlers work
 Object.assign(window as any, {
