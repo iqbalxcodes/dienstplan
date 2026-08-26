@@ -520,12 +520,17 @@
 .auth-pass-row input { flex: 1 1 auto; }
 
 .auth-eye {
+    flex: none;
+    width: 38px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border: 1px solid #ccc;
     background: #fff;
     border-radius: 4px;
-    padding: 0 10px;
     cursor: pointer;
-    font-size: 14px;
+    color: #666;
 }
 
 .auth-eye:hover { background: #f0f0f0; }
@@ -560,6 +565,13 @@
     border: none;
     border-top: 1px solid #eee;
     margin: 14px 0;
+}
+
+
+/* THE critical part: constrain the injected SVG */
+.auth-eye svg {
+    width: 18px;
+    height: 18px;
 }
 
 
