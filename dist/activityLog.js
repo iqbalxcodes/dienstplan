@@ -1,16 +1,15 @@
 // ======================================================
-// activityLog.ts — fire-and-forget audit trail writer.
-// Every state-changing action in the app funnels through
-// here so the History page (manager/admin) has a complete,
-// tamper-resistant record of who did what and when.
-// Errors are logged but never thrown: audit logging must
-// never block the main user flow.
+// activityLog.ts - fire-and-forget audit trail writer.
+// Every state-changing action funnels through here so the
+// History page has a complete record of who did what and
+// when. Errors are logged, never thrown: audit logging must
+// not block the main user flow.
 // ======================================================
 import { supabaseClient } from "./supabaseClient.js";
 import { currentOrg, currentMembership } from "./auth.js";
 export async function logActivity(action, summary, details = {}, entityType, entityId) {
     if (!currentOrg || !currentMembership) {
-        console.warn("logActivity skipped \u2014 no active session context");
+        console.warn("logActivity skipped - no active session context");
         return;
     }
     const { error } = await supabaseClient.from("activity_log").insert({
