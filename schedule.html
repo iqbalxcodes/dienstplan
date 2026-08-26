@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="css/dienstplan.css">
 </head>
 <body>
+
+    <!-- LOGIN OVERLAY -->
     <div id="loginOverlay" class="plan-modal-backdrop">
         <div class="plan-modal auth-card">
 
@@ -19,7 +21,9 @@
             <label>Password</label>
             <div class="auth-pass-row">
                 <input type="password" id="authPassword" autocomplete="current-password">
-                <button type="button" class="auth-eye" id="authEyeBtn" title="Show / hide password">&#128065;</button>
+                <button type="button" class="auth-eye" id="authEyeBtn"
+                    title="Show / hide password"
+                    aria-label="Show password"></button>
             </div>
 
             <div class="auth-actions-row">
@@ -57,7 +61,8 @@
         <div class="reservation-header">
             <div class="header-title"><h3>Schedule</h3></div>
             <div class="header-menu">
-                <input type="date" id="planDateInput" onchange="dienstplan.changeSelectedDate(this.value)">
+                <input type="date" id="planDateInput"
+                    onchange="dienstplan.changeSelectedDate(this.value)">
                 <div class="rack-view-toggle">
                     <button class="rack-view-btn" data-mode="3" onclick="dienstplan.planSetViewMode('3')">3D</button>
                     <button class="rack-view-btn" data-mode="7" onclick="dienstplan.planSetViewMode('7')">7D</button>

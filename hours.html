@@ -9,6 +9,7 @@
 </head>
 <body>
 
+    <!-- LOGIN OVERLAY -->
     <div id="loginOverlay" class="plan-modal-backdrop">
         <div class="plan-modal auth-card">
 
@@ -20,7 +21,9 @@
             <label>Password</label>
             <div class="auth-pass-row">
                 <input type="password" id="authPassword" autocomplete="current-password">
-                <button type="button" class="auth-eye" id="authEyeBtn" title="Show / hide password">&#128065;</button>
+                <button type="button" class="auth-eye" id="authEyeBtn"
+                    title="Show / hide password"
+                    aria-label="Show password"></button>
             </div>
 
             <div class="auth-actions-row">
@@ -33,8 +36,9 @@
 
             <div id="authError" class="auth-error" style="display:none;"></div>
 
-            <p class="auth-hint">No account yet? Please ask your admin / boss.</p>
-            <p class="auth-link"><a href="#" id="forgotToggle">Forgot password?</a></p>
+            <p class="auth-hint">No account yet? Please ask your admin / boss, or
+                <a href="#" id="forgotToggle">Forgot password?</a>
+            </p>
 
             <div id="forgotSection" style="display:none;">
                 <hr>

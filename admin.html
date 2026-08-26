@@ -9,6 +9,7 @@
 </head>
 <body>
 
+    <!-- LOGIN OVERLAY -->
     <div id="loginOverlay" class="plan-modal-backdrop">
         <div class="plan-modal auth-card">
 
@@ -20,7 +21,9 @@
             <label>Password</label>
             <div class="auth-pass-row">
                 <input type="password" id="authPassword" autocomplete="current-password">
-                <button type="button" class="auth-eye" id="authEyeBtn" title="Show / hide password">&#128065;</button>
+                <button type="button" class="auth-eye" id="authEyeBtn"
+                    title="Show / hide password"
+                    aria-label="Show password"></button>
             </div>
 
             <div class="auth-actions-row">
@@ -33,8 +36,9 @@
 
             <div id="authError" class="auth-error" style="display:none;"></div>
 
-            <p class="auth-hint">No account yet? Please ask your admin / boss.</p>
-            <p class="auth-link"><a href="#" id="forgotToggle">Forgot password?</a></p>
+            <p class="auth-hint">No account yet? Please ask your admin / boss, or
+                <a href="#" id="forgotToggle">Forgot password?</a>
+            </p>
 
             <div id="forgotSection" style="display:none;">
                 <hr>
@@ -72,9 +76,6 @@
             <div id="leaveList" class="manager-required"></div>
 
             <h3>Add Crew</h3>
-            <!-- ponytail: akun auth tetap dibuat manual di Supabase Dashboard;
-                 form ini cuma insert baris membership. Paste User UID dari
-                 Dashboard -> Authentication setelah bikin akunnya. -->
             <p style="color:#888; font-size:12px;">
                 Buat akun login-nya dulu di Supabase Dashboard (Authentication → Add user),
                 lalu paste User UID di sini.
@@ -108,23 +109,4 @@
             <textarea id="manualEditNote" placeholder="Explain the adjustment"></textarea>
             <div class="plan-modal-footer">
                 <button onclick="closeModal('manualEditModal')">Cancel</button>
-                <button class="primary" onclick="submitManualEdit()">Save</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="statusBar">
-        <div id="userArea"></div>
-        <div id="contextArea"></div>
-        <div id="paginationInfo"></div>
-        <div id="paginationNav"></div>
-    </div>
-
-    <script type="importmap">
-    { "imports": { "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2" } }
-    </script>
-    <script type="module" src="dist/dienstplan.js"></script>
-    <script type="module" src="dist/panels.js"></script>
-
-</body>
-</html>
+                <button class
