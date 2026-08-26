@@ -6,34 +6,177 @@
     <title>Dienstplan — Reset Password</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dienstplan.css">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+        }
+        .reset-card {
+            max-width: 380px;
+            width: 100%;
+            margin: 20px;
+        }
+        .reset-card h3 { text-align: center; margin: 0 0 12px; }
+        .reset-card label {
+            display: block;
+            font-size: 12px;
+            color: #777;
+            margin-top: 10px;
+            margin-bottom: 4px;
+        }
+        .reset-card input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 8px 10px;
+            font-size: 13px;
+        }
+        .reset-card button {
+            width: 100%;
+            margin-top: 16px;
+            padding: 10px;
+            border: 1px solid #1565c0;
+            background: #1565c0;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .reset-card button:hover { background: #0d47a1; }
+        .reset-card button:disabled { opacity: 0.5; cursor: default; }
+        .reset-msg {
+            margin-top: 12px;
+            padding: 8px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            text-align: center;
+        }
+        .reset-msg.ok { background: #e8f5e9; color: #2e7d32; }
+        .reset-msg.err { background: #ffebee; color: #c62828; }
+        .reset-loading { text-align: center; color: #888; padding: 40px 0; }
+    </style>
 </head>
 <body>
 
-    <h1>Dienstplan</h1>
+    <div class="plan-modal auth-card reset-card">
 
-    <div class="table-container detail-card" style="max-width:420px; margin:40px auto;">
-        <div class="reservation-header">
-            <div class="header-title"><h3>Set a new password</h3></div>
+        <h3 id="resetTitle">Reset Password</h3>
+
+        <div id="resetLoading" class="reset-loading">
+            Verifying your link…
         </div>
 
-        <div id="resetStatus" style="color:#888;">Validating recovery link\u2026</div>
+        <form id="resetForm" style="display:none;">
+            <label for="newPassword">New password</label>
+            <input type="password" id="newPassword"
+                placeholder="At least 6 characters" autocomplete="new-password">
 
-        <div id="resetForm" style="display:none;">
-            <label>New password</label>
-            <input type="password" id="newPassword" autocomplete="new-password">
-            <label>Repeat new password</label>
-            <input type="password" id="newPassword2" autocomplete="new-password">
-            <div id="resetError" class="auth-error" style="display:none;"></div>
-            <div class="plan-modal-footer">
-                <button class="primary" id="resetSaveBtn">Save password</button>
-            </div>
-        </div>
+            <label for="confirmPassword">Confirm password</label>
+            <input type="password" id="confirmPassword"
+                placeholder="Repeat your new password" autocomplete="new-password">
+
+            <button type="submit" id="resetBtn">Update Password</button>
+        </form>
+
+        <div id="resetMsg" class="reset-msg" style="display:none;"></div>
+
     </div>
 
     <script type="importmap">
     { "imports": { "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2" } }
     </script>
-    <script type="module" src="dist/reset.js"></script>
+    <script type="module">
+        import { createClient } from "@supabase/supabase-js";
+
+        const supabase = createClient(
+            "https://rutuoolvofndmjjboosv.supabase.co",
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1dHVvbHZvZm5kbWpqYm9vc3YiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc1NjAzNDQzNCwiZXhwIjoxOTEyMjAwNDM0fQ.q_K8fz_VqMJBJhFjUMpfJWmU3D9XPKnaOU6dXm9p_Mk"
+        );
+
+        const loading = document.getElementById("resetLoading");
+        const form    = document.getElementById("resetForm");
+        const msg     = document.getElementById("resetMsg");
+        const title   = document.getElementById("resetTitle");
+
+        // Supabase puts the tokens in the URL hash fragment
+        const hash = window.location.hash;
+
+        if(!hash || !hash.includes("access_token")){
+            loading.textContent = "No reset link detected. Please request a new one.";
+            return;
+        }
+
+        // Let Supabase exchange the token for a session
+        const { data, error } = await supabase.auth.exchangeCodeForSession(
+            window.location.href
+        );
+
+        if(error){
+            console.error(error);
+            loading.textContent = "Link expired or invalid. Please request a new recovery email.";
+            return;
+        }
+
+        // Token verified — show the form
+        loading.style.display = "none";
+        form.style.display = "";
+        title.textContent = "Set New Password";
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const pw  = document.getElementById("newPassword").value;
+            const pw2 = document.getElementById("confirmPassword").value;
+            const btn = document.getElementById("resetBtn");
+
+            msg.style.display = "none";
+
+            if(pw.length < 6){
+                msg.textContent = "Password must be at least 6 characters.";
+                msg.className = "reset-msg err";
+                msg.style.display = "";
+                return;
+            }
+
+            if(pw !== pw2){
+                msg.textContent = "Passwords do not match.";
+                msg.className = "reset-msg err";
+                msg.style.display = "";
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = "Updating…";
+
+            const { error: updateError } = await supabase.auth.updateUser({ password: pw });
+
+            if(updateError){
+                msg.textContent = updateError.message;
+                msg.className = "reset-msg err";
+                msg.style.display = "";
+                btn.disabled = false;
+                btn.textContent = "Update Password";
+                return;
+            }
+
+            // Success
+            form.style.display = "none";
+            title.textContent = "Done!";
+            msg.textContent = "Password updated. Redirecting to login…";
+            msg.className = "reset-msg ok";
+            msg.style.display = "";
+
+            setTimeout(() => {
+                window.location.href = "index.html";
+            }, 2000);
+
+        });
+
+    </script>
 
 </body>
 </html>
