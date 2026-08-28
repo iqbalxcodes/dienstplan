@@ -60,18 +60,40 @@
 
         <div class="reservation-header">
             <div class="header-title"><h3>Schedule</h3></div>
-            <div class="header-menu">
-                <input type="date" id="planDateInput"
+
+            <div class="sched-nav-center">
+                <input type="date" id="planDateInput" class="sched-date-input"
                     onchange="dienstplan.changeSelectedDate(this.value)">
-                <div class="rack-view-toggle">
+
+                <div id="monthNavBar" class="month-nav" style="display:none;">
+                    <button class="rack-nav-btn" onclick="dienstplan.changeMonth(-1)" title="Previous month">&#9664;</button>
+                    <select id="monthPickerMonth" class="month-picker-select" onchange="dienstplan.onMonthPickerChange()"></select>
+                    <select id="monthPickerYear" class="month-picker-select" onchange="dienstplan.onMonthPickerChange()"></select>
+                    <button class="rack-nav-btn" onclick="dienstplan.changeMonth(1)" title="Next month">&#9654;</button>
+                </div>
+            </div>
+
+            <div class="sched-nav-right">
+                <div class="rack-view-toggle" id="rackViewToggle">
+                    <button class="rack-view-btn" data-mode="month" onclick="dienstplan.planSetViewMode('month')">Month</button>
                     <button class="rack-view-btn" data-mode="3" onclick="dienstplan.planSetViewMode('3')">3D</button>
                     <button class="rack-view-btn" data-mode="7" onclick="dienstplan.planSetViewMode('7')">7D</button>
                     <button class="rack-view-btn" data-mode="30" onclick="dienstplan.planSetViewMode('30')">30D</button>
-                    <button class="rack-view-btn" data-mode="month" onclick="dienstplan.planSetViewMode('month')">Month</button>
                     <button class="rack-view-btn" data-mode="auto" onclick="dienstplan.planSetViewMode('auto')">Auto</button>
                 </div>
+
+                <select id="rackViewSelectMobile" class="rack-view-select-mobile" onchange="dienstplan.planSetViewMode(this.value)">
+                    <option value="month">Month</option>
+                    <option value="3">3 Days</option>
+                    <option value="7">7 Days</option>
+                    <option value="30">30 Days</option>
+                    <option value="auto">Auto</option>
+                </select>
+
+                <div class="header-clock" id="headerClockBox">
+                    <span id="clockDate"></span><span id="clockTime"></span>
+                </div>
             </div>
-            <div class="header-clock"><span id="clock"></span></div>
         </div>
 
         <div class="rack-scroll" id="rackScroll">
@@ -80,15 +102,6 @@
         </div>
 
         <div class="month-view" id="monthView" style="display:none;">
-            <div class="month-nav">
-                <button class="rack-nav-btn month-nav-prev" onclick="dienstplan.changeMonth(-1)" title="Previous month">
-                    <span class="icon-desktop">&#9664;</span><span class="icon-mobile">&#9650;</span>
-                </button>
-                <div id="monthLabel" class="month-label"></div>
-                <button class="rack-nav-btn month-nav-next" onclick="dienstplan.changeMonth(1)" title="Next month">
-                    <span class="icon-desktop">&#9654;</span><span class="icon-mobile">&#9660;</span>
-                </button>
-            </div>
             <div id="monthHeaderRow" class="month-header-row"></div>
             <div id="monthGrid" class="month-grid"></div>
         </div>
@@ -104,8 +117,12 @@
 
     <div id="shiftPopupModal" class="plan-modal-backdrop" style="display:none;">
         <div class="plan-modal">
-            <h3>Edit Shift</h3>
+            <h3 id="shiftPopupTitle">Edit Shift</h3>
+
             <div id="shiftPopupStaffName" class="plan-entry-meta" style="margin-bottom:8px;"></div>
+
+            <label id="shiftPopupEmployeeLabel" style="display:none;">Employee</label>
+            <select id="shiftPopupEmployee" style="display:none;"></select>
 
             <label>Role</label>
             <select id="shiftPopupRole"></select>

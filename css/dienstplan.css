@@ -951,24 +951,6 @@ body.reset-page {
     min-height: 0;
 }
 
-.month-nav {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-    padding: 6px 0 10px;
-    flex: none;
-}
-
-.month-label {
-    font-size: 14px;
-    font-weight: 600;
-    min-width: 140px;
-    text-align: center;
-}
-
-.icon-mobile { display: none; }
-
 .month-header-row {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -1071,6 +1053,89 @@ body.reset-page {
     background: repeating-linear-gradient(45deg, #bdbdbd, #bdbdbd 6px, #ababab 6px, #ababab 12px);
     cursor: pointer;
     opacity: 0.75;
+}
+
+/* ======================================================
+   SCHEDULE HEADER — title | month-nav (center) | view
+   buttons + clock (right)
+   ====================================================== */
+
+.reservation-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.header-title { flex: 0 0 auto; }
+
+.sched-nav-center {
+    flex: 1 1 auto;
+    display: flex;
+    justify-content: center;
+    min-width: 0;
+}
+
+.sched-nav-right {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.month-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.month-picker-select {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 13px;
+    background: #fff;
+}
+
+.rack-view-select-mobile { display: none; }
+
+.header-clock {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 170px;
+    font-size: 13px;
+    color: #444;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+#clockDate { color: #888; }
+#clockTime { font-weight: 600; }
+
+@media (max-width: 700px) {
+
+    .reservation-header { flex-wrap: wrap; row-gap: 6px; }
+
+    .rack-view-toggle { display: none; }
+
+    .rack-view-select-mobile {
+        display: inline-block;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+
+    .sched-nav-center { order: 3; flex: 1 1 100%; justify-content: center; }
+    .sched-nav-right { order: 2; margin-left: auto; }
+
+    .header-clock { font-size: 11px; gap: 6px; min-width: 130px; }
+    .month-picker-select { font-size: 12px; padding: 3px 4px; }
+    .month-day-cell:not(.other-month) { cursor: pointer; }
+    .month-day-cell:not(.other-month):hover { background: #fafcff; }
+
 }
 
 @media (max-width: 700px) {

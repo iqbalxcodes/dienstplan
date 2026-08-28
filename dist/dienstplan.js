@@ -141,6 +141,9 @@ function updatePlanViewModeButtons() {
     document.querySelectorAll(".rack-view-btn").forEach(btn => {
         btn.classList.toggle("active", btn.dataset.mode === planViewMode);
     });
+    const mobileSel = document.getElementById("rackViewSelectMobile");
+    if (mobileSel)
+        mobileSel.value = planViewMode;
 }
 // ======================================================
 // Data fetching
@@ -803,11 +806,38 @@ export async function renderHoursSummary() {
 // ======================================================
 // MONTH VIEW
 // ======================================================
-function updateMonthLabel() {
-    const label = document.getElementById("monthLabel");
-    if (!label)
+function populateMonthPickerOnce() {
+    const monthSel = document.getElementById("monthPickerMonth");
+    const yearSel = document.getElementById("monthPickerYear");
+    if (!monthSel || !yearSel)
         return;
-    label.textContent = `${MONTH_LABELS[planMonthDate.getMonth()]} ${planMonthDate.getFullYear()}`;
+    if (monthSel.dataset.populated !== "1") {
+        monthSel.innerHTML = MONTH_LABELS.map((m, i) => `<option value="${i}">${m}</option>`).join("");
+        monthSel.dataset.populated = "1";
+    }
+    if (yearSel.dataset.populated !== "1") {
+        const thisYear = new Date().getFullYear();
+        const years = [];
+        for (let y = thisYear - 5; y <= thisYear + 5; y++)
+            years.push(y);
+        yearSel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join("");
+        yearSel.dataset.populated = "1";
+    }
+}
+function syncMonthPicker() {
+    populateMonthPickerOnce();
+    const monthSel = document.getElementById("monthPickerMonth");
+    const yearSel = document.getElementById("monthPickerYear");
+    if (monthSel)
+        monthSel.value = String(planMonthDate.getMonth());
+    if (yearSel)
+        yearSel.value = String(planMonthDate.getFullYear());
+}
+export function onMonthPickerChange() {
+    const monthSel = document.getElementById("monthPickerMonth");
+    const yearSel = document.getElementById("monthPickerYear");
+    planMonthDate = new Date(Number(yearSel.value), Number(monthSel.value), 1);
+    refreshMonthView();
 }
 function renderMonthHeader() {
     const row = document.getElementById("monthHeaderRow");
@@ -889,7 +919,7 @@ async function refreshMonthView() {
     const weeks = buildMonthWeeks(planMonthDate);
     const rangeStart = weeks[0][0];
     const rangeEnd = weeks[weeks.length - 1][6];
-    updateMonthLabel();
+    syncMonthPicker();
     renderMonthHeader();
     const [members, shifts, changeRequests] = await Promise.all([
         fetchPlanMembers(),
@@ -910,6 +940,7 @@ function setScheduleViewContainer(mode) {
     const rackScroll = document.getElementById("rackScroll");
     const monthView = document.getElementById("monthView");
     const dateInput = document.getElementById("planDateInput");
+    const monthNavBar = document.getElementById("monthNavBar");
     const isMonth = mode === "month";
     if (rackScroll)
         rackScroll.style.display = isMonth ? "none" : "";
@@ -917,6 +948,8 @@ function setScheduleViewContainer(mode) {
         monthView.style.display = isMonth ? "flex" : "none";
     if (dateInput)
         dateInput.style.display = isMonth ? "none" : "";
+    if (monthNavBar)
+        monthNavBar.style.display = isMonth ? "flex" : "none";
 }
 // ======================================================
 // MONTH VIEW — drag & drop + click-to-edit (pointer events,
@@ -927,6 +960,17 @@ function setupMonthDragAndDrop() {
     if (!grid)
         return;
     grid.addEventListener("pointerdown", handleMonthPointerDown);
+    grid.addEventListener("click", (e) => {
+        const target = e.target;
+        if (target.closest(".month-shift-card"))
+            return;
+        const cell = target.closest(".month-day-cell");
+        if (!cell || !isManager())
+            return;
+        const date = cell.dataset.date;
+        if (date)
+            openShiftPopup(null, null, date);
+    });
 }
 function handleMonthPointerDown(e) {
     const target = e.target;
@@ -1053,21 +1097,29 @@ function setupMonthSwipe() {
 // ======================================================
 // MONTH VIEW — popup edit shift
 // ======================================================
-export function openShiftPopup(shiftId, requestId) {
+export function openShiftPopup(shiftId, requestId, newDate = null) {
     const modal = document.getElementById("shiftPopupModal");
     if (!modal)
         return;
+    const titleEl = document.getElementById("shiftPopupTitle");
     const nameEl = document.getElementById("shiftPopupStaffName");
+    const empLabel = document.getElementById("shiftPopupEmployeeLabel");
+    const empSel = document.getElementById("shiftPopupEmployee");
     const roleSel = document.getElementById("shiftPopupRole");
     const startEl = document.getElementById("shiftPopupStart");
     const endEl = document.getElementById("shiftPopupEnd");
     const noteEl = document.getElementById("shiftPopupPendingNote");
     const saveBtn = document.getElementById("shiftPopupSaveBtn");
     roleSel.innerHTML = roleLabels().map(r => `<option value="${escapeAttr(r)}">${escapeAttr(r)}</option>`).join("");
+    modal.dataset.editingShiftId = "";
+    modal.dataset.newDate = "";
     if (requestId) {
         const req = planMonthChangeRequests.find(r => r.id === requestId);
         const member = planMembers.find(m => m.id === req?.requested_by_membership_id);
+        titleEl.textContent = "Pending Change";
         nameEl.textContent = member?.full_name ?? "";
+        empLabel.style.display = "none";
+        empSel.style.display = "none";
         roleSel.disabled = true;
         startEl.value = req?.proposed_start_time.slice(0, 5) ?? "";
         endEl.value = req?.proposed_end_time.slice(0, 5) ?? "";
@@ -1076,12 +1128,14 @@ export function openShiftPopup(shiftId, requestId) {
         noteEl.style.display = "";
         noteEl.textContent = "Waiting for manager approval.";
         saveBtn.style.display = "none";
-        modal.dataset.editingShiftId = "";
     }
     else if (shiftId) {
         const shift = planShifts.find(s => s.id === shiftId);
         const member = planMembers.find(m => m.id === shift?.membership_id);
+        titleEl.textContent = "Edit Shift";
         nameEl.textContent = member?.full_name ?? "";
+        empLabel.style.display = "none";
+        empSel.style.display = "none";
         roleSel.disabled = false;
         roleSel.value = shift?.role_label ?? roleLabels()[0];
         startEl.value = shift?.start_time.slice(0, 5) ?? "";
@@ -1089,14 +1143,29 @@ export function openShiftPopup(shiftId, requestId) {
         startEl.disabled = false;
         endEl.disabled = false;
         saveBtn.style.display = "";
-        if (isManager()) {
-            noteEl.style.display = "none";
-        }
-        else {
-            noteEl.style.display = "";
+        noteEl.style.display = isManager() ? "none" : "";
+        if (!isManager())
             noteEl.textContent = "Your change will be sent for manager approval.";
-        }
         modal.dataset.editingShiftId = shiftId;
+    }
+    else if (newDate) {
+        titleEl.textContent = "Add Shift";
+        nameEl.textContent = "";
+        empLabel.style.display = "";
+        empSel.style.display = "";
+        empSel.innerHTML = planMembers.map(m => `<option value="${m.id}">${escapeAttr(m.full_name)}</option>`).join("");
+        roleSel.disabled = false;
+        roleSel.value = roleLabels()[0];
+        startEl.value = "09:00";
+        endEl.value = "17:00";
+        startEl.disabled = false;
+        endEl.disabled = false;
+        noteEl.style.display = "none";
+        saveBtn.style.display = "";
+        modal.dataset.newDate = newDate;
+    }
+    else {
+        return;
     }
     modal.style.display = "flex";
 }
@@ -1109,6 +1178,25 @@ export async function submitShiftPopup() {
     const modal = document.getElementById("shiftPopupModal");
     if (!modal)
         return;
+    const roleSel = document.getElementById("shiftPopupRole");
+    const startEl = document.getElementById("shiftPopupStart");
+    const endEl = document.getElementById("shiftPopupEnd");
+    if (!startEl.value || !endEl.value) {
+        showMessage("Please set both start and end time", "error");
+        return;
+    }
+    const newDate = modal.dataset.newDate;
+    if (newDate) {
+        const empSel = document.getElementById("shiftPopupEmployee");
+        const membershipId = empSel.value;
+        if (!membershipId) {
+            showMessage("Please choose an employee", "error");
+            return;
+        }
+        closeShiftPopup();
+        await createNewShift(membershipId, newDate, startEl.value + ":00", endEl.value + ":00", roleSel.value);
+        return;
+    }
     const shiftId = modal.dataset.editingShiftId;
     if (!shiftId) {
         closeShiftPopup();
@@ -1117,13 +1205,6 @@ export async function submitShiftPopup() {
     const shift = planShifts.find(s => s.id === shiftId);
     if (!shift) {
         closeShiftPopup();
-        return;
-    }
-    const roleSel = document.getElementById("shiftPopupRole");
-    const startEl = document.getElementById("shiftPopupStart");
-    const endEl = document.getElementById("shiftPopupEnd");
-    if (!startEl.value || !endEl.value) {
-        showMessage("Please set both start and end time", "error");
         return;
     }
     closeShiftPopup();
@@ -1139,6 +1220,38 @@ export async function submitShiftPopup() {
     else {
         await proposeEmployeeShiftEdit(shiftId, fields);
     }
+}
+async function createNewShift(membershipId, shiftDate, startTime, endTime, roleLabel) {
+    if (!currentOrg || !isManager())
+        return;
+    const { conflicts, error: conflictError } = await findShiftConflicts(currentOrg.id, membershipId, shiftDate, startTime, endTime);
+    if (conflictError) {
+        showMessage("Failed to check for conflicts", "error");
+        return;
+    }
+    if (conflicts.length > 0) {
+        showMessage("This staff member already has an overlapping shift", "error");
+        return;
+    }
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { error } = await supabaseClient
+        .from("shifts")
+        .insert({
+        organization_id: currentOrg.id,
+        membership_id: membershipId,
+        shift_date: shiftDate,
+        start_time: startTime,
+        end_time: endTime,
+        role_label: roleLabel,
+        updated_by: user?.id ?? null
+    });
+    if (error) {
+        console.error(error);
+        showMessage("Failed to create shift", "error");
+        return;
+    }
+    showMessage("Shift added", "success");
+    await refreshPlan();
 }
 // ======================================================
 // Status bar helpers (same pattern as roomRack.js)
@@ -1217,33 +1330,16 @@ export async function refreshPlan() {
     applyAuthVisibility();
 }
 function startClock() {
-    const clock = document.getElementById("clock");
-    const h1 = document.getElementById("orgNameLabel");
-    // Remove old clock from card header if it exists
-    const oldClock = document.querySelector(".header-clock #clock");
-    if (oldClock && oldClock.parentElement) {
-        oldClock.parentElement.style.display = "none";
-    }
-    // Create clock span next to org name (only once)
-    if (h1 && !document.getElementById("headerClock")) {
-        const span = document.createElement("span");
-        span.id = "headerClock";
-        span.className = "header-clock-text";
-        h1.appendChild(span);
-    }
     function updateClock() {
         const now = new Date();
-        const timeStr = now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
         const dateStr = now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
-        const hc = document.getElementById("headerClock");
-        if (hc)
-            hc.textContent = `\u00b7 ${dateStr} ${timeStr}`;
-        if (clock) {
-            clock.innerText = now.toLocaleString("de-DE", {
-                day: "2-digit", month: "2-digit", year: "numeric",
-                hour: "2-digit", minute: "2-digit", second: "2-digit"
-            });
-        }
+        const timeStr = now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        const dateEl = document.getElementById("clockDate");
+        const timeEl = document.getElementById("clockTime");
+        if (dateEl)
+            dateEl.textContent = dateStr;
+        if (timeEl)
+            timeEl.textContent = timeStr;
     }
     updateClock();
     setInterval(updateClock, 1000);
@@ -1312,6 +1408,7 @@ window.dienstplan = {
     changeSelectedDate,
     planSetViewMode,
     changeMonth,
+    onMonthPickerChange,
     closeShiftPopup,
     submitShiftPopup,
     checkIn,
