@@ -127,10 +127,15 @@ export function hasRole(...roles: MembershipRole[]): boolean {
 
 export async function logout(): Promise<void> {
 
-    await supabaseClient.auth.signOut();
-    currentOrg = null;
-    currentMembership = null;
-    applyAuthVisibility();
+    try {
+        await supabaseClient.auth.signOut();
+    } catch (err) {
+        console.error("signOut failed, clearing local state anyway:", err);
+    } finally {
+        currentOrg = null;
+        currentMembership = null;
+        applyAuthVisibility();
+    }
 
 }
 
