@@ -349,7 +349,7 @@ function haversineMeters(a, b) {
     const R = 6371000;
     const dLat = (b[0] - a[0]) * Math.PI / 180;
     const dLon = (b[1] - a[1]) * Math.PI / 180;
-    const la1 = a[0] * Math.PI / 180, la2 = b[1] * Math.PI / 180;
+    const la1 = a[0] * Math.PI / 180, la2 = b[0] * Math.PI / 180;
     const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLon / 2) ** 2;
     return 2 * R * Math.asin(Math.sqrt(h));
 }
@@ -379,10 +379,7 @@ function showGreeting() {
         greeting = "Good Evening";
     const firstName = currentMembership.full_name.split(" ")[0];
     const orgName = currentOrg?.name ?? "Dienstplan";
-    const hc = document.getElementById("headerClock");
-    el.textContent = orgName;
-    if (hc)
-        hc.textContent = "\u2014 Dienstplan";
+    el.textContent = `${greeting}, ${firstName}!`;
     setTimeout(() => {
         el.textContent = `${orgName} \u2014 Dienstplan`;
     }, 3000);

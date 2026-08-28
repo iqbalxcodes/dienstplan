@@ -96,10 +96,17 @@ export function hasRole(...roles) {
     return currentMembership !== null && roles.includes(currentMembership.role);
 }
 export async function logout() {
-    await supabaseClient.auth.signOut();
-    currentOrg = null;
-    currentMembership = null;
-    applyAuthVisibility();
+    try {
+        await supabaseClient.auth.signOut();
+    }
+    catch (err) {
+        console.error("signOut failed, clearing local state anyway:", err);
+    }
+    finally {
+        currentOrg = null;
+        currentMembership = null;
+        applyAuthVisibility();
+    }
 }
 // ======================================================
 // Inline SVG eye icons (Feather-style, stroke=currentColor)
@@ -128,7 +135,9 @@ export function renderUserArea() {
     if (!area)
         return;
     if (currentMembership) {
-        overlay?.remove(); // logged in -> drop the login card
+        // Logged in: hide overlay (never remove!)
+        if (overlay)
+            overlay.style.display = "none";
         area.innerHTML = `
             <span>${escapeHtml(currentMembership.full_name)} \u00b7 ${escapeHtml(currentMembership.role)}</span>
             <button id="logoutBtn" style="margin-left:8px;">Logout</button>
@@ -139,8 +148,12 @@ export function renderUserArea() {
         });
         return;
     }
+    // Not logged in: show overlay + status text
     area.innerHTML = `<span class="plan-entry-meta">Not signed in</span>`;
-    wireLoginOverlay();
+    if (overlay) {
+        overlay.style.display = "";
+        wireLoginOverlay();
+    }
 }
 // ======================================================
 // Wire the STATIC login card from HTML (no injection ->

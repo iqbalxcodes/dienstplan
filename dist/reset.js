@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         status.style.color = "#2e7d32";
         status.textContent = "Password updated! Redirecting\u2026";
-        setTimeout(() => { window.location.href = "index.html"; }, 1500);
+        setTimeout(() => { window.location.href = "/index.html"; }, 1500);
     });
 });
 //# sourceMappingURL=reset.js.map

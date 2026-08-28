@@ -770,6 +770,30 @@ function escapeHtml(str) {
     div.textContent = str ?? "";
     return div.innerHTML;
 }
+function showGreeting() {
+    const el = document.getElementById("orgNameLabel");
+    if (!el || !currentMembership)
+        return;
+    const hour = new Date().getHours();
+    let greeting;
+    if (hour < 12)
+        greeting = "Good Morning";
+    else if (hour < 18)
+        greeting = "Good Afternoon";
+    else
+        greeting = "Good Evening";
+    const firstName = currentMembership.full_name.split(" ")[0];
+    let titleText = el.querySelector(".title-text");
+    if (!titleText) {
+        titleText = document.createElement("span");
+        titleText.className = "title-text";
+        el.insertBefore(titleText, el.firstChild);
+    }
+    titleText.textContent = `${greeting}, ${firstName}!`;
+    setTimeout(() => {
+        titleText.textContent = currentOrg?.name ?? "Dienstplan";
+    }, 3000);
+}
 function showMessage(text, type = "info") {
     const contextArea = document.getElementById("contextArea");
     if (!contextArea)
@@ -812,8 +836,13 @@ export async function refreshPlan() {
 }
 function startClock() {
     const clock = document.getElementById("clock");
-    // Create clock span next to org name dynamically
     const h1 = document.getElementById("orgNameLabel");
+    // Remove old clock from card header if it exists
+    const oldClock = document.querySelector(".header-clock #clock");
+    if (oldClock && oldClock.parentElement) {
+        oldClock.parentElement.style.display = "none";
+    }
+    // Create clock span next to org name (only once)
     if (h1 && !document.getElementById("headerClock")) {
         const span = document.createElement("span");
         span.id = "headerClock";
@@ -841,7 +870,13 @@ function renderOrgLabel() {
     const label = document.getElementById("orgNameLabel");
     if (!label)
         return;
-    label.innerText = currentOrg ? currentOrg.name : "Dienstplan";
+    let titleText = label.querySelector(".title-text");
+    if (!titleText) {
+        titleText = document.createElement("span");
+        titleText.className = "title-text";
+        label.insertBefore(titleText, label.firstChild);
+    }
+    titleText.textContent = currentOrg ? currentOrg.name : "Dienstplan";
 }
 function debounce(fn, delay) {
     let timer;
@@ -851,16 +886,15 @@ function debounce(fn, delay) {
     });
 }
 document.addEventListener("DOMContentLoaded", async () => {
-    startClock();
     updatePlanViewModeButtons();
     setupPlanDragAndDrop();
     const loggedIn = await bootstrapAuth().catch(err => {
         console.error("bootstrapAuth failed:", err);
         return false;
     });
-    // Buang / pasang login card SEBELUM apa pun yang bisa crash,
-    // supaya user tidak pernah terjebak di balik card
     renderOrgLabel();
+    startClock();
+    showGreeting();
     renderUserArea();
     renderNavigation(currentMembership?.role ?? null);
     centerPlanOnDate(startOfToday());
