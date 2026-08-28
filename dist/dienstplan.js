@@ -35,6 +35,10 @@ let planMembers = [];
 let planShifts = [];
 let planTimeEntries = [];
 let planLeaveRequests = [];
+const MONTH_DOW_LABELS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+let planMonthDate = startOfMonth(startOfToday());
+let planMonthChangeRequests = [];
+let monthDragState = null;
 let planDragState = null;
 // ======================================================
 // Date helpers (local-midnight based, same as roomRack.js)
@@ -62,6 +66,34 @@ function isSameDay(a, b) {
     return a.getFullYear() === b.getFullYear()
         && a.getMonth() === b.getMonth()
         && a.getDate() === b.getDate();
+}
+function startOfMonth(date) {
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+function mondayIndex(date) {
+    return (date.getDay() + 6) % 7; // 0 = Monday ... 6 = Sunday
+}
+function buildMonthWeeks(monthDate) {
+    const firstOfMonth = startOfMonth(monthDate);
+    const daysInThisMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
+    const leadingOffset = mondayIndex(firstOfMonth);
+    const gridStart = addDays(firstOfMonth, -leadingOffset);
+    const totalCells = leadingOffset + daysInThisMonth;
+    const totalWeeks = Math.ceil(totalCells / 7);
+    const weeks = [];
+    let cursor = gridStart;
+    for (let w = 0; w < totalWeeks; w++) {
+        const week = [];
+        for (let d = 0; d < 7; d++) {
+            week.push(cursor);
+            cursor = addDays(cursor, 1);
+        }
+        weeks.push(week);
+    }
+    return weeks;
+}
+function roleLabels() {
+    return currentOrg?.settings?.role_labels ?? ["Service crew", "Kitchen", "Bar", "Cashier", "Runner"];
 }
 // ======================================================
 // Responsive day count — phone defaults to 3 days
@@ -96,9 +128,13 @@ function loadPlanViewMode() {
     return localStorage.getItem(PLAN_VIEW_MODE_KEY) || "auto";
 }
 export function planSetViewMode(mode) {
+    if (mode === "month" && planViewMode !== "month") {
+        planMonthDate = startOfMonth(planSelectedDate);
+    }
     planViewMode = mode;
     localStorage.setItem(PLAN_VIEW_MODE_KEY, mode);
     updatePlanViewModeButtons();
+    setScheduleViewContainer(mode);
     refreshPlan();
 }
 function updatePlanViewModeButtons() {
@@ -659,6 +695,7 @@ async function applyManagerShiftEdit(shiftId, membershipId, fields) {
         shift_date: fields.shift_date,
         start_time: fields.start_time,
         end_time: fields.end_time,
+        ...(fields.role_label ? { role_label: fields.role_label } : {}),
         updated_by: user?.id ?? null,
         updated_at: new Date().toISOString()
     })
@@ -683,7 +720,8 @@ async function proposeEmployeeShiftEdit(shiftId, fields) {
         requested_by_membership_id: currentMembership.id,
         proposed_shift_date: fields.shift_date,
         proposed_start_time: fields.start_time,
-        proposed_end_time: fields.end_time
+        proposed_end_time: fields.end_time,
+        ...(fields.role_label ? { proposed_role_label: fields.role_label } : {})
     });
     if (error) {
         console.error(error);
@@ -763,6 +801,346 @@ export async function renderHoursSummary() {
     `;
 }
 // ======================================================
+// MONTH VIEW
+// ======================================================
+function updateMonthLabel() {
+    const label = document.getElementById("monthLabel");
+    if (!label)
+        return;
+    label.textContent = `${MONTH_LABELS[planMonthDate.getMonth()]} ${planMonthDate.getFullYear()}`;
+}
+function renderMonthHeader() {
+    const row = document.getElementById("monthHeaderRow");
+    if (!row)
+        return;
+    row.innerHTML = MONTH_DOW_LABELS.map(d => `<div class="month-header-cell">${d}</div>`).join("");
+}
+async function fetchMonthChangeRequests(rangeStart, rangeEnd) {
+    if (!currentOrg)
+        return [];
+    const { data, error } = await supabaseClient
+        .from("shift_change_requests")
+        .select("*")
+        .eq("organization_id", currentOrg.id)
+        .eq("status", "pending")
+        .gte("proposed_shift_date", formatDateISO(rangeStart))
+        .lte("proposed_shift_date", formatDateISO(rangeEnd));
+    if (error) {
+        console.error(error);
+        return [];
+    }
+    return data;
+}
+function buildMonthCellHTML(date, monthDate, today) {
+    const iso = formatDateISO(date);
+    const inMonth = date.getMonth() === monthDate.getMonth() && date.getFullYear() === monthDate.getFullYear();
+    const isToday = isSameDay(date, today);
+    const dayShifts = planShifts.filter(s => s.shift_date === iso);
+    const dayGhosts = planMonthChangeRequests.filter(r => r.proposed_shift_date === iso);
+    let cardsHtml = "";
+    dayShifts.forEach(shift => {
+        const member = planMembers.find(m => m.id === shift.membership_id);
+        if (!member)
+            return;
+        cardsHtml += `
+            <div class="month-shift-card"
+                 data-shift-id="${shift.id}"
+                 data-membership-id="${member.id}"
+                 data-shift-date="${shift.shift_date}"
+                 data-start-time="${shift.start_time}"
+                 data-end-time="${shift.end_time}">
+                <span class="month-card-name">${escapeAttr(member.full_name)}</span>
+                <span class="month-card-meta">${escapeAttr(shift.role_label ?? "")} \u00b7 ${shift.start_time.slice(0, 5)}\u2013${shift.end_time.slice(0, 5)}</span>
+            </div>
+        `;
+    });
+    dayGhosts.forEach(req => {
+        const member = planMembers.find(m => m.id === req.requested_by_membership_id);
+        if (!member)
+            return;
+        cardsHtml += `
+            <div class="month-shift-card pending-ghost"
+                 data-request-id="${req.id}"
+                 data-membership-id="${member.id}">
+                <span class="month-card-name">${escapeAttr(member.full_name)}</span>
+                <span class="month-card-meta">${req.proposed_start_time.slice(0, 5)}\u2013${req.proposed_end_time.slice(0, 5)} \u00b7 pending</span>
+            </div>
+        `;
+    });
+    return `
+        <div class="month-day-cell ${inMonth ? "" : "other-month"}" data-date="${iso}">
+            <div class="month-day-num ${isToday ? "is-today" : ""}">${date.getDate()}</div>
+            <div class="month-cards">${cardsHtml}</div>
+        </div>
+    `;
+}
+function renderMonthGrid() {
+    const grid = document.getElementById("monthGrid");
+    if (!grid)
+        return;
+    const weeks = buildMonthWeeks(planMonthDate);
+    const today = startOfToday();
+    grid.innerHTML = weeks.flat().map(d => buildMonthCellHTML(d, planMonthDate, today)).join("");
+    grid.style.gridTemplateRows = `repeat(${weeks.length}, 1fr)`;
+}
+async function refreshMonthView() {
+    if (!currentOrg)
+        return;
+    const weeks = buildMonthWeeks(planMonthDate);
+    const rangeStart = weeks[0][0];
+    const rangeEnd = weeks[weeks.length - 1][6];
+    updateMonthLabel();
+    renderMonthHeader();
+    const [members, shifts, changeRequests] = await Promise.all([
+        fetchPlanMembers(),
+        fetchPlanShifts(rangeStart, rangeEnd),
+        fetchMonthChangeRequests(rangeStart, rangeEnd)
+    ]);
+    planMembers = members;
+    planShifts = shifts;
+    planMonthChangeRequests = changeRequests;
+    renderMonthGrid();
+    applyAuthVisibility();
+}
+export function changeMonth(step) {
+    planMonthDate = new Date(planMonthDate.getFullYear(), planMonthDate.getMonth() + step, 1);
+    refreshMonthView();
+}
+function setScheduleViewContainer(mode) {
+    const rackScroll = document.getElementById("rackScroll");
+    const monthView = document.getElementById("monthView");
+    const dateInput = document.getElementById("planDateInput");
+    const isMonth = mode === "month";
+    if (rackScroll)
+        rackScroll.style.display = isMonth ? "none" : "";
+    if (monthView)
+        monthView.style.display = isMonth ? "flex" : "none";
+    if (dateInput)
+        dateInput.style.display = isMonth ? "none" : "";
+}
+// ======================================================
+// MONTH VIEW — drag & drop + click-to-edit (pointer events,
+// unified for mouse & touch)
+// ======================================================
+function setupMonthDragAndDrop() {
+    const grid = document.getElementById("monthGrid");
+    if (!grid)
+        return;
+    grid.addEventListener("pointerdown", handleMonthPointerDown);
+}
+function handleMonthPointerDown(e) {
+    const target = e.target;
+    const card = target.closest(".month-shift-card");
+    if (!card || !isLoggedIn())
+        return;
+    const isGhost = card.classList.contains("pending-ghost");
+    const membershipId = card.dataset.membershipId;
+    const canEdit = !isGhost && (isManager() || membershipId === currentMembership?.id);
+    // shift orang lain yang bukan milik kita & bukan manager -> tidak interaktif
+    if (!canEdit && !isGhost)
+        return;
+    const rect = card.getBoundingClientRect();
+    monthDragState = {
+        type: isGhost ? "ghost" : "shift",
+        id: (isGhost ? card.dataset.requestId : card.dataset.shiftId),
+        membershipId,
+        origDate: card.dataset.shiftDate ?? "",
+        cardEl: card,
+        startX: e.clientX,
+        startY: e.clientY,
+        moved: false,
+        ghostEl: null
+    };
+    if (canEdit) {
+        const ghost = card.cloneNode(true);
+        ghost.classList.add("rack-drag-ghost");
+        ghost.style.position = "fixed";
+        ghost.style.width = rect.width + "px";
+        ghost.style.pointerEvents = "none";
+        document.body.appendChild(ghost);
+        monthDragState.ghostEl = ghost;
+        positionMonthGhost(e);
+    }
+    document.addEventListener("pointermove", handleMonthPointerMove);
+    document.addEventListener("pointerup", handleMonthPointerUp);
+}
+function positionMonthGhost(e) {
+    if (!monthDragState?.ghostEl)
+        return;
+    monthDragState.ghostEl.style.left = (e.clientX - monthDragState.ghostEl.offsetWidth / 2) + "px";
+    monthDragState.ghostEl.style.top = (e.clientY - 16) + "px";
+}
+function handleMonthPointerMove(e) {
+    if (!monthDragState)
+        return;
+    const dx = e.clientX - monthDragState.startX;
+    const dy = e.clientY - monthDragState.startY;
+    if (Math.hypot(dx, dy) > 6)
+        monthDragState.moved = true;
+    if (monthDragState.ghostEl) {
+        positionMonthGhost(e);
+        document.querySelectorAll(".month-day-cell.drag-target")
+            .forEach(el => el.classList.remove("drag-target"));
+        const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest(".month-day-cell");
+        cell?.classList.add("drag-target");
+    }
+}
+async function handleMonthPointerUp(e) {
+    document.removeEventListener("pointermove", handleMonthPointerMove);
+    document.removeEventListener("pointerup", handleMonthPointerUp);
+    if (!monthDragState)
+        return;
+    const state = monthDragState;
+    monthDragState = null;
+    document.querySelectorAll(".month-day-cell.drag-target")
+        .forEach(el => el.classList.remove("drag-target"));
+    state.ghostEl?.remove();
+    if (!state.moved) {
+        if (state.type === "ghost") {
+            openShiftPopup(null, state.id);
+        }
+        else {
+            openShiftPopup(state.id, null);
+        }
+        return;
+    }
+    if (state.type !== "shift")
+        return; // ghost cards tidak bisa di-drag pindah tanggal
+    const targetCell = document.elementFromPoint(e.clientX, e.clientY)?.closest(".month-day-cell");
+    const targetDate = targetCell?.dataset.date;
+    if (!targetDate || targetDate === state.origDate)
+        return;
+    const shift = planShifts.find(s => s.id === state.id);
+    if (!shift)
+        return;
+    const fields = {
+        shift_date: targetDate,
+        start_time: shift.start_time,
+        end_time: shift.end_time
+    };
+    if (isManager()) {
+        await applyManagerShiftEdit(state.id, state.membershipId, fields);
+    }
+    else {
+        await proposeEmployeeShiftEdit(state.id, fields);
+    }
+}
+// ======================================================
+// MONTH VIEW — swipe vertikal buat ganti bulan di mobile
+// ======================================================
+function setupMonthSwipe() {
+    const view = document.getElementById("monthView");
+    if (!view)
+        return;
+    let touchStartY = 0;
+    let touchStartX = 0;
+    view.addEventListener("touchstart", (e) => {
+        if (monthDragState)
+            return;
+        touchStartY = e.touches[0].clientY;
+        touchStartX = e.touches[0].clientX;
+    }, { passive: true });
+    view.addEventListener("touchend", (e) => {
+        if (monthDragState)
+            return;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(dy) > 60 && Math.abs(dy) > Math.abs(dx)) {
+            changeMonth(dy < 0 ? 1 : -1); // swipe ke atas -> bulan depan
+        }
+    }, { passive: true });
+}
+// ======================================================
+// MONTH VIEW — popup edit shift
+// ======================================================
+export function openShiftPopup(shiftId, requestId) {
+    const modal = document.getElementById("shiftPopupModal");
+    if (!modal)
+        return;
+    const nameEl = document.getElementById("shiftPopupStaffName");
+    const roleSel = document.getElementById("shiftPopupRole");
+    const startEl = document.getElementById("shiftPopupStart");
+    const endEl = document.getElementById("shiftPopupEnd");
+    const noteEl = document.getElementById("shiftPopupPendingNote");
+    const saveBtn = document.getElementById("shiftPopupSaveBtn");
+    roleSel.innerHTML = roleLabels().map(r => `<option value="${escapeAttr(r)}">${escapeAttr(r)}</option>`).join("");
+    if (requestId) {
+        const req = planMonthChangeRequests.find(r => r.id === requestId);
+        const member = planMembers.find(m => m.id === req?.requested_by_membership_id);
+        nameEl.textContent = member?.full_name ?? "";
+        roleSel.disabled = true;
+        startEl.value = req?.proposed_start_time.slice(0, 5) ?? "";
+        endEl.value = req?.proposed_end_time.slice(0, 5) ?? "";
+        startEl.disabled = true;
+        endEl.disabled = true;
+        noteEl.style.display = "";
+        noteEl.textContent = "Waiting for manager approval.";
+        saveBtn.style.display = "none";
+        modal.dataset.editingShiftId = "";
+    }
+    else if (shiftId) {
+        const shift = planShifts.find(s => s.id === shiftId);
+        const member = planMembers.find(m => m.id === shift?.membership_id);
+        nameEl.textContent = member?.full_name ?? "";
+        roleSel.disabled = false;
+        roleSel.value = shift?.role_label ?? roleLabels()[0];
+        startEl.value = shift?.start_time.slice(0, 5) ?? "";
+        endEl.value = shift?.end_time.slice(0, 5) ?? "";
+        startEl.disabled = false;
+        endEl.disabled = false;
+        saveBtn.style.display = "";
+        if (isManager()) {
+            noteEl.style.display = "none";
+        }
+        else {
+            noteEl.style.display = "";
+            noteEl.textContent = "Your change will be sent for manager approval.";
+        }
+        modal.dataset.editingShiftId = shiftId;
+    }
+    modal.style.display = "flex";
+}
+export function closeShiftPopup() {
+    const modal = document.getElementById("shiftPopupModal");
+    if (modal)
+        modal.style.display = "none";
+}
+export async function submitShiftPopup() {
+    const modal = document.getElementById("shiftPopupModal");
+    if (!modal)
+        return;
+    const shiftId = modal.dataset.editingShiftId;
+    if (!shiftId) {
+        closeShiftPopup();
+        return;
+    }
+    const shift = planShifts.find(s => s.id === shiftId);
+    if (!shift) {
+        closeShiftPopup();
+        return;
+    }
+    const roleSel = document.getElementById("shiftPopupRole");
+    const startEl = document.getElementById("shiftPopupStart");
+    const endEl = document.getElementById("shiftPopupEnd");
+    if (!startEl.value || !endEl.value) {
+        showMessage("Please set both start and end time", "error");
+        return;
+    }
+    closeShiftPopup();
+    const fields = {
+        shift_date: shift.shift_date,
+        start_time: startEl.value + ":00",
+        end_time: endEl.value + ":00",
+        role_label: roleSel.value
+    };
+    if (isManager()) {
+        await applyManagerShiftEdit(shiftId, shift.membership_id, fields);
+    }
+    else {
+        await proposeEmployeeShiftEdit(shiftId, fields);
+    }
+}
+// ======================================================
 // Status bar helpers (same pattern as roomRack.js)
 // ======================================================
 function escapeHtml(str) {
@@ -810,6 +1188,10 @@ function showMessage(text, type = "info") {
 export async function refreshPlan() {
     if (!currentOrg)
         return;
+    if (planViewMode === "month") {
+        await refreshMonthView();
+        return;
+    }
     planDayCount = getPlanDayCount();
     const dayWidth = getPlanColWidth(planDayCount);
     document.documentElement.style.setProperty("--rack-col-width", `${dayWidth}px`);
@@ -888,6 +1270,8 @@ function debounce(fn, delay) {
 document.addEventListener("DOMContentLoaded", async () => {
     updatePlanViewModeButtons();
     setupPlanDragAndDrop();
+    setupMonthDragAndDrop();
+    setupMonthSwipe();
     const loggedIn = await bootstrapAuth().catch(err => {
         console.error("bootstrapAuth failed:", err);
         return false;
@@ -897,6 +1281,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     showGreeting();
     renderUserArea();
     renderNavigation(currentMembership?.role ?? null);
+    setScheduleViewContainer(planViewMode);
     centerPlanOnDate(startOfToday());
     if (!loggedIn) {
         applyAuthVisibility();
@@ -926,6 +1311,9 @@ window.dienstplan = {
     changeDate,
     changeSelectedDate,
     planSetViewMode,
+    changeMonth,
+    closeShiftPopup,
+    submitShiftPopup,
     checkIn,
     checkOut,
     approveTimeEntry,

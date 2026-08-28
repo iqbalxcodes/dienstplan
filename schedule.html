@@ -67,6 +67,7 @@
                     <button class="rack-view-btn" data-mode="3" onclick="dienstplan.planSetViewMode('3')">3D</button>
                     <button class="rack-view-btn" data-mode="7" onclick="dienstplan.planSetViewMode('7')">7D</button>
                     <button class="rack-view-btn" data-mode="30" onclick="dienstplan.planSetViewMode('30')">30D</button>
+                    <button class="rack-view-btn" data-mode="month" onclick="dienstplan.planSetViewMode('month')">Month</button>
                     <button class="rack-view-btn" data-mode="auto" onclick="dienstplan.planSetViewMode('auto')">Auto</button>
                 </div>
             </div>
@@ -78,6 +79,20 @@
             <div id="rackBody"></div>
         </div>
 
+        <div class="month-view" id="monthView" style="display:none;">
+            <div class="month-nav">
+                <button class="rack-nav-btn month-nav-prev" onclick="dienstplan.changeMonth(-1)" title="Previous month">
+                    <span class="icon-desktop">&#9664;</span><span class="icon-mobile">&#9650;</span>
+                </button>
+                <div id="monthLabel" class="month-label"></div>
+                <button class="rack-nav-btn month-nav-next" onclick="dienstplan.changeMonth(1)" title="Next month">
+                    <span class="icon-desktop">&#9654;</span><span class="icon-mobile">&#9660;</span>
+                </button>
+            </div>
+            <div id="monthHeaderRow" class="month-header-row"></div>
+            <div id="monthGrid" class="month-grid"></div>
+        </div>
+
     </div>
 
     <div id="statusBar">
@@ -85,6 +100,29 @@
         <div id="contextArea"></div>
         <div id="paginationInfo"></div>
         <div id="paginationNav"></div>
+    </div>
+
+    <div id="shiftPopupModal" class="plan-modal-backdrop" style="display:none;">
+        <div class="plan-modal">
+            <h3>Edit Shift</h3>
+            <div id="shiftPopupStaffName" class="plan-entry-meta" style="margin-bottom:8px;"></div>
+
+            <label>Role</label>
+            <select id="shiftPopupRole"></select>
+
+            <label>Start time</label>
+            <input type="time" id="shiftPopupStart">
+
+            <label>End time</label>
+            <input type="time" id="shiftPopupEnd">
+
+            <div id="shiftPopupPendingNote" class="plan-entry-meta" style="display:none; margin-top:8px; color:#e65100;"></div>
+
+            <div class="plan-modal-footer">
+                <button onclick="dienstplan.closeShiftPopup()">Cancel</button>
+                <button id="shiftPopupSaveBtn" class="primary" onclick="dienstplan.submitShiftPopup()">Save</button>
+            </div>
+        </div>
     </div>
 
     <script type="importmap">
