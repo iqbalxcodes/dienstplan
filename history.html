@@ -30,9 +30,10 @@
                 <button class="primary" id="authLoginBtn">Log in</button>
             </div>
             <div id="authError" class="auth-error" style="display:none;"></div>
-            <p class="auth-hint">No account yet? Please ask your admin / boss, or
-                <a href="#" id="forgotToggle">Forgot password?</a>
-            </p>
+                <p class="auth-hint">No account yet? Please ask your admin / boss, or
+                    <a href="#" id="ownerToggle">register your business</a> ·
+                    <a href="#" id="forgotToggle">Forgot password?</a>
+                </p>
             <div id="forgotSection" style="display:none;">
                 <hr>
                 <label>Email for the recovery link</label>
@@ -43,6 +44,53 @@
                 <p class="auth-hint" id="forgotMsg"></p>
             </div>
         </div>
+    </div>
+
+    <!-- ONBOARDING CARD (hidden by default) -->
+    <div class="plan-modal auth-card" id="onboardCard" style="display:none;">
+
+        <h3>Register Your Business</h3>
+
+        <!-- STEP 1 -->
+        <div id="obStep1">
+            <label>Your Name</label>
+            <input type="text" id="obYourName">
+
+            <label>Email</label>
+            <input type="email" id="obEmail" autocomplete="username">
+
+            <label>Password</label>
+            <input type="password" id="obPassword" autocomplete="new-password">
+
+            <div id="obStep1Error" class="auth-error" style="display:none;"></div>
+
+            <div class="auth-actions-row">
+                <a href="#" id="obBackToLogin">Back to login</a>
+                <button class="primary" id="obStep1Next">Next</button>
+            </div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div id="obStep2" style="display:none;">
+            <label>Organization Name</label>
+            <input type="text" id="obOrgName">
+
+            <p class="auth-hint" style="text-align:left;margin:4px 0 0;">Location can be set later in Admin settings.</p>
+
+            <hr>
+            <label>Team Members (optional — you can add these later too)</label>
+            <div id="obCrewRows"></div>
+            <button type="button" id="obAddCrewRow" style="margin-top:6px;">+ Add member</button>
+            <p class="auth-hint" style="text-align:left;">Only email is needed here — each member gets a "reset password" link once they're ready to log in themselves.</p>
+
+            <div id="obStep2Error" class="auth-error" style="display:none;"></div>
+
+            <div class="auth-actions-row">
+                <a href="#" id="obBackToStep1">Back</a>
+                <button class="primary" id="obFinishBtn">Finish Setup</button>
+            </div>
+        </div>
+
     </div>
 
     <div class="page-header-bar">

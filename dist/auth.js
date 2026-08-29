@@ -189,6 +189,7 @@ function wireLoginOverlay() {
         sec.style.display = sec.style.display === "none" ? "" : "none";
     });
     document.getElementById("forgotResetBtn").addEventListener("click", handleForgotSubmit);
+    wireOnboarding();
 }
 async function handleLoginSubmit() {
     const emailEl = document.getElementById("authEmail");
@@ -269,5 +270,147 @@ export function applyAuthVisibility() {
     document.querySelectorAll(".employee-only").forEach(el => {
         el.style.display = (loggedIn && !manager) ? "" : "none";
     });
+}
+// ======================================================
+// ONBOARDING — register new business + owner account.
+// Additional members are created WITHOUT a login (user_id
+// null, email only) same pattern as addCrewMember() in
+// panels.ts — they get a proper account later via "Resend
+// Recovery". We deliberately do NOT collect a password for
+// them here: creating other people's auth accounts requires
+// an admin/service key, which the client never has access to.
+// ======================================================
+function slugify(name) {
+    return name.toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "")
+        + "-" + Math.random().toString(36).slice(2, 6);
+}
+function wireOnboarding() {
+    const overlay = document.getElementById("onboardCard");
+    if (!overlay || overlay.dataset.wired === "1")
+        return;
+    overlay.dataset.wired = "1";
+    document.getElementById("ownerToggle").addEventListener("click", e => {
+        e.preventDefault();
+        document.querySelector(".auth-card:not(#onboardCard)").parentElement.querySelectorAll(".auth-card").forEach(c => c.style.display = "none");
+        overlay.style.display = "";
+    });
+    document.getElementById("obBackToLogin").addEventListener("click", e => {
+        e.preventDefault();
+        overlay.style.display = "none";
+        document.querySelector(".auth-card:not(#onboardCard)").setAttribute("style", "");
+    });
+    document.getElementById("obBackToStep1").addEventListener("click", e => {
+        e.preventDefault();
+        document.getElementById("obStep2").style.display = "none";
+        document.getElementById("obStep1").style.display = "";
+    });
+    document.getElementById("obAddCrewRow").addEventListener("click", addCrewRow);
+    addCrewRow(); // start with one row
+    document.getElementById("obStep1Next").addEventListener("click", handleObStep1);
+    document.getElementById("obFinishBtn").addEventListener("click", handleObFinish);
+}
+function addCrewRow() {
+    const wrap = document.getElementById("obCrewRows");
+    const row = document.createElement("div");
+    row.className = "plan-entry-actions";
+    row.style.marginTop = "6px";
+    row.innerHTML = `
+        <select class="ob-crew-role" style="flex:0 0 110px;">
+            <option value="employee">Employee</option>
+            <option value="manager">Manager</option>
+        </select>
+        <input type="text" class="ob-crew-name" placeholder="Full name" style="flex:1;">
+        <input type="email" class="ob-crew-email" placeholder="Email (optional)" style="flex:1;">
+        <button type="button" class="ob-crew-remove">✕</button>
+    `;
+    row.querySelector(".ob-crew-remove").addEventListener("click", () => row.remove());
+    wrap.appendChild(row);
+}
+async function handleObStep1() {
+    const nameEl = document.getElementById("obYourName");
+    const emailEl = document.getElementById("obEmail");
+    const passEl = document.getElementById("obPassword");
+    const errEl = document.getElementById("obStep1Error");
+    errEl.style.display = "none";
+    if (!nameEl.value.trim() || !emailEl.value.trim() || passEl.value.length < 6) {
+        errEl.textContent = "Please fill in all fields (password min. 6 characters).";
+        errEl.style.display = "";
+        return;
+    }
+    const { data, error } = await supabaseClient.auth.signUp({
+        email: emailEl.value.trim(),
+        password: passEl.value
+    });
+    if (error) {
+        errEl.textContent = error.message;
+        errEl.style.display = "";
+        return;
+    }
+    if (!data.session) {
+        errEl.textContent = "Account created — check your email to confirm it, then come back and log in to finish setup.";
+        errEl.style.display = "";
+        return;
+    }
+    document.getElementById("obStep1").style.display = "none";
+    document.getElementById("obStep2").style.display = "";
+}
+async function handleObFinish() {
+    const orgNameEl = document.getElementById("obOrgName");
+    const yourNameEl = document.getElementById("obYourName");
+    const errEl = document.getElementById("obStep2Error");
+    errEl.style.display = "none";
+    if (!orgNameEl.value.trim()) {
+        errEl.textContent = "Organization name is required.";
+        errEl.style.display = "";
+        return;
+    }
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+        errEl.textContent = "Session expired — please log in again.";
+        errEl.style.display = "";
+        return;
+    }
+    const { data: org, error: orgError } = await supabaseClient
+        .from("organizations")
+        .insert({ name: orgNameEl.value.trim(), slug: slugify(orgNameEl.value.trim()) })
+        .select()
+        .single();
+    if (orgError || !org) {
+        errEl.textContent = orgError?.message ?? "Failed to create organization.";
+        errEl.style.display = "";
+        return;
+    }
+    const { error: memError } = await supabaseClient
+        .from("memberships")
+        .insert({
+        organization_id: org.id,
+        user_id: user.id,
+        role: "admin",
+        full_name: yourNameEl.value.trim(),
+        email: user.email
+    });
+    if (memError) {
+        errEl.textContent = memError.message;
+        errEl.style.display = "";
+        return;
+    }
+    // optional extra crew rows — best-effort, skip empty names
+    const rows = document.querySelectorAll("#obCrewRows > div");
+    for (const row of Array.from(rows)) {
+        const name = row.querySelector(".ob-crew-name").value.trim();
+        if (!name)
+            continue;
+        await supabaseClient.from("memberships").insert({
+            organization_id: org.id,
+            user_id: null,
+            role: row.querySelector(".ob-crew-role").value,
+            full_name: name,
+            email: row.querySelector(".ob-crew-email").value.trim() || null,
+            weekly_target_hours: 40
+        });
+    }
+    window.location.reload();
 }
 //# sourceMappingURL=auth.js.map
