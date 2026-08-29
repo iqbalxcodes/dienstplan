@@ -21,6 +21,7 @@ export function bootstrapAuth() {
 }
 const REMEMBER_KEY = "dienstplan_remember";
 const TAB_ALIVE_KEY = "dienstplan_tab_alive";
+const ONBOARD_PENDING_KEY = "dienstplan_onboard_pending_name";
 // ======================================================
 // Role helpers
 // ======================================================
@@ -136,7 +137,6 @@ export async function renderUserArea() {
     if (!area)
         return;
     if (currentMembership) {
-        // Logged in: hide overlay (never remove!)
         if (overlay)
             overlay.style.display = "none";
         area.innerHTML = `
@@ -147,6 +147,24 @@ export async function renderUserArea() {
             await logout();
             window.location.reload();
         });
+        return;
+    }
+    // Sudah login (email confirmed) tapi belum punya membership -> lagi
+    // di tengah proses onboarding. Lanjutin ke step 2, jangan tampilin
+    // login form biasa.
+    const pendingName = localStorage.getItem(ONBOARD_PENDING_KEY);
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session && pendingName) {
+        area.innerHTML = `<span class="plan-entry-meta">Finishing setup\u2026</span>`;
+        if (overlay)
+            overlay.style.display = "";
+        wireLoginOverlay();
+        document.querySelector(".auth-card").setAttribute("style", "display:none;");
+        const onboardCard = document.getElementById("onboardCard");
+        onboardCard.style.display = "";
+        document.getElementById("obYourName").value = pendingName;
+        document.getElementById("obStep1").style.display = "none";
+        document.getElementById("obStep2").style.display = "";
         return;
     }
     // Not logged in: show overlay + status text
@@ -355,7 +373,8 @@ async function handleObStep1() {
     }
     const { data, error } = await supabaseClient.auth.signUp({
         email: emailEl.value.trim(),
-        password: passEl.value
+        password: passEl.value,
+        options: { emailRedirectTo: window.location.href }
     });
     if (error) {
         errEl.textContent = error.message;
@@ -363,7 +382,8 @@ async function handleObStep1() {
         return;
     }
     if (!data.session) {
-        errEl.textContent = "Account created — check your email to confirm it, then come back and log in to finish setup.";
+        localStorage.setItem(ONBOARD_PENDING_KEY, nameEl.value.trim());
+        errEl.textContent = "Account created — check your email to confirm it. You'll come back here automatically.";
         errEl.style.display = "";
         return;
     }
