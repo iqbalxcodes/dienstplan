@@ -426,7 +426,7 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-    padding: 2px 2px 10px;
+    padding: 14px 2px 10px;
     min-height: 0;
     flex: 1 1 0;
     overflow-y: auto;
@@ -1060,29 +1060,6 @@ body.reset-page {
    buttons + clock (right)
    ====================================================== */
 
-.reservation-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-}
-
-.header-title { flex: 0 0 auto; }
-
-.sched-nav-center {
-    flex: 1 1 auto;
-    display: flex;
-    justify-content: center;
-    min-width: 0;
-}
-
-.sched-nav-right {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
 .month-nav {
     display: flex;
     align-items: center;
@@ -1099,53 +1076,53 @@ body.reset-page {
 
 .rack-view-select-mobile { display: none; }
 
-.header-clock {
+.reservation-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
-    min-width: 170px;
-    font-size: 13px;
-    color: #444;
-    font-variant-numeric: tabular-nums;
+    gap: 12px;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+}
+
+.header-title { flex: 0 0 auto; min-width: 0; text-align: left; }
+.header-title h3 { margin: 0; border: none; padding: 0; }
+
+.header-center {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
     white-space: nowrap;
 }
 
-#clockDate { color: #888; }
-#clockTime { font-weight: 600; }
-
-@media (max-width: 700px) {
-
-    .reservation-header { flex-wrap: wrap; row-gap: 6px; }
-
-    .rack-view-toggle { display: none; }
-
-    .rack-view-select-mobile {
-        display: inline-block;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        padding: 4px 8px;
-        font-size: 12px;
-    }
-
-    .sched-nav-center { order: 3; flex: 1 1 100%; justify-content: center; }
-    .sched-nav-right { order: 2; margin-left: auto; }
-
-    .header-clock { font-size: 11px; gap: 6px; min-width: 130px; }
-    .month-picker-select { font-size: 12px; padding: 3px 4px; }
-    .month-day-cell:not(.other-month) { cursor: pointer; }
-    .month-day-cell:not(.other-month):hover { background: #fafcff; }
-
+.header-right {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
 }
 
 @media (max-width: 700px) {
-    .icon-desktop { display: none; }
-    .icon-mobile { display: inline; }
-    .month-nav { flex-direction: column; gap: 4px; }
+    .reservation-header { border-bottom: none; margin-bottom: 4px; padding-bottom: 0; flex-wrap: wrap; row-gap: 6px; }
+    .table-container { margin-left: 8px; margin-right: 8px; padding-left: 10px; padding-right: 10px; }
+    #statusBar { overflow-x: auto; }
+    .page-header-bar { margin: 6px 12px 2px; }
+    .page-greeting { font-size: 16px; }
+    .page-header-clock { font-size: 11px; min-width: 130px; gap: 6px; }
+    .plan-entry-card { flex-direction: column; align-items: flex-start; }
+    .plan-entry-actions { width: 100%; }
+    .plan-entry-actions button { flex: 1; text-align: center; }
+}
+
+@media (max-width: 700px) {
     .month-day-cell { min-height: 64px; padding: 3px; }
     .month-shift-card { font-size: 10px; padding: 2px 4px; }
     .month-header-cell { font-size: 10px; padding: 4px 2px; }
-    .month-label { font-size: 13px; min-width: 110px; }
 }
 
 /* ======================================================
@@ -1154,8 +1131,6 @@ body.reset-page {
 
 @media (max-width: 700px) {
     :root { --rack-label-width: 128px; }
-    .rack-page .header-menu { flex-wrap: wrap; }
-    h1 { margin: 6px 12px 4px; font-size: 18px; }
     .detail-grid-hist { grid-template-columns: 1fr; }
     .hist-toolbar { flex-direction: column; }
     .hist-toolbar input[type="search"],

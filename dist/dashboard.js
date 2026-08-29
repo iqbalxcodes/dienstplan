@@ -10,6 +10,7 @@
 // ======================================================
 import { supabaseClient } from "./supabaseClient.js";
 import { currentOrg, currentMembership, authReady } from "./auth.js";
+import { initPageHeader } from "./pageHeader.js";
 // ======================================================
 // Audit trail writer — inlined (not imported) so this
 // module has zero external dependencies for logging.
@@ -58,6 +59,7 @@ function roleLabels() {
 }
 document.addEventListener("DOMContentLoaded", async () => {
     const loggedIn = await authReady;
+    initPageHeader();
     if (!loggedIn || !currentOrg || !currentMembership) {
         document.getElementById("shiftStrip").innerHTML = "";
         document.getElementById("myEntriesList").innerHTML = "";
@@ -71,9 +73,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.addEventListener("resize", () => map?.invalidateSize());
     void refresh();
     document.getElementById("attBtn").addEventListener("click", onMainButton);
-    // Greeting animation: show "Good Morning/Afternoon/Evening [name]!"
-    // for 3 seconds, then revert to org name.
-    showGreeting();
 });
 function fillRoleSelect() {
     const sel = document.getElementById("attRole");

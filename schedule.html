@@ -53,48 +53,49 @@
         </div>
     </div>
 
-    <h1 id="orgNameLabel">Loading…</h1>
-    <div id="pageNavigation" data-page="schedule"></div>
+    <div class="page-header-bar">
+        <span id="pageGreeting" class="page-greeting">Loading…</span>
+        <div class="page-header-clock">
+            <span id="pageClockDate"></span><span id="pageClockTime"></span>
+        </div>
+    </div>
+    <div id="pageNavigation" data-page="dashboard"></div>
 
     <div class="table-container detail-card rack-page">
 
-        <div class="reservation-header">
-            <div class="header-title"><h3>Schedule</h3></div>
+    <div class="reservation-header">
+        <div class="header-title"><h3>Schedule</h3></div>
 
-            <div class="sched-nav-center">
-                <input type="date" id="planDateInput" class="sched-date-input"
-                    onchange="dienstplan.changeSelectedDate(this.value)">
+        <div class="header-center">
+            <input type="date" id="planDateInput" class="sched-date-input"
+                onchange="dienstplan.changeSelectedDate(this.value)">
 
-                <div id="monthNavBar" class="month-nav" style="display:none;">
-                    <button class="rack-nav-btn" onclick="dienstplan.changeMonth(-1)" title="Previous month">&#9664;</button>
-                    <select id="monthPickerMonth" class="month-picker-select" onchange="dienstplan.onMonthPickerChange()"></select>
-                    <select id="monthPickerYear" class="month-picker-select" onchange="dienstplan.onMonthPickerChange()"></select>
-                    <button class="rack-nav-btn" onclick="dienstplan.changeMonth(1)" title="Next month">&#9654;</button>
-                </div>
-            </div>
-
-            <div class="sched-nav-right">
-                <div class="rack-view-toggle" id="rackViewToggle">
-                    <button class="rack-view-btn" data-mode="month" onclick="dienstplan.planSetViewMode('month')">Month</button>
-                    <button class="rack-view-btn" data-mode="3" onclick="dienstplan.planSetViewMode('3')">3D</button>
-                    <button class="rack-view-btn" data-mode="7" onclick="dienstplan.planSetViewMode('7')">7D</button>
-                    <button class="rack-view-btn" data-mode="30" onclick="dienstplan.planSetViewMode('30')">30D</button>
-                    <button class="rack-view-btn" data-mode="auto" onclick="dienstplan.planSetViewMode('auto')">Auto</button>
-                </div>
-
-                <select id="rackViewSelectMobile" class="rack-view-select-mobile" onchange="dienstplan.planSetViewMode(this.value)">
-                    <option value="month">Month</option>
-                    <option value="3">3 Days</option>
-                    <option value="7">7 Days</option>
-                    <option value="30">30 Days</option>
-                    <option value="auto">Auto</option>
-                </select>
-
-                <div class="header-clock" id="headerClockBox">
-                    <span id="clockDate"></span><span id="clockTime"></span>
-                </div>
+            <div id="monthNavBar" class="month-nav" style="display:none;">
+                <button class="rack-nav-btn" onclick="dienstplan.changeMonth(-1)" title="Previous month">&#9664;</button>
+                <select id="monthPickerMonth" class="month-picker-select" onchange="dienstplan.onMonthPickerChange()"></select>
+                <select id="monthPickerYear" class="month-picker-select" onchange="dienstplan.onMonthPickerChange()"></select>
+                <button class="rack-nav-btn" onclick="dienstplan.changeMonth(1)" title="Next month">&#9654;</button>
             </div>
         </div>
+
+        <div class="header-right">
+            <div class="rack-view-toggle" id="rackViewToggle">
+                <button class="rack-view-btn" data-mode="month" onclick="dienstplan.planSetViewMode('month')">Month</button>
+                <button class="rack-view-btn" data-mode="3" onclick="dienstplan.planSetViewMode('3')">3D</button>
+                <button class="rack-view-btn" data-mode="7" onclick="dienstplan.planSetViewMode('7')">7D</button>
+                <button class="rack-view-btn" data-mode="30" onclick="dienstplan.planSetViewMode('30')">30D</button>
+                <button class="rack-view-btn" data-mode="auto" onclick="dienstplan.planSetViewMode('auto')">Auto</button>
+            </div>
+
+            <select id="rackViewSelectMobile" class="rack-view-select-mobile" onchange="dienstplan.planSetViewMode(this.value)">
+                <option value="month">Month</option>
+                <option value="3">3 Days</option>
+                <option value="7">7 Days</option>
+                <option value="30">30 Days</option>
+                <option value="auto">Auto</option>
+            </select>
+        </div>
+    </div>
 
         <div class="rack-scroll" id="rackScroll">
             <div id="rackHeaderRow" class="rack-header-row"></div>

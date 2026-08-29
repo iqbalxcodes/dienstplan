@@ -23,6 +23,7 @@ import { renderApprovalsPanel, renderComplaintsPanel, renderLeavePanel, renderCr
 import { submitLeaveRequest, fetchLeaveRequests, reviewLeaveRequest, LEAVE_TYPE_LABELS } from "./leaveRequests.js";
 import { fileComplaint } from "./complaints.js";
 import type { Membership, Shift, TimeEntry, LeaveRequest, LeaveType, ShiftChangeRequest } from "./types.js";
+import { initPageHeader } from "./pageHeader.js";
 
 const PLAN_VIEW_MODE_KEY = "dienstplan_view_mode_v1";
 const DOW_LABELS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
@@ -1819,19 +1820,6 @@ function startClock(): void {
 
 }
 
-function renderOrgLabel(): void {
-    const label = document.getElementById("orgNameLabel");
-    if(!label) return;
-
-    let titleText = label.querySelector(".title-text") as HTMLElement;
-    if(!titleText){
-        titleText = document.createElement("span");
-        titleText.className = "title-text";
-        label.insertBefore(titleText, label.firstChild);
-    }
-    titleText.textContent = currentOrg ? currentOrg.name : "Dienstplan";
-}
-
 function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
 
     let timer: number;
@@ -1854,9 +1842,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return false;
     });
 
-    renderOrgLabel();
-    startClock();
-    showGreeting();
+    initPageHeader();
     renderUserArea();
     renderNavigation(currentMembership?.role ?? null);
 

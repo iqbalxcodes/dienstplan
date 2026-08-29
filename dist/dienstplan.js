@@ -21,6 +21,7 @@ import { renderNavigation } from "./nav.js";
 import { renderApprovalsPanel, renderComplaintsPanel, renderLeavePanel, renderCrewList, renderMyEntries } from "./panels.js";
 import { submitLeaveRequest, fetchLeaveRequests, reviewLeaveRequest, LEAVE_TYPE_LABELS } from "./leaveRequests.js";
 import { fileComplaint } from "./complaints.js";
+import { initPageHeader } from "./pageHeader.js";
 const PLAN_VIEW_MODE_KEY = "dienstplan_view_mode_v1";
 const DOW_LABELS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 const MONTH_LABELS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -1344,18 +1345,6 @@ function startClock() {
     updateClock();
     setInterval(updateClock, 1000);
 }
-function renderOrgLabel() {
-    const label = document.getElementById("orgNameLabel");
-    if (!label)
-        return;
-    let titleText = label.querySelector(".title-text");
-    if (!titleText) {
-        titleText = document.createElement("span");
-        titleText.className = "title-text";
-        label.insertBefore(titleText, label.firstChild);
-    }
-    titleText.textContent = currentOrg ? currentOrg.name : "Dienstplan";
-}
 function debounce(fn, delay) {
     let timer;
     return ((...args) => {
@@ -1372,9 +1361,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.error("bootstrapAuth failed:", err);
         return false;
     });
-    renderOrgLabel();
-    startClock();
-    showGreeting();
+    initPageHeader();
     renderUserArea();
     renderNavigation(currentMembership?.role ?? null);
     setScheduleViewContainer(planViewMode);
