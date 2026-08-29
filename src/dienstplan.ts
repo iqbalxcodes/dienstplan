@@ -1830,6 +1830,7 @@ function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
     }) as T;
 
 }
+
 document.addEventListener("DOMContentLoaded", async () => {
 
     updatePlanViewModeButtons();
@@ -1843,7 +1844,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     initPageHeader();
-    renderUserArea();
+    await renderUserArea();
     renderNavigation(currentMembership?.role ?? null);
 
     setScheduleViewContainer(planViewMode);

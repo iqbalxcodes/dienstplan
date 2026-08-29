@@ -1362,7 +1362,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return false;
     });
     initPageHeader();
-    renderUserArea();
+    await renderUserArea();
     renderNavigation(currentMembership?.role ?? null);
     setScheduleViewContainer(planViewMode);
     centerPlanOnDate(startOfToday());

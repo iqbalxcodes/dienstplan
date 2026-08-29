@@ -129,7 +129,8 @@ const EYE_OFF_SVG = `
 // Status bar user area — identity + logout when logged in;
 // falls back to the centered login card when not.
 // ======================================================
-export function renderUserArea() {
+export async function renderUserArea() {
+    await injectAuthOverlay();
     const area = document.getElementById("userArea");
     const overlay = document.getElementById("loginOverlay");
     if (!area)
@@ -190,6 +191,19 @@ function wireLoginOverlay() {
     });
     document.getElementById("forgotResetBtn").addEventListener("click", handleForgotSubmit);
     wireOnboarding();
+}
+async function injectAuthOverlay() {
+    const slot = document.getElementById("authOverlaySlot");
+    if (!slot || slot.dataset.injected === "1")
+        return;
+    slot.dataset.injected = "1";
+    try {
+        const html = await fetch("auth-overlay.html").then(r => r.text());
+        slot.outerHTML = html;
+    }
+    catch (err) {
+        console.error("Failed to load auth overlay:", err);
+    }
 }
 async function handleLoginSubmit() {
     const emailEl = document.getElementById("authEmail");

@@ -166,7 +166,9 @@ const EYE_OFF_SVG = `
 // falls back to the centered login card when not.
 // ======================================================
 
-export function renderUserArea(): void {
+export async function renderUserArea(): Promise<void> {
+
+    await injectAuthOverlay();
 
     const area = document.getElementById("userArea");
     const overlay = document.getElementById("loginOverlay");
@@ -249,6 +251,20 @@ function wireLoginOverlay(): void {
 
 }
 
+async function injectAuthOverlay(): Promise<void> {
+
+    const slot = document.getElementById("authOverlaySlot");
+    if(!slot || slot.dataset.injected === "1") return;
+    slot.dataset.injected = "1";
+
+    try {
+        const html = await fetch("auth-overlay.html").then(r => r.text());
+        slot.outerHTML = html;
+    } catch(err) {
+        console.error("Failed to load auth overlay:", err);
+    }
+
+}
 
 async function handleLoginSubmit(): Promise<void> {
 
