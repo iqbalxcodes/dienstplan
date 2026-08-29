@@ -65,8 +65,7 @@ export function renderNavigation(role: string | null = null): void {
 
     const currentPage = container.dataset.page;
 
-    const nav = document.createElement("div");
-    nav.className = "rack-tabs";
+    const tabs: HTMLElement[] = [];
 
     DIENSTPLAN_NAVIGATION.forEach(item => {
 
@@ -83,10 +82,6 @@ export function renderNavigation(role: string | null = null): void {
         }
 
         tab.textContent = item.label;
-
-        // ==================================================
-        // DEVELOPMENT / NOT YET IMPLEMENTED
-        // ==================================================
 
         if(item.development){
 
@@ -106,22 +101,17 @@ export function renderNavigation(role: string | null = null): void {
 
             });
 
-        }
-
-        // ==================================================
-        // NORMAL PAGE
-        // ==================================================
-
-        else {
+        } else {
 
             tab.href = item.href;
 
         }
 
-        nav.appendChild(tab);
+        tabs.push(tab);
 
     });
 
-    container.replaceWith(nav);
+    container.className = "rack-tabs";
+    container.replaceChildren(...tabs);
 
 }

@@ -51,8 +51,7 @@ export function renderNavigation(role = null) {
     if (!container)
         return;
     const currentPage = container.dataset.page;
-    const nav = document.createElement("div");
-    nav.className = "rack-tabs";
+    const tabs = [];
     DIENSTPLAN_NAVIGATION.forEach(item => {
         if (item.roles && (!role || !item.roles.includes(role))) {
             return;
@@ -63,9 +62,6 @@ export function renderNavigation(role = null) {
             tab.classList.add("active");
         }
         tab.textContent = item.label;
-        // ==================================================
-        // DEVELOPMENT / NOT YET IMPLEMENTED
-        // ==================================================
         if (item.development) {
             tab.href = "#";
             tab.addEventListener("click", (event) => {
@@ -79,14 +75,12 @@ export function renderNavigation(role = null) {
                 }
             });
         }
-        // ==================================================
-        // NORMAL PAGE
-        // ==================================================
         else {
             tab.href = item.href;
         }
-        nav.appendChild(tab);
+        tabs.push(tab);
     });
-    container.replaceWith(nav);
+    container.className = "rack-tabs";
+    container.replaceChildren(...tabs);
 }
 //# sourceMappingURL=nav.js.map
