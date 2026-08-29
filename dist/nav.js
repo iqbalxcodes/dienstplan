@@ -40,6 +40,17 @@ const DIENSTPLAN_NAVIGATION = [
     },
 ];
 // ======================================================
+// getCurrentPageFile
+// Reads the active tab from window.location.pathname instead
+// of a data-page attribute — so a copy-pasted/wrong data-page
+// value on any HTML file can never desync the highlighted tab.
+// ======================================================
+function getCurrentPageFile() {
+    const path = window.location.pathname;
+    const file = path.substring(path.lastIndexOf("/") + 1);
+    return file || "index.html";
+}
+// ======================================================
 // renderNavigation
 // role = currentMembership?.role ?? null (passed in from
 // dienstplan.ts after bootstrapAuth() resolves). Tabs with a
@@ -50,7 +61,7 @@ export function renderNavigation(role = null) {
     const container = document.getElementById("pageNavigation");
     if (!container)
         return;
-    const currentPage = container.dataset.page;
+    const currentFile = getCurrentPageFile();
     const tabs = [];
     DIENSTPLAN_NAVIGATION.forEach(item => {
         if (item.roles && (!role || !item.roles.includes(role))) {
@@ -58,7 +69,7 @@ export function renderNavigation(role = null) {
         }
         const tab = document.createElement("a");
         tab.className = "rack-tab";
-        if (item.page === currentPage) {
+        if (item.href === currentFile) {
             tab.classList.add("active");
         }
         tab.textContent = item.label;

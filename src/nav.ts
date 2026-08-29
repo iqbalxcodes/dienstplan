@@ -41,7 +41,7 @@ const DIENSTPLAN_NAVIGATION: NavItem[] = [
         page: "admin",
         roles: ["admin"]
     },
-    
+
     {
     label: "History",
     href: "history.html",
@@ -49,6 +49,19 @@ const DIENSTPLAN_NAVIGATION: NavItem[] = [
     roles: ["manager", "admin"]
     },
 ];
+
+// ======================================================
+// getCurrentPageFile
+// Reads the active tab from window.location.pathname instead
+// of a data-page attribute — so a copy-pasted/wrong data-page
+// value on any HTML file can never desync the highlighted tab.
+// ======================================================
+
+function getCurrentPageFile(): string {
+    const path = window.location.pathname;
+    const file = path.substring(path.lastIndexOf("/") + 1);
+    return file || "index.html";
+}
 
 // ======================================================
 // renderNavigation
@@ -63,7 +76,7 @@ export function renderNavigation(role: string | null = null): void {
     const container = document.getElementById("pageNavigation");
     if(!container) return;
 
-    const currentPage = container.dataset.page;
+    const currentFile = getCurrentPageFile();
 
     const tabs: HTMLElement[] = [];
 
@@ -77,7 +90,7 @@ export function renderNavigation(role: string | null = null): void {
 
         tab.className = "rack-tab";
 
-        if(item.page === currentPage){
+        if(item.href === currentFile){
             tab.classList.add("active");
         }
 
