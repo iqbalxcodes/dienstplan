@@ -1063,14 +1063,14 @@ body.reset-page {
 .month-nav {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
 }
 
 .month-picker-select {
     border: 1px solid #ccc;
     border-radius: 4px;
-    padding: 4px 6px;
-    font-size: 13px;
+    padding: 3px 5px;
+    font-size: 12px;
     background: #fff;
 }
 
@@ -1078,6 +1078,7 @@ body.reset-page {
 
 .reservation-header {
     display: flex;
+    flex-wrap: nowrap;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
@@ -1094,10 +1095,14 @@ body.reset-page {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 4px;
     min-width: 0;
     white-space: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
 }
+
+.header-center::-webkit-scrollbar { display: none; }
 
 .header-right {
     flex: 0 0 auto;

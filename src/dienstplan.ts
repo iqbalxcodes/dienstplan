@@ -1763,7 +1763,7 @@ export async function refreshPlan(): Promise<void> {
 
     if(!currentOrg) return;
 
-    if(planViewMode === "month"){
+    if(planViewMode === "month" && document.getElementById("monthView")){
         await refreshMonthView();
         return;
     }

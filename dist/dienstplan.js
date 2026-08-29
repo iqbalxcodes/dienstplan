@@ -1302,7 +1302,7 @@ function showMessage(text, type = "info") {
 export async function refreshPlan() {
     if (!currentOrg)
         return;
-    if (planViewMode === "month") {
+    if (planViewMode === "month" && document.getElementById("monthView")) {
         await refreshMonthView();
         return;
     }
