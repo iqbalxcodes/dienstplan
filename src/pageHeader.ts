@@ -1,12 +1,19 @@
 // ======================================================
 // pageHeader.ts
-// Shared page-level header bar: greeting (left) + live
-// clock (right). ONE implementation used by every page —
-// do not re-implement this locally in dashboard.ts,
-// dienstplan.ts, or any other page module. Calling
-// initPageHeader() more than once is safe (idempotent):
-// it always fully overwrites textContent, never appends,
-// and clears any previous timer/interval first.
+// Shared page-level header bar: greeting (left) + gear icon
+// + live clock (right). ONE implementation used by every
+// page — do not re-implement this locally elsewhere.
+//
+// The HTML only needs:
+//   <div id="pageHeaderBar" class="page-header-bar"></div>
+// This module builds the entire inner content (greeting
+// span, gear link, clock spans) via JS — so changing the
+// structure later only requires editing this one file,
+// never touching per-page HTML again.
+//
+// Calling initPageHeader() more than once is safe: it
+// always rebuilds the inner HTML fully and clears any
+// previous timer first.
 // ======================================================
 
 import { currentOrg, currentMembership } from "./auth.js";
@@ -15,8 +22,23 @@ let clockIntervalHandle: number | undefined;
 let greetingTimerHandle: number | undefined;
 
 export function initPageHeader(): void {
+
+    const bar = document.getElementById("pageHeaderBar");
+    if(!bar) return;
+
+    bar.innerHTML = `
+        <span id="pageGreeting" class="page-greeting">Loading…</span>
+        <div class="page-header-right">
+            <a href="settings.html" class="page-gear-btn" title="Settings" aria-label="Settings">&#9881;</a>
+            <div class="page-header-clock">
+                <span id="pageClockDate"></span><span id="pageClockTime"></span>
+            </div>
+        </div>
+    `;
+
     renderGreeting();
     startPageClock();
+
 }
 
 function renderGreeting(): void {

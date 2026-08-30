@@ -1,12 +1,12 @@
 <div id="loginOverlay" class="plan-modal-backdrop" style="display:none;">
     <div class="plan-modal auth-card">
 
-        <h3>Dienstplan Login</h3>
+        <h3 data-i18n="login.title">Dienstplan Login</h3>
 
-        <label>Email</label>
+        <label data-i18n="login.email">Email</label>
         <input type="email" id="authEmail" autocomplete="username">
 
-        <label>Password</label>
+        <label data-i18n="login.password">Password</label>
         <div class="auth-pass-row">
             <input type="password" id="authPassword" autocomplete="current-password">
             <button type="button" class="auth-eye" id="authEyeBtn"
@@ -16,24 +16,25 @@
         <div class="auth-actions-row">
             <label class="auth-check">
                 <input type="checkbox" id="authRemember" checked>
-                <span>Remember me on this device</span>
+                <span data-i18n="login.remember">Remember me on this device</span>
             </label>
-            <button class="primary" id="authLoginBtn">Log in</button>
+            <button class="primary" id="authLoginBtn" data-i18n="login.submit">Log in</button>
         </div>
 
         <div id="authError" class="auth-error" style="display:none;"></div>
 
-        <p class="auth-hint">No account yet? Please ask your admin / boss, or
-            <a href="#" id="ownerToggle">register your business</a> ·
-            <a href="#" id="forgotToggle">Forgot password?</a>
+        <p class="auth-hint">
+            <span data-i18n="login.noAccount">No account yet? Please ask your admin / boss, or</span>
+            <a href="#" id="ownerToggle" data-i18n="login.registerBusiness">register your business</a> ·
+            <a href="#" id="forgotToggle" data-i18n="login.forgot">Forgot password?</a>
         </p>
 
         <div id="forgotSection" style="display:none;">
             <hr>
-            <label>Email for the recovery link</label>
+            <label data-i18n="login.forgotEmailLabel">Email for the recovery link</label>
             <div class="auth-forgot-row">
                 <input type="email" id="forgotEmail" autocomplete="email">
-                <button type="button" id="forgotResetBtn">Reset</button>
+                <button type="button" id="forgotResetBtn" data-i18n="login.reset">Reset</button>
             </div>
             <p class="auth-hint" id="forgotMsg"></p>
         </div>

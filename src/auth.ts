@@ -287,6 +287,10 @@ async function injectAuthOverlay(): Promise<void> {
     try {
         const html = await fetch("auth-overlay.html").then(r => r.text());
         slot.outerHTML = html;
+
+        const { loadSettings, applyLanguage } = await import("./settings.js");
+        applyLanguage(loadSettings().language);
+
     } catch(err) {
         console.error("Failed to load auth overlay:", err);
     }

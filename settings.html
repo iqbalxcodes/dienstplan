@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dienstplan — Settings</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dienstplan.css">
+</head>
+<body>
+
+    <!-- LOGIN OVERLAY -->
+    <div id="authOverlaySlot"></div>
+
+    <div id="pageHeaderBar" class="page-header-bar"></div>
+    <div id="pageNavigation" data-page="settings"></div>
+
+    <div class="table-container detail-card">
+
+        <div class="reservation-header">
+            <div class="header-title"><h3 data-i18n="settings.title">Settings</h3></div>
+            <div class="header-center"></div>
+            <div class="header-right"></div>
+        </div>
+
+        <div class="dash-stack">
+
+            <section class="dash-section">
+                <h3 data-i18n="settings.language">Language</h3>
+                <select id="setLanguage">
+                    <option value="de">Deutsch</option>
+                    <option value="en">English</option>
+                    <option value="id">Bahasa Indonesia</option>
+                </select>
+                <p class="plan-entry-meta" style="margin-top:8px;" data-i18n="settings.saveNote">
+                    Your choice is saved automatically.
+                </p>
+            </section>
+
+        </div>
+
+    </div>
+
+    <div id="statusBar">
+        <div id="userArea"></div>
+        <div id="contextArea"></div>
+        <div id="paginationInfo"></div>
+        <div id="paginationNav"></div>
+    </div>
+
+    <script type="importmap">
+    { "imports": { "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2" } }
+    </script>
+    <script type="module" src="dist/dienstplan.js"></script>
+    <script type="module" src="dist/panels.js"></script>
+    <script type="module" src="dist/settingsPage.js"></script>
+
+</body>
+</html>

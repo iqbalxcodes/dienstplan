@@ -5,8 +5,11 @@
 //   - Admin tab   : admin (technical) role only
 // ======================================================
 
+import { t } from "./translations.js";
+import { loadSettings } from "./settings.js";
+
 export interface NavItem {
-    label: string;
+    label: string;   // i18n key, e.g. "nav.dashboard"
     href: string;
     page: string;
     development?: boolean;
@@ -15,46 +18,51 @@ export interface NavItem {
 
 const DIENSTPLAN_NAVIGATION: NavItem[] = [
     {
-        label: "Dashboard",
+        label: "nav.dashboard",
         href: "index.html",
         page: "dashboard"
     },
     {
-        label: "Schedule",
+        label: "nav.schedule",
         href: "schedule.html",
         page: "schedule"
     },
     {
-        label: "Hours",
+        label: "nav.hours",
         href: "hours.html",
         page: "hours"
     },
     {
-        label: "Manager",
+        label: "nav.manager",
         href: "manager.html",
         page: "manager",
         roles: ["manager", "admin"]
     },
     {
-        label: "Admin",
+        label: "nav.admin",
         href: "admin.html",
         page: "admin",
         roles: ["admin"]
     },
-
     {
-    label: "History",
-    href: "history.html",
-    page: "history",
-    roles: ["manager", "admin"]
+        label: "nav.history",
+        href: "history.html",
+        page: "history",
+        roles: ["manager", "admin"]
+    },
+    {
+        label: "nav.settings",
+        href: "settings.html",
+        page: "settings"
     },
 ];
 
 // ======================================================
 // getCurrentPageFile
-// Reads the active tab from window.location.pathname instead
-// of a data-page attribute — so a copy-pasted/wrong data-page
-// value on any HTML file can never desync the highlighted tab.
+// Reads the active tab from window.location.pathname
+// instead of a data-page attribute — so a wrong/stale
+// data-page value on any HTML file can never desync the
+// highlighted tab.
 // ======================================================
 
 function getCurrentPageFile(): string {
@@ -77,6 +85,7 @@ export function renderNavigation(role: string | null = null): void {
     if(!container) return;
 
     const currentFile = getCurrentPageFile();
+    const currentLang = loadSettings().language;
 
     const tabs: HTMLElement[] = [];
 
@@ -94,7 +103,7 @@ export function renderNavigation(role: string | null = null): void {
             tab.classList.add("active");
         }
 
-        tab.textContent = item.label;
+        tab.textContent = t(item.label, currentLang);
 
         if(item.development){
 

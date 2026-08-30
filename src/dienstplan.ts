@@ -24,6 +24,7 @@ import { submitLeaveRequest, fetchLeaveRequests, reviewLeaveRequest, LEAVE_TYPE_
 import { fileComplaint } from "./complaints.js";
 import type { Membership, Shift, TimeEntry, LeaveRequest, LeaveType, ShiftChangeRequest } from "./types.js";
 import { initPageHeader } from "./pageHeader.js";
+import "./settings.js";
 
 const PLAN_VIEW_MODE_KEY = "dienstplan_view_mode_v1";
 const DOW_LABELS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
