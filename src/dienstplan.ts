@@ -165,7 +165,7 @@ function roleLabels(): string[] {
 
 function getPlanDayCount(): number {
 
-    if(planViewMode !== "auto"){
+    if(planViewMode !== "auto" && planViewMode !== "month"){
         return Number(planViewMode);
     }
 

@@ -11,6 +11,10 @@ type Dict = Record<string, string>;
 export const TRANSLATIONS: Record<Language, Dict> = {
 
     de: {
+
+        "hours.freiwunsch": "Freiwunsch",
+        "hours.urlaub": "Urlaub"
+
         "nav.dashboard": "Dashboard",
         "nav.schedule": "Dienstplan",
         "nav.hours": "Stunden",
@@ -36,6 +40,10 @@ export const TRANSLATIONS: Record<Language, Dict> = {
     },
 
     en: {
+
+        "hours.freiwunsch": "Time Off Request",
+        "hours.urlaub": "Vacation"
+
         "nav.dashboard": "Dashboard",
         "nav.schedule": "Schedule",
         "nav.hours": "Hours",
@@ -54,7 +62,6 @@ export const TRANSLATIONS: Record<Language, Dict> = {
         "login.forgotEmailLabel": "Email for the recovery link",
         "login.reset": "Reset",
         "login.registerBusiness": "register your business"
-        
 
         "settings.title": "Settings",
         "settings.language": "Language",
@@ -62,6 +69,10 @@ export const TRANSLATIONS: Record<Language, Dict> = {
     },
 
     id: {
+
+        "hours.freiwunsch": "Permintaan Libur",
+        "hours.urlaub": "Cuti"
+
         "nav.dashboard": "Dasbor",
         "nav.schedule": "Jadwal",
         "nav.hours": "Jam Kerja",

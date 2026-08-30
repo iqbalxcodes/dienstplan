@@ -1155,6 +1155,26 @@ body.reset-page {
     white-space: nowrap;
 }
 
+/* ======================================================
+   HEADER ACTION BUTTONS (e.g. Hours page: Freiwunsch/Urlaub)
+   ====================================================== */
+
+.header-action-btn {
+    border: 1px solid #1565c0;
+    background: #1565c0;
+    color: #fff;
+    border-radius: 4px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.header-action-btn:hover {
+    background: #0d47a1;
+}
+
+
 @media (max-width: 700px) {
     .reservation-header { border-bottom: none; margin-bottom: 4px; padding-bottom: 0; flex-wrap: wrap; row-gap: 6px; }
     .table-container { margin-left: 8px; margin-right: 8px; padding-left: 10px; padding-right: 10px; }
