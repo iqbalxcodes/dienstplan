@@ -17,6 +17,7 @@
 // ======================================================
 
 import { currentOrg, currentMembership } from "./auth.js";
+import { startShiftReminders } from "./notifications.js";
 
 let clockIntervalHandle: number | undefined;
 let greetingTimerHandle: number | undefined;
@@ -38,6 +39,7 @@ export function initPageHeader(): void {
 
     renderGreeting();
     startPageClock();
+    startShiftReminders();
 
 }
 

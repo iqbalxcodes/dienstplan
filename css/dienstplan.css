@@ -753,6 +753,35 @@
 }
 
 /* ======================================================
+   SETTINGS PAGE — toggle rows
+   ====================================================== */
+
+.settings-toggle-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.settings-toggle-btn {
+    border: 1px solid #ccc;
+    background: #fff;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.settings-toggle-btn:hover { background: #f0f0f0; }
+
+.settings-toggle-btn.active {
+    background: #1565c0;
+    color: #fff;
+    border-color: #1565c0;
+    font-weight: 600;
+}
+
+
+/* ======================================================
    ADMIN SETTINGS FORMS
    ====================================================== */
 
@@ -849,6 +878,11 @@
     font-size: 12px;
     color: #888;
     margin-bottom: 8px;
+}
+
+.hist-search-short {
+    flex: 1 1 100px;
+    max-width: 160px;
 }
 
 .table-scroll table { width: 100%; border-collapse: collapse; }

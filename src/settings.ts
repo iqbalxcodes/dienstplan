@@ -1,21 +1,22 @@
 // ======================================================
 // settings.ts
 // User-level app settings, persisted in localStorage.
-// Only `language` is implemented right now. Add more
-// fields here later (theme, fontSize, etc.) when those
-// features are actually built.
+// language + notificationsEnabled implemented. Add more
+// fields here later when those features are built.
 // ======================================================
 
 import { TRANSLATIONS, type Language } from "./translations.js";
 
 export interface UserSettings {
     language: Language;
+    notificationsEnabled: boolean;
 }
 
 const STORAGE_KEY = "dienstplan_settings_v1";
 
 const DEFAULT_SETTINGS: UserSettings = {
-    language: "de"
+    language: "de",
+    notificationsEnabled: false
 };
 
 export function loadSettings(): UserSettings {
@@ -47,8 +48,6 @@ export function saveSettings(patch: Partial<UserSettings>): UserSettings {
 
 }
 
-// Translates every element carrying data-i18n="key" on the
-// current page. Elements not tagged are left untouched.
 export function applyLanguage(lang: Language): void {
 
     document.documentElement.setAttribute("lang", lang);
@@ -69,7 +68,4 @@ export function applyLanguage(lang: Language): void {
 
 }
 
-// Runs on import, on every page that loads dienstplan.js —
-// translates whatever data-i18n elements exist on that page
-// using the saved language, before the user sees anything.
 applyLanguage(loadSettings().language);

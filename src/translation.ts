@@ -20,7 +20,7 @@ export const TRANSLATIONS: Record<Language, Dict> = {
         "nav.hours": "Stunden",
         "nav.manager": "Manager",
         "nav.admin": "Admin",
-        "nav.history": "Verlauf",
+        "nav.history": "Aktivität",
         "nav.settings": "Einstellungen",
 
         "login.title": "Dienstplan Login",
@@ -49,7 +49,7 @@ export const TRANSLATIONS: Record<Language, Dict> = {
         "nav.hours": "Hours",
         "nav.manager": "Manager",
         "nav.admin": "Admin",
-        "nav.history": "History",
+        "nav.history": "Activity",
         "nav.settings": "Settings",
 
         "login.title": "Dienstplan Login",
@@ -78,7 +78,7 @@ export const TRANSLATIONS: Record<Language, Dict> = {
         "nav.hours": "Jam Kerja",
         "nav.manager": "Manajer",
         "nav.admin": "Admin",
-        "nav.history": "Riwayat",
+        "nav.history": "Aktivitas",
         "nav.settings": "Pengaturan",
 
         "login.title": "Login Dienstplan",

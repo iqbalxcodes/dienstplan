@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dienstplan — History</title>
+    <title>Activity</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dienstplan.css">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
@@ -19,38 +19,41 @@
     <div class="table-container detail-card">
 
         <div class="reservation-header">
-            <div class="header-title"><h3>Activity History</h3></div>
+            <div class="header-title"><h3>Activity</h3></div>
             <div class="header-center"></div>
             <div class="header-right"></div>
         </div>
 
         <div id="roleHint" class="hist-role-hint"></div>
 
-        <div class="hist-toolbar">
-            <input type="search" id="searchInput" placeholder="Search action or summary…">
-            <select id="actionFilter" onchange="historyPage.changeAction(this.value)">
-                <option value="all">All actions</option>
-                <option value="attendance.check_in">Check In</option>
-                <option value="attendance.check_out">Check Out</option>
-                <option value="settings.update">Settings Changed</option>
-                <option value="crew.add">Crew Added</option>
-                <option value="crew.update">Crew Updated</option>
-                <option value="crew.deactivate">Crew Deactivated</option>
-                <option value="crew.reactivate">Crew Reactivated</option>
-                <option value="crew.role_changed">Role Changed</option>
-                <option value="shift.reschedule">Shift Moved</option>
-                <option value="shift.change_approved">Shift Change Approved</option>
-                <option value="time.manual_edit">Manual Time Edit</option>
-                <option value="leave.requested">Leave Requested</option>
-                <option value="leave.approved">Leave Approved</option>
-                <option value="leave.rejected">Leave Rejected</option>
-                <option value="auth.login">Login</option>
-                <option value="auth.logout">Logout</option>
-                <option value="recovery.sent">Recovery Sent</option>
-                <option value="export.performed">Data Exported</option>
-            </select>
-            <button class="btn-export" onclick="historyPage.exportCsv()">Export CSV</button>
-        </div>
+    <div class="hist-toolbar">
+        <input type="search" id="searchInput" class="hist-search-short" placeholder="Search…">
+        <select id="actionFilter" onchange="historyPage.changeAction(this.value)">
+            <option value="all">All actions</option>
+            <option value="attendance.check_in">Check In</option>
+            <option value="attendance.check_out">Check Out</option>
+            <option value="settings.update">Settings Changed</option>
+            <option value="crew.add">Crew Added</option>
+            <option value="crew.update">Crew Updated</option>
+            <option value="crew.deactivate">Crew Deactivated</option>
+            <option value="crew.reactivate">Crew Reactivated</option>
+            <option value="crew.role_changed">Role Changed</option>
+            <option value="shift.reschedule">Shift Moved</option>
+            <option value="shift.change_approved">Shift Change Approved</option>
+            <option value="time.manual_edit">Manual Time Edit</option>
+            <option value="leave.requested">Leave Requested</option>
+            <option value="leave.approved">Leave Approved</option>
+            <option value="leave.rejected">Leave Rejected</option>
+            <option value="auth.login">Login</option>
+            <option value="auth.logout">Logout</option>
+            <option value="recovery.sent">Recovery Sent</option>
+            <option value="export.performed">Data Exported</option>
+        </select>
+        <select id="userFilter" onchange="historyPage.changeUser(this.value)">
+            <option value="all">All users</option>
+        </select>
+        <button class="btn-export" onclick="historyPage.exportCsv()">Export CSV</button>
+    </div>
 
         <div class="table-scroll">
             <table>

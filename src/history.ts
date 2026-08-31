@@ -71,6 +71,7 @@ let rowsPerPage       = 20;
 let totalCount        = 0;
 let activeSearch      = "";
 let filterAction      = "all";
+let filterMember = "all";
 let activeSortColumn  = "time";
 let sortDir: Record<string, "asc" | "desc"> = { time: "desc" };
 let expandedId: string | null = null;
@@ -93,6 +94,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderHeader();
     wireRoleHint();
     wireSearchEnter();
+    void populateUserFilter();
     void refresh();
 
     window.addEventListener("resize", () => {
@@ -116,6 +118,31 @@ function wireRoleHint(): void {
             ? "Admin mode: you may delete entries from the expanded view."
             : "Read-only view.";
     }
+}
+
+async function populateUserFilter(): Promise<void> {
+
+    const sel = document.getElementById("userFilter") as HTMLSelectElement | null;
+    if(!sel || !currentOrg) return;
+
+    const { data, error } = await supabaseClient
+        .from("memberships")
+        .select("id, full_name")
+        .eq("organization_id", currentOrg.id)
+        .order("full_name");
+
+    if(error || !data) return;
+
+    sel.innerHTML = `<option value="all">All users</option>` +
+        data.map(m => `<option value="${m.id}">${escapeHtml(m.full_name)}</option>`).join("");
+
+}
+
+function changeUser(value: string): void {
+    filterMember = value;
+    currentPage = 1;
+    expandedId = null;
+    void refresh();
 }
 
 
@@ -142,8 +169,8 @@ function baseQuery(forCount = false) {
         )
         .eq("organization_id", currentOrg!.id);
 
-    if(filterAction !== "all"){
-        q = q.eq("action", filterAction);
+     if(filterMember !== "all"){
+        q = q.eq("actor_membership_id", filterMember);
     }
 
     const kw = activeSearch.trim();
@@ -367,7 +394,7 @@ function buildDetailRow(r: any): HTMLTableRowElement {
     const entries = Object.entries(r.details ?? {});
 
     tr.innerHTML = `
-        <td>
+        <td colspan="${COLUMNS.length}">
             <div class="detail-grid-hist">
                 <div>
                     <span class="plan-entry-meta">Full timestamp</span>
@@ -582,6 +609,7 @@ function formatDateISO(d: Date): string {
 // expose inline handlers
 (window as any).historyPage = {
     changeAction,
+    changeUser,
     onSearch,
     clearSearch,
     deleteEntry,
