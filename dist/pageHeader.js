@@ -16,7 +16,6 @@
 // previous timer first.
 // ======================================================
 import { currentOrg, currentMembership } from "./auth.js";
-import { startShiftReminders } from "./notifications.js";
 let clockIntervalHandle;
 let greetingTimerHandle;
 export function initPageHeader() {
@@ -34,7 +33,6 @@ export function initPageHeader() {
     `;
     renderGreeting();
     startPageClock();
-    startShiftReminders();
 }
 function renderGreeting() {
     const el = document.getElementById("pageGreeting");

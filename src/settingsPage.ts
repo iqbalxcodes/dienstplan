@@ -1,11 +1,11 @@
 // ======================================================
 // settingsPage.ts
-// Wires up the Settings page: language dropdown + shift
-// reminder notification toggle.
+// Wires up the Settings page: language dropdown + true push
+// notification toggle for shift reminders.
 // ======================================================
 
 import { loadSettings, saveSettings, applyLanguage } from "./settings.js";
-import { requestNotificationPermission, startShiftReminders, stopShiftReminders, isNotificationSupported } from "./notifications.js";
+import { enablePushNotifications, disablePushNotifications, isPushSupported } from "./pushSubscription.js";
 
 function renderNotifToggle(): void {
 
@@ -19,12 +19,12 @@ function renderNotifToggle(): void {
         btn.classList.toggle("active", (btn.dataset.value === "on") === enabled);
     });
 
-    if(!isNotificationSupported()){
-        note.textContent = "Notifications are not supported in this browser.";
+    if(!isPushSupported()){
+        note.textContent = "Push notifications are not supported in this browser.";
     } else if(enabled && Notification.permission === "denied"){
         note.textContent = "Notifications are blocked in your browser settings — enable them for this site to receive reminders.";
     } else {
-        note.textContent = "Get a browser notification 15 minutes before your shift starts or ends. Only works while a Dienstplan tab is open in your browser.";
+        note.textContent = "Get a notification 15 minutes before your shift starts or ends — even when the app is closed.";
     }
 
 }
@@ -53,30 +53,22 @@ document.addEventListener("DOMContentLoaded", () => {
         if(!btn) return;
 
         const wantsOn = btn.dataset.value === "on";
+        const toggleRow = document.getElementById("notifToggleRow")!;
+        toggleRow.setAttribute("aria-busy", "true");
 
         if(!wantsOn){
-            saveSettings({ notificationsEnabled: false });
-            stopShiftReminders();
-            renderNotifToggle();
-            return;
-        }
-
-        if(!isNotificationSupported()){
-            renderNotifToggle();
-            return;
-        }
-
-        const permission = await requestNotificationPermission();
-
-        if(permission !== "granted"){
+            await disablePushNotifications();
             saveSettings({ notificationsEnabled: false });
             renderNotifToggle();
+            toggleRow.removeAttribute("aria-busy");
             return;
         }
 
-        saveSettings({ notificationsEnabled: true });
-        startShiftReminders();
+        const ok = await enablePushNotifications();
+
+        saveSettings({ notificationsEnabled: ok });
         renderNotifToggle();
+        toggleRow.removeAttribute("aria-busy");
 
     });
 
