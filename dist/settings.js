@@ -4,7 +4,7 @@
 // language + notificationsEnabled implemented. Add more
 // fields here later when those features are built.
 // ======================================================
-import { TRANSLATIONS } from "./translations.js";
+import { TRANSLATIONS } from "./translation.js";
 const STORAGE_KEY = "dienstplan_settings_v1";
 const DEFAULT_SETTINGS = {
     language: "de",

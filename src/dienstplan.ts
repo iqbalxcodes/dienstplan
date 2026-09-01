@@ -1715,32 +1715,6 @@ function escapeHtml(str: string | null | undefined): string {
     return div.innerHTML;
 }
 
-function showGreeting(): void {
-    const el = document.getElementById("orgNameLabel");
-    if(!el || !currentMembership) return;
-
-    const hour = new Date().getHours();
-    let greeting: string;
-    if(hour < 12)      greeting = "Good Morning";
-    else if(hour < 18) greeting = "Good Afternoon";
-    else                greeting = "Good Evening";
-
-    const firstName = currentMembership.full_name.split(" ")[0];
-
-    let titleText = el.querySelector(".title-text") as HTMLElement;
-    if(!titleText){
-        titleText = document.createElement("span");
-        titleText.className = "title-text";
-        el.insertBefore(titleText, el.firstChild);
-    }
-
-    titleText.textContent = `${greeting}, ${firstName}!`;
-
-    setTimeout(() => {
-        titleText.textContent = currentOrg?.name ?? "Dienstplan";
-    }, 3000);
-}
-
 function showMessage(text: string, type: "info" | "success" | "error" = "info"): void {
 
     const contextArea = document.getElementById("contextArea");
@@ -1799,25 +1773,6 @@ export async function refreshPlan(): Promise<void> {
     await Promise.all([renderApprovalsPanel(), renderComplaintsPanel(), renderLeavePanel(), renderCrewList(), renderMyEntries()]);
 
     applyAuthVisibility();
-
-}
-
-function startClock(): void {
-
-    function updateClock(){
-        const now = new Date();
-        const dateStr = now.toLocaleDateString("de-DE", {day:"2-digit", month:"2-digit", year:"numeric"});
-        const timeStr = now.toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit", second:"2-digit"});
-
-        const dateEl = document.getElementById("clockDate");
-        const timeEl = document.getElementById("clockTime");
-
-        if(dateEl) dateEl.textContent = dateStr;
-        if(timeEl) timeEl.textContent = timeStr;
-    }
-
-    updateClock();
-    setInterval(updateClock, 1000);
 
 }
 

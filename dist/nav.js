@@ -4,7 +4,7 @@
 //   - Manager tab : manager + admin roles
 //   - Admin tab   : admin (technical) role only
 // ======================================================
-import { t } from "./translations.js";
+import { t } from "./translation.js";
 import { loadSettings } from "./settings.js";
 const DIENSTPLAN_NAVIGATION = [
     {

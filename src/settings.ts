@@ -5,7 +5,7 @@
 // fields here later when those features are built.
 // ======================================================
 
-import { TRANSLATIONS, type Language } from "./translations.js";
+import { TRANSLATIONS, type Language } from "./translation.js";
 
 export interface UserSettings {
     language: Language;

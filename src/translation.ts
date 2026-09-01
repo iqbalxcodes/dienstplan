@@ -13,7 +13,7 @@ export const TRANSLATIONS: Record<Language, Dict> = {
     de: {
 
         "hours.freiwunsch": "Freiwunsch",
-        "hours.urlaub": "Urlaub"
+        "hours.urlaub": "Urlaub",
 
         "nav.dashboard": "Dashboard",
         "nav.schedule": "Dienstplan",
@@ -32,7 +32,7 @@ export const TRANSLATIONS: Record<Language, Dict> = {
         "login.forgot": "Passwort vergessen?",
         "login.forgotEmailLabel": "E-Mail für den Wiederherstellungslink",
         "login.reset": "Zurücksetzen",
-        "login.registerBusiness": "dein Unternehmen registrieren"
+        "login.registerBusiness": "dein Unternehmen registrieren",
 
         "settings.title": "Einstellungen",
         "settings.language": "Sprache",
@@ -42,7 +42,7 @@ export const TRANSLATIONS: Record<Language, Dict> = {
     en: {
 
         "hours.freiwunsch": "Time Off Request",
-        "hours.urlaub": "Vacation"
+        "hours.urlaub": "Vacation",
 
         "nav.dashboard": "Dashboard",
         "nav.schedule": "Schedule",
@@ -61,7 +61,7 @@ export const TRANSLATIONS: Record<Language, Dict> = {
         "login.forgot": "Forgot password?",
         "login.forgotEmailLabel": "Email for the recovery link",
         "login.reset": "Reset",
-        "login.registerBusiness": "register your business"
+        "login.registerBusiness": "register your business",
 
         "settings.title": "Settings",
         "settings.language": "Language",
@@ -71,7 +71,7 @@ export const TRANSLATIONS: Record<Language, Dict> = {
     id: {
 
         "hours.freiwunsch": "Permintaan Libur",
-        "hours.urlaub": "Cuti"
+        "hours.urlaub": "Cuti",
 
         "nav.dashboard": "Dasbor",
         "nav.schedule": "Jadwal",
@@ -90,7 +90,7 @@ export const TRANSLATIONS: Record<Language, Dict> = {
         "login.forgot": "Lupa kata sandi?",
         "login.forgotEmailLabel": "Email untuk tautan pemulihan",
         "login.reset": "Kirim ulang",
-        "login.registerBusiness": "daftarkan bisnis"
+        "login.registerBusiness": "daftarkan bisnis",
 
         "settings.title": "Pengaturan",
         "settings.language": "Bahasa",

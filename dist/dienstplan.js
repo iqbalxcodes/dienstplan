@@ -1263,30 +1263,6 @@ function escapeHtml(str) {
     div.textContent = str ?? "";
     return div.innerHTML;
 }
-function showGreeting() {
-    const el = document.getElementById("orgNameLabel");
-    if (!el || !currentMembership)
-        return;
-    const hour = new Date().getHours();
-    let greeting;
-    if (hour < 12)
-        greeting = "Good Morning";
-    else if (hour < 18)
-        greeting = "Good Afternoon";
-    else
-        greeting = "Good Evening";
-    const firstName = currentMembership.full_name.split(" ")[0];
-    let titleText = el.querySelector(".title-text");
-    if (!titleText) {
-        titleText = document.createElement("span");
-        titleText.className = "title-text";
-        el.insertBefore(titleText, el.firstChild);
-    }
-    titleText.textContent = `${greeting}, ${firstName}!`;
-    setTimeout(() => {
-        titleText.textContent = currentOrg?.name ?? "Dienstplan";
-    }, 3000);
-}
 function showMessage(text, type = "info") {
     const contextArea = document.getElementById("contextArea");
     if (!contextArea)
@@ -1330,21 +1306,6 @@ export async function refreshPlan() {
     await renderHoursSummary();
     await Promise.all([renderApprovalsPanel(), renderComplaintsPanel(), renderLeavePanel(), renderCrewList(), renderMyEntries()]);
     applyAuthVisibility();
-}
-function startClock() {
-    function updateClock() {
-        const now = new Date();
-        const dateStr = now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
-        const timeStr = now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-        const dateEl = document.getElementById("clockDate");
-        const timeEl = document.getElementById("clockTime");
-        if (dateEl)
-            dateEl.textContent = dateStr;
-        if (timeEl)
-            timeEl.textContent = timeStr;
-    }
-    updateClock();
-    setInterval(updateClock, 1000);
 }
 function debounce(fn, delay) {
     let timer;
