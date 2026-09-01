@@ -60,6 +60,7 @@ let rowsPerPage = 20;
 let totalCount = 0;
 let activeSearch = "";
 let filterAction = "all";
+let filterMember = "all";
 let activeSortColumn = "time";
 let sortDir = { time: "desc" };
 let expandedId = null;
@@ -77,6 +78,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderHeader();
     wireRoleHint();
     wireSearchEnter();
+    void populateUserFilter();
     void refresh();
     window.addEventListener("resize", () => {
         clearTimeout(resizeDebounce);
@@ -97,6 +99,26 @@ function wireRoleHint() {
             : "Read-only view.";
     }
 }
+async function populateUserFilter() {
+    const sel = document.getElementById("userFilter");
+    if (!sel || !currentOrg)
+        return;
+    const { data, error } = await supabaseClient
+        .from("memberships")
+        .select("id, full_name")
+        .eq("organization_id", currentOrg.id)
+        .order("full_name");
+    if (error || !data)
+        return;
+    sel.innerHTML = `<option value="all">All users</option>` +
+        data.map(m => `<option value="${m.id}">${escapeHtml(m.full_name)}</option>`).join("");
+}
+function changeUser(value) {
+    filterMember = value;
+    currentPage = 1;
+    expandedId = null;
+    void refresh();
+}
 function wireSearchEnter() {
     const input = document.getElementById("searchInput");
     input?.addEventListener("keydown", e => {
@@ -112,8 +134,8 @@ function baseQuery(forCount = false) {
         .from("activity_log")
         .select("*, memberships:actor_membership_id(full_name)", forCount ? { count: "exact", head: true } : undefined)
         .eq("organization_id", currentOrg.id);
-    if (filterAction !== "all") {
-        q = q.eq("action", filterAction);
+    if (filterMember !== "all") {
+        q = q.eq("actor_membership_id", filterMember);
     }
     const kw = activeSearch.trim();
     if (kw) {
@@ -268,7 +290,7 @@ function buildDetailRow(r) {
     tr.className = "detail-row";
     const entries = Object.entries(r.details ?? {});
     tr.innerHTML = `
-        <td>
+        <td colspan="${COLUMNS.length}">
             <div class="detail-grid-hist">
                 <div>
                     <span class="plan-entry-meta">Full timestamp</span>
@@ -437,6 +459,7 @@ function formatDateISO(d) {
 // expose inline handlers
 window.historyPage = {
     changeAction,
+    changeUser,
     onSearch,
     clearSearch,
     deleteEntry,

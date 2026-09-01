@@ -5,15 +5,18 @@
 // ======================================================
 import { supabaseClient } from "./supabaseClient.js";
 import { currentOrg, authReady, isAdmin } from "./auth.js";
+import { logActivity } from "./activityLog.js";
 document.addEventListener("DOMContentLoaded", async () => {
     await authReady;
-    const root = document.getElementById("settingsRoot");
     if (!isAdmin() || !currentOrg) {
-        root.innerHTML = `<p class="auth-error">Admin access required.</p>`;
+        const container = document.querySelector(".table-container");
+        if (container)
+            container.innerHTML = `<p class="auth-error" style="margin:24px;">Admin access required.</p>`;
         return;
     }
     populateTimezones();
     populate();
+    wireCoordinateExtractor();
     document.getElementById("saveSettingsBtn").addEventListener("click", save);
 });
 function populateTimezones() {
@@ -84,7 +87,7 @@ async function save() {
         btn.disabled = false;
         return;
     }
-    // keep the in-memory copy fresh for other modules
+    await logActivity("settings.update", "Organization settings updated", { settings: newSettings });
     Object.assign(currentOrg, {
         name: document.getElementById("setName").value.trim(),
         settings: newSettings

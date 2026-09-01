@@ -4,46 +4,54 @@
 //   - Manager tab : manager + admin roles
 //   - Admin tab   : admin (technical) role only
 // ======================================================
+import { t } from "./translations.js";
+import { loadSettings } from "./settings.js";
 const DIENSTPLAN_NAVIGATION = [
     {
-        label: "Dashboard",
+        label: "nav.dashboard",
         href: "index.html",
         page: "dashboard"
     },
     {
-        label: "Schedule",
+        label: "nav.schedule",
         href: "schedule.html",
         page: "schedule"
     },
     {
-        label: "Hours",
+        label: "nav.hours",
         href: "hours.html",
         page: "hours"
     },
     {
-        label: "Manager",
+        label: "nav.manager",
         href: "manager.html",
         page: "manager",
         roles: ["manager", "admin"]
     },
     {
-        label: "Admin",
+        label: "nav.admin",
         href: "admin.html",
         page: "admin",
         roles: ["admin"]
     },
     {
-        label: "History",
+        label: "nav.history",
         href: "history.html",
         page: "history",
         roles: ["manager", "admin"]
     },
+    {
+        label: "nav.settings",
+        href: "settings.html",
+        page: "settings"
+    },
 ];
 // ======================================================
 // getCurrentPageFile
-// Reads the active tab from window.location.pathname instead
-// of a data-page attribute — so a copy-pasted/wrong data-page
-// value on any HTML file can never desync the highlighted tab.
+// Reads the active tab from window.location.pathname
+// instead of a data-page attribute — so a wrong/stale
+// data-page value on any HTML file can never desync the
+// highlighted tab.
 // ======================================================
 function getCurrentPageFile() {
     const path = window.location.pathname;
@@ -62,6 +70,7 @@ export function renderNavigation(role = null) {
     if (!container)
         return;
     const currentFile = getCurrentPageFile();
+    const currentLang = loadSettings().language;
     const tabs = [];
     DIENSTPLAN_NAVIGATION.forEach(item => {
         if (item.roles && (!role || !item.roles.includes(role))) {
@@ -72,7 +81,7 @@ export function renderNavigation(role = null) {
         if (item.href === currentFile) {
             tab.classList.add("active");
         }
-        tab.textContent = item.label;
+        tab.textContent = t(item.label, currentLang);
         if (item.development) {
             tab.href = "#";
             tab.addEventListener("click", (event) => {

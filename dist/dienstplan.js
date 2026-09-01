@@ -22,6 +22,7 @@ import { renderApprovalsPanel, renderComplaintsPanel, renderLeavePanel, renderCr
 import { submitLeaveRequest, fetchLeaveRequests, reviewLeaveRequest, LEAVE_TYPE_LABELS } from "./leaveRequests.js";
 import { fileComplaint } from "./complaints.js";
 import { initPageHeader } from "./pageHeader.js";
+import "./settings.js";
 const PLAN_VIEW_MODE_KEY = "dienstplan_view_mode_v1";
 const DOW_LABELS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 const MONTH_LABELS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -103,7 +104,7 @@ function roleLabels() {
 // full month. Forced modes ("3"/"7"/"30") override this.
 // ======================================================
 function getPlanDayCount() {
-    if (planViewMode !== "auto") {
+    if (planViewMode !== "auto" && planViewMode !== "month") {
         return Number(planViewMode);
     }
     const width = window.innerWidth;
