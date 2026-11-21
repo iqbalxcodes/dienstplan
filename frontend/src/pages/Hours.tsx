@@ -30,6 +30,13 @@ const groups = (dates: string[]) => [...dates].sort().reduce<string[][]>((g, d) 
     return g;
 }, []);
 
+/** always 6 week rows so the height never jumps between months */
+const sixWeeks = (month: Date) => {
+    const w = buildWeeks(month);
+    while (w.length < 6) w.push(Array.from({ length: 7 }, (_, i) => addDays(w[w.length - 1][6], i + 1)));
+    return w;
+};
+
 interface SectionProps { type: LeaveType; title: string; label: string; list: LeaveRequest[]; stats?: [string, number][]; reload: () => void; }
 
 function Section({ type, title, label, list, stats, reload }: SectionProps) {
@@ -42,7 +49,7 @@ function Section({ type, title, label, list, stats, reload }: SectionProps) {
     const [staged, setStaged] = useState<Range[][]>([]);     // assigned, not sent yet (one batch per Assign)
     const [reason, setReason] = useState<string | null>(null);   // non-null = popup open
     const today = startOfToday();
-    const weeks = useMemo(() => buildWeeks(month), [month]);
+    const weeks = useMemo(() => sixWeeks(month), [month]);
     const work = type === "urlaub";                           // Urlaub counts Mon-Fri only
     const flat = staged.flat();
 
@@ -99,16 +106,20 @@ function Section({ type, title, label, list, stats, reload }: SectionProps) {
                         </aside>
                     )}
                     <div className="lv-card">
-                        {STATUSES.map(s => (
-                            <div key={s}>
-                                <h3>{s[0].toUpperCase() + s.slice(1)}</h3>
-                                {list.filter(l => l.status === s).map(l => (
-                                    <div key={l.id} className={`lv-tag ${s}`}>
-                                        {dmy(l.date_start)} - {dmy(l.date_end)} ({days(l.date_start, l.date_end, work)} Days)
-                                    </div>
-                                ))}
-                            </div>
-                        ))}
+                        {STATUSES.map(s => {
+                            const rows = list.filter(l => l.status === s);
+                            return (
+                                <div key={s}>
+                                    <h3>{s[0].toUpperCase() + s.slice(1)}</h3>
+                                    {rows.length === 0 && <p className="lv-empty">Nothing here</p>}
+                                    {rows.map(l => (
+                                        <div key={l.id} className={`lv-tag ${s}`}>
+                                            {dmy(l.date_start)} - {dmy(l.date_end)} ({days(l.date_start, l.date_end, work)} Days)
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -146,13 +157,11 @@ function Section({ type, title, label, list, stats, reload }: SectionProps) {
 
                     <div className="ro-foot">
                         <div className="ro-side">
-                            <button className="ro-btn" onClick={() => sel.size ? setReason("") : say("Select days first", "info")}>
-                                Assign{sel.size ? ` (${sel.size})` : ""}
-                            </button>
+                            {sel.size > 0 && <button className="ro-btn" onClick={() => setReason("")}>Assign ({sel.size})</button>}
                             {staged.length > 0 && <button className="ro-btn" onClick={() => setStaged(s => s.slice(0, -1))}>Undo</button>}
                         </div>
                         <div className="ro-side">
-                            <button className="ro-btn" onClick={send}>Send{flat.length ? ` (${flat.length})` : ""}</button>
+                            {flat.length > 0 && <button className="ro-btn" onClick={send}>Send ({flat.length})</button>}
                         </div>
                     </div>
                 </div>
