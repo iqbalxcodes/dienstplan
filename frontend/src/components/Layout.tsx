@@ -1,32 +1,110 @@
-import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Bell, ChevronDown, Clock, Settings } from "lucide-react";
+import pkg from "../../package.json";
 import { useAuth } from "../lib/auth";
 import { useSettings } from "../lib/i18n";
 import { useStatus } from "../lib/status";
+import { supabase } from "../lib/supabase";
 import { LoginOverlay } from "./LoginOverlay";
 
-const NAV = [
-    { label: "nav.dashboard", to: "/" },
-    { label: "nav.schedule", to: "/schedule" },
-    { label: "nav.hours", to: "/hours" },
-    { label: "nav.manager", to: "/manager", roles: ["manager", "admin"] },
-    { label: "nav.admin", to: "/admin", roles: ["admin"] },
-    { label: "nav.history", to: "/history", roles: ["manager", "admin"] },
-    { label: "nav.settings", to: "/settings" }
-];
+/** Button + popover. Closes on outside click or when an item is clicked. */
+function Menu({ button, className, active, align = "left", children }:
+    { button: ReactNode; className: string; active?: boolean; align?: "left" | "right"; children: ReactNode }) {
 
-function HeaderBar() {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
 
-    const { org, me } = useAuth();
-    const [hello, setHello] = useState(true);
-    const [now, setNow] = useState(new Date());
-
-    // greeting shows 3s after login, then the org name
     useEffect(() => {
-        setHello(true);
-        const id = setTimeout(() => setHello(false), 3000);
-        return () => clearTimeout(id);
-    }, [me?.id]);
+        if (!open) return;
+        const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+        document.addEventListener("mousedown", close);
+        return () => document.removeEventListener("mousedown", close);
+    }, [open]);
+
+    return (
+        <div className="hdr-menu" ref={ref}>
+            <button className={className + (open || active ? " active" : "")} onClick={() => setOpen(o => !o)}>{button}</button>
+            {open && <div className={`hdr-pop ${align}`} onClick={() => setOpen(false)}>{children}</div>}
+        </div>
+    );
+}
+
+function Header() {
+
+    const { org, me, isManager, isAdmin, logout } = useAuth();
+    const { t } = useSettings();
+    const { pathname } = useLocation();
+    const [pending, setPending] = useState({ approvals: 0, complaints: 0, leave: 0 });
+
+    // bell: pending work for managers (refreshed on every page change)
+    useEffect(() => {
+        if (!isManager || !org) return;
+        const count = (table: string, col: string, val: string) =>
+            supabase.from(table).select("id", { count: "exact", head: true }).eq("organization_id", org.id).eq(col, val).then(r => r.count ?? 0);
+        Promise.all([
+            count("time_entries", "status", "pending"), count("shift_change_requests", "status", "pending"),
+            count("complaints", "status", "open"), count("leave_requests", "status", "pending")
+        ]).then(([a, b, c, d]) => setPending({ approvals: a + b, complaints: c, leave: d }));
+    }, [org, isManager, pathname]);
+
+    const total = pending.approvals + pending.complaints + pending.leave;
+    const link = ({ isActive }: { isActive: boolean }) => "hdr-link" + (isActive ? " active" : "");
+    const icon = ({ isActive }: { isActive: boolean }) => "hdr-icon" + (isActive ? " active" : "");
+    const managerActive = pathname.startsWith("/manager") || pathname.startsWith("/admin");
+
+    return (
+        <header className="app-header">
+            <div className="hdr-top">
+
+                <Menu className="hdr-profile" button={<>
+                    <span className="hdr-avatar">{me?.full_name.charAt(0).toUpperCase()}</span>
+                    <span className="hdr-who">
+                        <strong>{me ? `${me.role === "employee" ? "CREW" : me.role.toUpperCase()} - ${me.full_name.split(" ")[0]}` : "Dienstplan"}</strong>
+                        <span>{org?.name}</span>
+                    </span></>}>
+                    {me && <button onClick={logout}>Logout</button>}
+                </Menu>
+
+                {me && (
+                    <nav className="hdr-nav">
+                        <NavLink to="/" end className={link}>{t("nav.dashboard")}</NavLink>
+                        <NavLink to="/schedule" className={link}>{t("nav.schedule")}</NavLink>
+                        <NavLink to="/hours" className={link}>{t("nav.hours")}</NavLink>
+                        {isManager && (
+                            <Menu className={"hdr-link" + (managerActive ? " active" : "")} active={managerActive}
+                                button={<>{t("nav.manager")} <ChevronDown size={16} /></>}>
+                                <Link to="/manager">{t("nav.manager")}</Link>
+                                {isAdmin && <Link to="/admin">{t("nav.admin")}</Link>}
+                            </Menu>
+                        )}
+                    </nav>
+                )}
+
+                {me && (
+                    <div className="hdr-icons">
+                        {isManager && <NavLink to="/history" className={icon} title={t("nav.history")}><Clock size={26} /></NavLink>}
+                        <Menu className="hdr-icon" align="right" button={<><Bell size={26} />{total > 0 && <i className="hdr-dot" />}</>}>
+                            {total === 0 && <span className="hdr-empty">No new notifications</span>}
+                            {pending.approvals > 0 && <Link to="/manager">{pending.approvals} approval(s) pending</Link>}
+                            {pending.complaints > 0 && <Link to="/manager">{pending.complaints} open complaint(s)</Link>}
+                            {pending.leave > 0 && <Link to="/manager">{pending.leave} leave request(s)</Link>}
+                        </Menu>
+                        <NavLink to="/settings" className={icon} title={t("nav.settings")}><Settings size={26} /></NavLink>
+                    </div>
+                )}
+            </div>
+
+            <Strip />
+        </header>
+    );
+}
+
+/** Thin strip under the header: greeting | (active-tab notch) | date + live clock. */
+function Strip() {
+
+    const { me } = useAuth();
+    const [now, setNow] = useState(new Date());
 
     useEffect(() => {
         const id = setInterval(() => setNow(new Date()), 1000);
@@ -34,54 +112,28 @@ function HeaderBar() {
     }, []);
 
     const h = now.getHours();
-    const greeting = h < 12 ? "Good Morning" : h < 18 ? "Good Afternoon" : "Good Evening";
-    const text = me && hello ? `${greeting}, ${me.full_name.split(" ")[0]}!` : (org?.name ?? "Dienstplan");
+    const greeting = h < 11 ? "Guten Morgen" : h < 18 ? "Guten Tag" : "Guten Abend";
 
     return (
-        <div id="pageHeaderBar" className="page-header-bar">
-            <span className="page-greeting">{text}</span>
-            <div className="page-header-right">
-                <Link to="/settings" className="page-gear-btn" title="Settings" aria-label="Settings">&#9881;</Link>
-                <div className="page-header-clock">
-                    <span id="pageClockDate">{now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}</span>
-                    <span id="pageClockTime">{now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
-                </div>
-            </div>
+        <div className="hdr-strip">
+            <span>{me && `${greeting} ${me.full_name.split(" ")[0]}!`}</span>
+            <span>
+                {now.toLocaleDateString("de-DE", { weekday: "long" })}, den {now.toLocaleDateString("de-DE")} - {now.toLocaleTimeString("de-DE")}
+            </span>
         </div>
     );
 }
 
-function Nav() {
-    const { me } = useAuth();
-    const { t } = useSettings();
-    return (
-        <div id="pageNavigation" className="rack-tabs">
-            {NAV.filter(n => !n.roles || (me && n.roles.includes(me.role))).map(n => (
-                <NavLink key={n.to} to={n.to} end
-                    className={({ isActive }) => "rack-tab" + (isActive ? " active" : "")}>
-                    {t(n.label)}
-                </NavLink>
-            ))}
-        </div>
-    );
-}
-
-function StatusBar() {
-    const { me, logout } = useAuth();
+/** Footer = status/notification bar (left) + History pagination + version (right). */
+function Footer() {
     const { msg, setInfoEl, setNavEl } = useStatus();
     return (
-        <div id="statusBar">
-            <div id="userArea">
-                {me
-                    ? <><span>{me.full_name} · {me.role}</span><button style={{ marginLeft: 8 }} onClick={logout}>Logout</button></>
-                    : <span className="plan-entry-meta">Not signed in</span>}
-            </div>
-            <div id="contextArea">
-                {msg && <span className={`status-msg-${msg.kind}`}>{msg.text}</span>}
-            </div>
+        <footer id="statusBar">
+            <div id="contextArea">{msg && <span className={`status-msg-${msg.kind}`}>{msg.text}</span>}</div>
             <div id="paginationInfo" ref={setInfoEl} />
             <div id="paginationNav" ref={setNavEl} />
-        </div>
+            <div className="app-version">Dienstplan v. {pkg.version}</div>
+        </footer>
     );
 }
 
@@ -108,12 +160,10 @@ export function Layout() {
     const { ready, me, choices } = useAuth();
     return (
         <>
-            <HeaderBar />
-            <Nav />
-            {me ? <Outlet /> : <div className="table-container" />}
-            <StatusBar />
+            <Header />
+            <main className="app-main">{me && <Outlet />}</main>
+            <Footer />
             {ready && !me && (choices ? <OrgChooser /> : <LoginOverlay />)}
         </>
     );
 }
-

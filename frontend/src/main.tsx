@@ -7,6 +7,7 @@ import { AuthProvider } from "./lib/auth";
 import { StatusProvider } from "./lib/status";
 import "./styles/style.css";
 import "./styles/dienstplan.css";
+import "./styles/shell.css";
 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>

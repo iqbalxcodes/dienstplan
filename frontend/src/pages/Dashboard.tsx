@@ -4,15 +4,16 @@ import "leaflet/dist/leaflet.css";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
-import { Page, Section } from "../components/Page";
+import { CircleArrowOutUpRight, CircleArrowRight, Clock, FileText, MapPin } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { useAuth } from "../lib/auth";
 import { useLog } from "../lib/activity";
 import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
-import { addDays, DOW, fmt, iso, MONTHS, parseDate } from "../lib/dates";
+import { addDays, duration, fmtDT, hm, iso, parseDate } from "../lib/dates";
+import { useSettings } from "../lib/i18n";
 import { fileComplaint } from "../lib/complaints";
-import { DEFAULT_ROLES, type Shift, type TimeEntry } from "../lib/types";
+import { DEFAULT_AREAS, DEFAULT_ROLES, DEFAULT_SHIFT_COLOR, type Shift, type TimeEntry } from "../lib/types";
 
 // bundlers break Leaflet's default icon lookup
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
@@ -79,8 +80,10 @@ function MapView({ wp, pos }: { wp: LL | null; pos: LL | null }) {
         }
     }, [wp, pos]);
 
-    return <div ref={el} id="map" className="att-map" />;
+    return <div ref={el} id="map" className="dsh-map" />;
 }
+
+const STATUS_COLOR: Record<string, string> = { pending: "#dba43d", rejected: "#cc3535", approved: "#17a53a" };
 
 function MyEntries({ refreshKey }: { refreshKey: number }) {
 
@@ -89,9 +92,11 @@ function MyEntries({ refreshKey }: { refreshKey: number }) {
     const [list, setList] = useState<TimeEntry[]>([]);
     const [complaint, setComplaint] = useState<{ entryId: string; message: string; files: File[] } | null>(null);
 
+    // finished shifts only (checked out)
     useEffect(() => {
-        supabase.from("time_entries").select("*")
+        supabase.from("time_entries").select("*, shifts:shift_id(*)")
             .eq("organization_id", org!.id).eq("membership_id", me!.id)
+            .not("clock_out", "is", null)
             .order("created_at", { ascending: false }).limit(10)
             .then(({ data }) => setList((data ?? []) as TimeEntry[]));
     }, [org, me, refreshKey]);
@@ -103,24 +108,27 @@ function MyEntries({ refreshKey }: { refreshKey: number }) {
         setComplaint(null);
     }
 
-    if (list.length === 0) return <p style={{ color: "#888" }}>No entries yet.</p>;
+    if (list.length === 0) return <p className="entry-empty">No entries yet.</p>;
 
     return (
         <>
-            {list.map(e => (
-                <div key={e.id} className={`plan-entry-card status-${e.status}`}>
-                    <div>
-                        <span className={`status-badge status-${e.status}`}>{e.status}</span>
-                        <div className="plan-entry-meta">In: {fmt(e.clock_in)} · Out: {fmt(e.clock_out)}</div>
-                        {e.manager_note && <div className="plan-entry-meta">Manager note: {e.manager_note}</div>}
+            {list.map(e => {
+                const area = [e.area_label ?? e.shifts?.area_label, e.role_label ?? e.shifts?.role_label].filter(Boolean).join(" - ");
+                return (
+                    <div key={e.id} className="entry-card" style={{ "--c": STATUS_COLOR[e.status] } as React.CSSProperties}>
+                        <span className="entry-pill">{e.status}</span>
+                        <strong>{e.shift_code ?? e.shifts?.shift_code ?? "\u2014"}</strong>
+                        <span className="entry-item"><MapPin size={22} />{area || "\u2014"}</span>
+                        <span className="entry-item"><CircleArrowRight size={22} />{fmtDT(e.clock_in)}</span>
+                        <span className="entry-item"><CircleArrowOutUpRight size={22} />{fmtDT(e.clock_out)}</span>
+                        <span className="entry-item"><Clock size={22} />{e.clock_in && e.clock_out ? duration(e.clock_in, e.clock_out) : "\u2014"}</span>
+                        <span className="entry-item" title={e.employee_note ?? ""}><FileText size={22} /><span className="entry-note">{e.employee_note || "-"}</span></span>
+                        {e.status === "rejected" && (
+                            <button className="entry-btn" onClick={() => setComplaint({ entryId: e.id, message: "", files: [] })}>File Complaint</button>
+                        )}
                     </div>
-                    {e.status !== "pending" && (
-                        <div className="plan-entry-actions">
-                            <button onClick={() => setComplaint({ entryId: e.id, message: "", files: [] })}>File Complaint</button>
-                        </div>
-                    )}
-                </div>
-            ))}
+                );
+            })}
 
             {complaint && (
                 <Modal title="File Complaint" onClose={() => setComplaint(null)} onSubmit={submit} submitLabel="Submit">
@@ -137,32 +145,41 @@ function MyEntries({ refreshKey }: { refreshKey: number }) {
 export default function Dashboard() {
 
     const { org, me } = useAuth();
+    const { settings: user } = useSettings();
+    const { say } = useStatus();
     const log = useLog();
     const [upcoming, setUpcoming] = useState<Shift[]>([]);
     const [open, setOpen] = useState<TimeEntry | null>(null);
     const [pos, setPos] = useState<LL | null>(null);
-    const [geoMsg, setGeoMsg] = useState("");
+    const [geo, setGeo] = useState<"wait" | "ok" | "denied" | "unsupported">("wait");
+    const [geoKey, setGeoKey] = useState(0);
     const [comment, setComment] = useState("");
+    const [area, setArea] = useState("");
     const [role, setRole] = useState("");
     const [now, setNow] = useState(Date.now());
     const [entriesKey, setEntriesKey] = useState(0);
 
     const settings = org!.settings ?? {};
     const labels = settings.role_labels ?? DEFAULT_ROLES;
+    const areas = settings.areas?.length ? settings.areas : DEFAULT_AREAS;
     const nearM = settings.checkin_radius_m ?? 150;
     const strict = settings.checkin_strict ?? "warn";
     const wp: LL | null = settings.workplace_lat && settings.workplace_lng ? [settings.workplace_lat, settings.workplace_lng] : null;
+    const colorOf = (code?: string | null) => settings.shift_types?.find(t => t.code === code)?.color ?? DEFAULT_SHIFT_COLOR;
+    const weekday = new Intl.DateTimeFormat(user.language, { weekday: "long" });
 
     const todayIso = iso(new Date());
     const todayShift = upcoming.find(s => s.shift_date === todayIso) ?? null;
     const checkedIn = open !== null;
+    // a published shift (or a running entry) locks area/role; extra shifts choose their own
+    const locked = checkedIn || !!todayShift;
 
     const refresh = useCallback(async () => {
         const [shifts, entry] = await Promise.all([
             supabase.from("shifts").select("*")
                 .eq("organization_id", org!.id).eq("membership_id", me!.id)
                 .gte("shift_date", iso(new Date())).lte("shift_date", iso(addDays(new Date(), 13)))
-                .order("shift_date"),
+                .order("shift_date").order("start_time"),
             supabase.from("time_entries").select("*")
                 .eq("organization_id", org!.id).eq("membership_id", me!.id)
                 .is("clock_out", null).order("clock_in", { ascending: false }).limit(1).maybeSingle()
@@ -175,14 +192,14 @@ export default function Dashboard() {
     useEffect(() => { void refresh(); }, [refresh]);
 
     useEffect(() => {
-        if (!navigator.geolocation) { setGeoMsg("Geolocation not supported \u2014 showing workplace."); return; }
+        if (!navigator.geolocation) { setGeo("unsupported"); return; }
         const id = navigator.geolocation.watchPosition(
-            p => setPos([p.coords.latitude, p.coords.longitude]),
-            () => setGeoMsg("Location permission denied \u2014 showing workplace only."),
+            p => { setPos([p.coords.latitude, p.coords.longitude]); setGeo("ok"); },
+            () => setGeo("denied"),
             { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
         );
         return () => navigator.geolocation.clearWatch(id);
-    }, []);
+    }, [geoKey]);
 
     useEffect(() => {
         if (!open) return;
@@ -190,16 +207,20 @@ export default function Dashboard() {
         return () => clearInterval(id);
     }, [open]);
 
-    useEffect(() => { setRole(todayShift?.role_label ?? labels[0]); }, [todayShift?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => {
+        const src = open ?? todayShift;
+        setArea(src?.area_label ?? areas[0]);
+        setRole(src?.role_label ?? labels[0]);
+    }, [open?.id, todayShift?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const dist = wp && pos ? Math.round(haversine(pos, wp)) : null;
     const elapsedSec = open?.clock_in ? Math.max(0, Math.floor((now - Date.parse(open.clock_in)) / 1000)) : 0;
+    const code = todayShift?.shift_code ?? open?.shift_code;
 
-    const sub = checkedIn
-        ? `Since ${new Date(open!.clock_in!).toLocaleTimeString("de-DE")}`
-        : dist !== null
-            ? (dist <= nearM ? `At workplace (~${dist} m away)` : `Not at workplace (~${dist} m away)`)
-            : (geoMsg || (pos ? "" : "Locating you…"));
+    function allow() {
+        setGeoKey(k => k + 1);
+        say("If nothing happens, enable location for this site in your browser settings.", "info");
+    }
 
     async function checkIn() {
         if (strict === "enforce" && dist !== null && dist > nearM) {
@@ -207,24 +228,32 @@ export default function Dashboard() {
             return;
         }
         const t = new Date().toISOString();
-        const { data: entry, error } = await supabase.from("time_entries").insert({
+        const row = {
             organization_id: org!.id,
             membership_id: me!.id,
             shift_id: todayShift?.id ?? null,
-            role_label: todayShift?.role_label ?? role,
+            shift_code: todayShift?.shift_code ?? null,
+            area_label: area,
+            role_label: role,
             clock_in: t,
             original_clock_in: t,
             source: "employee",
             status: "pending",
             employee_note: comment.trim() || null
-        }).select("id").single();
+        };
 
-        if (error) { alert(error.message); return; }
+        let res = await supabase.from("time_entries").insert(row).select("id").single();
+        if (res.error?.code === "PGRST204") {   // migration 001 not applied yet: retry without the new columns
+            const { shift_code: _c, area_label: _a, ...legacy } = row;
+            res = await supabase.from("time_entries").insert(legacy).select("id").single();
+        }
+        if (res.error) { alert(res.error.message); return; }
 
         void log("attendance.check_in", `Checked in${wp ? " at workplace" : ""}`,
-            { workplace: org!.name, distance_m: dist }, "time_entry", entry.id);
+            { workplace: org!.name, distance_m: dist }, "time_entry", res.data.id);
 
         setComment("");
+        say("Checked in", "success");
         await refresh();
     }
 
@@ -245,70 +274,79 @@ export default function Dashboard() {
             { workplace: org!.name, elapsed: hms(elapsedSec) }, "time_entry", open!.id);
 
         setComment("");
+        say("Checked out — waiting for approval", "success");
         await refresh();
     }
 
-    const roleOptions = [...new Set([...labels, ...(todayShift?.role_label ? [todayShift.role_label] : [])])];
+    const Go = checkedIn ? CircleArrowOutUpRight : CircleArrowRight;
 
     return (
-        <Page title="Dashboard">
-            <div className="dash-stack">
+        <div className="dsh">
 
-                <Section title="My Shift">
-                    <div className="shift-strip">
-                        {upcoming.length === 0 && <p className="plan-entry-meta" style={{ padding: "0 12px" }}>No shifts scheduled.</p>}
-                        {upcoming.map(s => {
-                            const d = parseDate(s.shift_date);
-                            return (
-                                <div key={s.id} className={"shift-mini" + (s.shift_date === todayIso ? " is-today" : "")}>
-                                    <div className="shift-mini-dow">{DOW[d.getDay()]}</div>
-                                    <div className="shift-mini-date">{s.shift_date.slice(8)} {MONTHS[d.getMonth()]}</div>
-                                    <div className="shift-mini-role">{s.role_label ?? labels[0]}</div>
-                                    <div className="shift-mini-time">{s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}</div>
-                                </div>
-                            );
-                        })}
+            <div className="dsh-h"><h2>My Shift</h2></div>
+            <div className="shift-strip">
+                {upcoming.length === 0 && <p className="entry-empty">No shifts scheduled.</p>}
+                {upcoming.map(s => (
+                    <div key={s.id} className={"shift-card" + (s.shift_date === todayIso ? " is-today" : "")}
+                        style={{ "--c": colorOf(s.shift_code) } as React.CSSProperties}>
+                        <div className="shift-card-top">
+                            <span>{weekday.format(parseDate(s.shift_date))}</span>
+                            <span>{s.shift_date.slice(8)}.{s.shift_date.slice(5, 7)}.</span>
+                        </div>
+                        <div className="shift-card-time">{hm(s.start_time)} - {hm(s.end_time)}</div>
+                        <div className="shift-card-area">{[s.area_label, s.role_label].filter(Boolean).join(" - ") || "\u2014"}</div>
                     </div>
-                </Section>
-
-                <Section title={todayShift
-                    ? (checkedIn ? "Check Out" : "Check In")
-                    : (checkedIn ? "Extra Shift \u2014 Check Out" : "Working extra shift today?")}>
-                    <p className="plan-entry-meta" style={{ marginTop: 2 }}>{sub}</p>
-
-                    <MapView wp={wp} pos={pos} />
-
-                    <div className="att-info">
-                        <div>
-                            <span className="plan-entry-meta">Role</span>
-                            <select value={role} disabled={checkedIn || !!todayShift} onChange={e => setRole(e.target.value)}>
-                                {roleOptions.map(r => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <span className="plan-entry-meta">Scheduled</span>
-                            <strong>{todayShift ? `${todayShift.start_time.slice(0, 5)}\u2013${todayShift.end_time.slice(0, 5)}` : "\u2014"}</strong>
-                        </div>
-                        <div>
-                            <span className="plan-entry-meta">Elapsed</span>
-                            <strong>{hms(elapsedSec)}</strong>
-                        </div>
-                    </div>
-
-                    <label className="att-label" htmlFor="attComment">Comment (optional)</label>
-                    <textarea id="attComment" rows={2} placeholder="e.g. forgot to check in earlier…"
-                        value={comment} onChange={e => setComment(e.target.value)} />
-
-                    <button className={"att-btn" + (checkedIn ? " checkout" : "")} onClick={checkedIn ? checkOut : checkIn}>
-                        {checkedIn ? "Check Out" : "Check In"}
-                    </button>
-                </Section>
-
-                <Section title="Recent Entries">
-                    <MyEntries refreshKey={entriesKey} />
-                </Section>
-
+                ))}
             </div>
-        </Page>
+
+            <div className="dsh-h">
+                <h2>{todayShift || checkedIn ? "Today\u2019s Shift" : "Extra Shift"}{code ? ` - ${code}` : ""}</h2>
+                <span className="dsh-note">
+                    {geo === "denied" && <>Location permission denied - showing workplace only. <button onClick={allow}>Allow</button></>}
+                    {geo === "unsupported" && "Geolocation not supported - showing workplace only."}
+                    {geo === "wait" && "Locating you…"}
+                    {geo === "ok" && dist !== null && (dist <= nearM ? `At workplace (~${dist} m away)` : `Not at workplace (~${dist} m away)`)}
+                </span>
+            </div>
+
+            <MapView wp={wp} pos={pos} />
+
+            <div className="att-grid">
+                <div className="att-field">
+                    <label htmlFor="attArea">Area</label>
+                    <select id="attArea" value={area} disabled={locked} onChange={e => setArea(e.target.value)}>
+                        {[...new Set([...areas, area])].filter(Boolean).map(a => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                </div>
+                <div className="att-field">
+                    <label htmlFor="attRole">Role</label>
+                    <select id="attRole" value={role} disabled={locked} onChange={e => setRole(e.target.value)}>
+                        {[...new Set([...labels, role])].filter(Boolean).map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                </div>
+                <div className="att-field">
+                    <label>Scheduled</label>
+                    <input readOnly value={todayShift ? `${hm(todayShift.start_time)} - ${hm(todayShift.end_time)}` : "\u2014"} />
+                </div>
+                <div className="att-field">
+                    <label>Elapsed</label>
+                    <input readOnly value={hms(elapsedSec)} />
+                </div>
+
+                <div className="att-field comment">
+                    <label htmlFor="attComment">Comment<small>optional</small></label>
+                    <textarea id="attComment" value={comment} onChange={e => setComment(e.target.value)} />
+                </div>
+
+                <button className={"att-go" + (checkedIn ? " checkout" : "")} onClick={checkedIn ? checkOut : checkIn}>
+                    <Go size={44} strokeWidth={1.5} />
+                    {checkedIn ? "Check-out" : "Check-in"}
+                </button>
+            </div>
+
+            <div className="dsh-h"><h2>Recent Entries</h2></div>
+            <MyEntries refreshKey={entriesKey} />
+
+        </div>
     );
 }

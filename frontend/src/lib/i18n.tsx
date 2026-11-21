@@ -6,7 +6,7 @@ export type Language = "de" | "en" | "id";
 const TRANSLATIONS: Record<Language, Record<string, string>> = {
     de: {
         "hours.freiwunsch": "Freiwunsch", "hours.urlaub": "Urlaub",
-        "nav.dashboard": "Dashboard", "nav.schedule": "Dienstplan", "nav.hours": "Stunden", "nav.manager": "Manager",
+        "nav.dashboard": "Übersicht", "nav.schedule": "Dienstpläne", "nav.hours": "Stunden", "nav.manager": "Manager",
         "nav.admin": "Admin", "nav.history": "Aktivität", "nav.settings": "Einstellungen",
         "login.title": "Dienstplan Login", "login.email": "E-Mail", "login.password": "Passwort",
         "login.remember": "Auf diesem Gerät merken", "login.submit": "Anmelden",
@@ -18,7 +18,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     },
     en: {
         "hours.freiwunsch": "Time Off Request", "hours.urlaub": "Vacation",
-        "nav.dashboard": "Dashboard", "nav.schedule": "Schedule", "nav.hours": "Hours", "nav.manager": "Manager",
+        "nav.dashboard": "Overview", "nav.schedule": "Schedule", "nav.hours": "Hours", "nav.manager": "Manager",
         "nav.admin": "Admin", "nav.history": "Activity", "nav.settings": "Settings",
         "login.title": "Dienstplan Login", "login.email": "Email", "login.password": "Password",
         "login.remember": "Remember me on this device", "login.submit": "Log in",

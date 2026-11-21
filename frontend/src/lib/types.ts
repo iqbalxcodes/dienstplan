@@ -1,7 +1,11 @@
 // Mirrors the Supabase tables (backend/sql/schema.sql).
 export type MembershipRole = "employee" | "manager" | "admin";
 
+export interface ShiftType { code: string; name: string; color: string; }   // e.g. F / S / FX
+
 export interface OrganizationSettings {
+    shift_types?: ShiftType[];       // admin-defined shift codes + colors
+    areas?: string[];                // admin-defined areas ("Restaurant", "Bar", ...)
     workplace_lat?: number | null;
     workplace_lng?: number | null;
     checkin_radius_m?: number;
@@ -45,6 +49,8 @@ export interface Shift {
     is_night_shift: boolean;
     break_minutes: number;
     role_label: string | null;
+    shift_code?: string | null;      // needs migration 001
+    area_label?: string | null;      // needs migration 001
     notes: string | null;
     status: "draft" | "published";
 }
@@ -65,6 +71,9 @@ export interface TimeEntry {
     employee_note: string | null;
     manager_note: string | null;
     role_label: string | null;
+    shift_code?: string | null;      // needs migration 001
+    area_label?: string | null;      // needs migration 001
+    shifts?: Shift | null;           // joined via shift_id
 }
 
 export interface Complaint {
@@ -114,3 +123,5 @@ export interface HoursSummary {
 }
 
 export const DEFAULT_ROLES = ["Service crew", "Kitchen", "Bar", "Cashier", "Runner"];
+export const DEFAULT_AREAS = ["Restaurant"];
+export const DEFAULT_SHIFT_COLOR = "#17a53a";

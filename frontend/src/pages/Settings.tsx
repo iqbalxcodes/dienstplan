@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Page, Section } from "../components/Page";
 import { useAuth } from "../lib/auth";
 import { useSettings, type Language } from "../lib/i18n";
+import { useStatus } from "../lib/status";
 import { disablePush, enablePush, isPushSupported } from "../lib/push";
 
 export default function Settings() {
 
     const { org, me } = useAuth();
     const { settings, update, t } = useSettings();
+    const { say } = useStatus();
     const [busy, setBusy] = useState(false);
     const enabled = settings.notificationsEnabled;
 
@@ -19,6 +21,7 @@ export default function Settings() {
         } else {
             update({ notificationsEnabled: await enablePush(org!.id, me!.id) });
         }
+        say("Änderungen gespeichert", "success");
         setBusy(false);
     }
 
@@ -32,7 +35,7 @@ export default function Settings() {
         <Page title={t("settings.title")}>
             <div className="dash-stack">
                 <Section title={t("settings.language")}>
-                    <select value={settings.language} onChange={e => update({ language: e.target.value as Language })}>
+                    <select value={settings.language} onChange={e => { update({ language: e.target.value as Language }); say("Änderungen gespeichert", "success"); }}>
                         <option value="de">Deutsch</option>
                         <option value="en">English</option>
                         <option value="id">Bahasa Indonesia</option>
