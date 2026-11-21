@@ -21,6 +21,7 @@ export interface OrganizationSettings {
     leave_cutoff_days?: number | null;
     shift_min_hours?: number | null;
     shift_max_hours?: number | null;
+    vacation_days?: number;          // Jahresurlaub, default 30
 }
 
 export interface Organization {
