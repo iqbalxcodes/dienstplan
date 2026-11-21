@@ -178,6 +178,7 @@ export default function Dashboard() {
         const [shifts, entry] = await Promise.all([
             supabase.from("shifts").select("*")
                 .eq("organization_id", org!.id).eq("membership_id", me!.id)
+                .eq("status", "published")
                 .gte("shift_date", iso(new Date())).lte("shift_date", iso(addDays(new Date(), 13)))
                 .order("shift_date").order("start_time"),
             supabase.from("time_entries").select("*")

@@ -11,12 +11,12 @@ import { supabase } from "../lib/supabase";
 import { isSameDay, iso, parseDate, startOfMonth, startOfToday } from "../lib/dates";
 import {
     buildWeeks, insertShifts, isOff, lastName, NO_CODE_COLOR, OFF_END, OFF_START,
-    shiftTypesOf, updateShift, type RosterForm
+    setDraft, shiftTypesOf, updateShift, viewOf, type RosterForm
 } from "../lib/roster";
 import { findShiftConflicts } from "../lib/shifts";
 import { DEFAULT_AREAS, DEFAULT_ROLES, type Membership, type RosterNote, type Shift, type ShiftRequest } from "../lib/types";
 
-interface Entry { key: string; code: string | null; member?: Membership; shift?: Shift; req?: ShiftRequest; }
+interface Entry { key: string; code: string | null; member?: Membership; shift?: Shift; req?: ShiftRequest; dirty?: boolean; del?: boolean; }
 interface Data { members: Membership[]; shifts: Shift[]; requests: ShiftRequest[]; notes: RosterNote[]; }
 const EMPTY: Data = { members: [], shifts: [], requests: [], notes: [] };
 
@@ -52,8 +52,8 @@ function DayCell(p: CellProps) {
                 </div>
 
                 {!grouped && p.entries.map(e => (
-                    <div key={e.key} className={"ro-card" + (e.req ? " ghost" : "")} style={{ background: p.color(e.code) }}
-                        title={`${e.member?.full_name} · ${e.code ?? "?"}${e.req ? " (request)" : ""}`}
+                    <div key={e.key} className={"ro-card" + (e.req ? " ghost" : "") + (e.dirty ? " draft" : "") + (e.del ? " del" : "")} style={{ background: p.color(e.code) }}
+                        title={`${e.member?.full_name} · ${e.code ?? "?"}${e.req ? " (request)" : e.del ? " (deleted — publish to apply)" : e.dirty ? " (draft)" : ""}`}
                         onClick={ev => { ev.stopPropagation(); if (p.manager) open(e); }}>
                         {lastName(e.member)}
                     </div>
@@ -75,7 +75,7 @@ export default function Schedule() {
 
     const { org, me, isManager } = useAuth();
     const { settings: user } = useSettings();
-    const { say } = useStatus();
+    const { say, setNotice } = useStatus();
     const [month, setMonth] = useState(() => startOfMonth(startOfToday()));
     const [width, setWidth] = useState(window.innerWidth);
     const [data, setData] = useState<Data>(EMPTY);
@@ -117,7 +117,8 @@ export default function Schedule() {
             supabase.from("roster_notes").select("*").eq("organization_id", org!.id)
         ]);
         setData({
-            members: (m.data ?? []) as Membership[], shifts: (s.data ?? []) as Shift[],
+            members: (m.data ?? []) as Membership[],
+            shifts: ((s.data ?? []) as Shift[]).filter(x => isManager || x.status === "published"),   // drafts: managers only until published
             requests: (r.data ?? []) as ShiftRequest[], notes: (n.data ?? []) as RosterNote[]
         });
     }, [org, me, isManager, weeks]);
@@ -128,7 +129,10 @@ export default function Schedule() {
         const map = new Map<string, Entry[]>();
         const add = (d: string, e: Entry) => { if (e.member) map.set(d, [...(map.get(d) ?? []), e]); };
         const member = (id: string) => data.members.find(x => x.id === id);
-        data.shifts.forEach(s => add(s.shift_date, { key: s.id, code: s.shift_code ?? null, member: member(s.membership_id), shift: s }));
+        data.shifts.forEach(raw => {
+            const s = viewOf(raw);
+            add(s.shift_date, { key: s.id, code: s.shift_code ?? null, member: member(s.membership_id), shift: s, dirty: raw.status === "draft" || !!raw.draft, del: !!raw.draft?._delete });
+        });
         data.requests.forEach(r => add(r.request_date, { key: r.id, code: r.shift_code, member: member(r.membership_id), req: r }));
         const rank = (c: string | null) => { const i = types.findIndex(t => t.code === c); return i < 0 ? 99 : i; };
         map.forEach(l => l.sort((a, b) => rank(a.code) - rank(b.code) || lastName(a.member).localeCompare(lastName(b.member))));
@@ -139,8 +143,9 @@ export default function Schedule() {
     const warnings = useMemo(() => {
         const out: string[] = [];
         const days = new Map<string, Set<string>>();
-        data.shifts.forEach(s => {
-            if (isOff(typeOf(s.shift_code))) return;
+        data.shifts.forEach(raw => {
+            const s = viewOf(raw);
+            if (raw.draft?._delete || isOff(typeOf(s.shift_code))) return;
             days.set(s.membership_id, (days.get(s.membership_id) ?? new Set()).add(s.shift_date));
         });
         days.forEach((set, id) => {
@@ -155,6 +160,13 @@ export default function Schedule() {
         return out;
     }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    useEffect(() => {
+        setNotice(warnings.length ? warnings.slice(0, 3).join("  ·  ") + (warnings.length > 3 ? `  ·  +${warnings.length - 3}` : "") : null);
+        return () => setNotice(null);
+    }, [warnings, setNotice]);
+
+    const drafts = data.shifts.filter(x => x.status === "draft" || !!x.draft);   // unpublished changes
+
     const pushUndo = (fn: () => Promise<unknown>) => setUndo(u => [...u, fn]);
 
     async function doUndo() {
@@ -164,6 +176,21 @@ export default function Schedule() {
         await fn();
         await load();
         say("Undone", "info");
+    }
+
+    async function publish() {
+        if (!drafts.length) { say("Nothing to publish", "info"); return; }
+        if (!confirm(`Publish ${drafts.length} change(s)? Employees will see them. This is final and cannot be undone.`)) return;
+        const errs = await Promise.all(drafts.map(async x => {
+            if (x.draft?._delete) return (await supabase.from("shifts").delete().eq("id", x.id)).error;
+            const { _delete, ...fields } = x.draft ?? {};
+            return updateShift(x.id, { ...fields, status: "published", draft: null });
+        }));
+        const bad = errs.find(Boolean);
+        if (bad) { say(bad.message, "error"); await load(); return; }
+        setUndo([]);   // published = final: nothing before this point can be undone anymore
+        say(`Published ${drafts.length} change(s)`, "success");
+        await load();
     }
 
     function toggle(d: string) {
@@ -214,32 +241,39 @@ export default function Schedule() {
         } else if (spec.mode === "assign") {                              // manager -> applied at once
             const err = await overlap(f, dates);
             if (err) return err;
-            const { data: ins, error } = await insertShifts(dates.map(d => ({ ...rowOf(f, d), status: "published", created_by: uid, updated_by: uid })));
+            const { data: ins, error } = await insertShifts(dates.map(d => ({ ...rowOf(f, d), status: "draft", created_by: uid, updated_by: uid })));
             if (error) return error.message;
             const ids = ins!.map(x => x.id);
             pushUndo(async () => { await supabase.from("shifts").delete().in("id", ids); });
             say("Shift assigned", "success");
 
         } else if (spec.mode === "edit") {
-            const old = spec.shift;
+            const old = data.shifts.find(x => x.id === spec.shift.id)!;   // raw row (spec.shift is the manager view)
             const err = await overlap(f, [f.date], old.id);
             if (err) return err;
             const { organization_id: _o, ...patch } = rowOf(f, f.date);
-            const e = await updateShift(old.id, { ...patch, updated_by: uid });
-            if (e) return e.message;
-            pushUndo(async () => {
-                await updateShift(old.id, {
-                    shift_date: old.shift_date, membership_id: old.membership_id, start_time: old.start_time, end_time: old.end_time,
-                    shift_code: old.shift_code ?? null, area_label: old.area_label ?? null, role_label: old.role_label
+            if (old.status === "draft") {                                  // never published: edit directly
+                const e = await updateShift(old.id, { ...patch, updated_by: uid });
+                if (e) return e.message;
+                pushUndo(async () => {
+                    await updateShift(old.id, {
+                        shift_date: old.shift_date, membership_id: old.membership_id, start_time: old.start_time, end_time: old.end_time,
+                        shift_code: old.shift_code ?? null, area_label: old.area_label ?? null, role_label: old.role_label
+                    });
                 });
-            });
-            say("Shift updated", "success");
+            } else {                                                       // published: pending change until Publish
+                const prev = old.draft ?? null;
+                const e = await setDraft(old.id, patch);
+                if (e) return e;
+                pushUndo(async () => { await setDraft(old.id, prev); });
+            }
+            say("Shift updated — publish to apply", "success");
 
         } else {                                                          // approve (as is, or edited)
             const req = spec.req;
             const err = await overlap(f, [f.date]);
             if (err) return err;
-            const { data: ins, error } = await insertShifts([{ ...rowOf(f, f.date), status: "published", created_by: uid, updated_by: uid }]);
+            const { data: ins, error } = await insertShifts([{ ...rowOf(f, f.date), status: "draft", created_by: uid, updated_by: uid }]);
             if (error) return error.message;
             const sid = ins![0].id;
             await supabase.from("shift_requests").update({ status: "approved", reviewed_by: uid, reviewed_at: new Date().toISOString() }).eq("id", req.id);
@@ -257,11 +291,19 @@ export default function Schedule() {
 
     async function removeOrReject(spec: PopupSpec): Promise<string | null> {
         if (spec.mode === "edit") {
-            const old = spec.shift;
-            const { error } = await supabase.from("shifts").delete().eq("id", old.id);
-            if (error) return error.message;
-            pushUndo(async () => { await insertShifts([old as unknown as Record<string, unknown>]); });
-            say("Shift deleted", "success");
+            const old = data.shifts.find(x => x.id === spec.shift.id)!;
+            if (old.status === "draft") {                                  // never published: delete for real
+                const { error } = await supabase.from("shifts").delete().eq("id", old.id);
+                if (error) return error.message;
+                pushUndo(async () => { await insertShifts([old as unknown as Record<string, unknown>]); });
+                say("Shift deleted", "success");
+            } else {                                                       // published: marked until Publish
+                const prev = old.draft ?? null;
+                const e = await setDraft(old.id, { _delete: true });
+                if (e) return e;
+                pushUndo(async () => { await setDraft(old.id, prev); });
+                say("Shift marked for deletion — publish to apply", "success");
+            }
         } else if (spec.mode === "request") {
             const req = spec.req;
             const { error } = await supabase.from("shift_requests").delete().eq("id", req.id);
@@ -282,15 +324,15 @@ export default function Schedule() {
     const sorted = [...selected].sort();
 
     return (
-        <div className="dsh">
-            <div className="dsh-h"><h2>Roster</h2></div>
+        <div className="dsh fill">
+            <div className="dsh-h split">
+                <h2>Roster</h2>
+                <button className="ro-export" onClick={() => say("Export: coming soon", "info")}>Export</button>
+            </div>
 
             <div className="ro-panel">
                 <div className="ro-bar">
-                    <div className="ro-side">
-                        <h2>{monthName}</h2>
-                        <button className="ro-btn" onClick={() => say("Filter: coming soon", "info")}>Filter</button>
-                    </div>
+                    <div className="ro-side"><h2>{monthName}</h2></div>
 
                     <div className="ro-side">
                         <button className="ro-btn" onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}>Prev.</button>
@@ -302,10 +344,7 @@ export default function Schedule() {
                     </div>
 
                     <div className="ro-side">
-                        {undo.length > 0 && <button className="ro-btn" onClick={doUndo}>Undo</button>}
-                        <button className="ro-btn" onClick={() => setPopup({ mode: "assign", dates: sorted })}>
-                            Assign{sorted.length ? ` (${sorted.length})` : ""}
-                        </button>
+                        <button className="ro-btn" onClick={() => say("Filter: coming soon", "info")}>Filter</button>
                     </div>
                 </div>
 
@@ -323,7 +362,7 @@ export default function Schedule() {
                     </div>
 
                     {weeks.map((w, wi) => (
-                        <div key={wi} className="ro-row">
+                        <div key={wi} className="ro-row ro-wk">
                             {w.map((d, i) => {
                                 const key = iso(d);
                                 return (
@@ -341,9 +380,17 @@ export default function Schedule() {
                     ))}
                 </div>
 
-                {warnings.length > 0 && (
-                    <div className="ro-warn">⚠ {warnings.slice(0, 3).join("  ·  ")}{warnings.length > 3 ? `  ·  +${warnings.length - 3}` : ""}</div>
-                )}
+                <div className="ro-foot">
+                    <div className="ro-side">
+                        <button className="ro-btn" onClick={() => setPopup({ mode: "assign", dates: sorted })}>
+                            Assign{sorted.length ? ` (${sorted.length})` : ""}
+                        </button>
+                        {undo.length > 0 && <button className="ro-btn" onClick={doUndo}>Undo</button>}
+                    </div>
+                    <div className="ro-side">
+                        {isManager && <button className="ro-btn" onClick={publish}>Publish{drafts.length ? ` (${drafts.length})` : ""}</button>}
+                    </div>
+                </div>
             </div>
 
             {popup && (

@@ -5,6 +5,8 @@ type Kind = "info" | "success" | "error";
 
 interface Ctx {
     msg: { text: string; kind: Kind } | null;
+    notice: string | null;                        // persistent footer warning (e.g. roster rules)
+    setNotice: (text: string | null) => void;
     say: (text: string, kind?: Kind) => void;
     infoEl: HTMLElement | null;
     navEl: HTMLElement | null;
@@ -18,6 +20,7 @@ export const useStatus = () => useContext(StatusCtx);
 export function StatusProvider({ children }: { children: ReactNode }) {
 
     const [msg, setMsg] = useState<Ctx["msg"]>(null);
+    const [notice, setNotice] = useState<string | null>(null);
     const [infoEl, setInfoEl] = useState<HTMLElement | null>(null);
     const [navEl, setNavEl] = useState<HTMLElement | null>(null);
     const timer = useRef<number>(undefined);
@@ -29,7 +32,7 @@ export function StatusProvider({ children }: { children: ReactNode }) {
     }, []);
 
     return (
-        <StatusCtx.Provider value={{ msg, say, infoEl, navEl, setInfoEl, setNavEl }}>
+        <StatusCtx.Provider value={{ msg, notice, setNotice, say, infoEl, navEl, setInfoEl, setNavEl }}>
             {children}
         </StatusCtx.Provider>
     );

@@ -48,7 +48,11 @@ export function AssignPopup(p: Props) {
     const off = isOff(p.types.find(t => t.code === f.code));
     const set = (patch: Partial<RosterForm>) => setF(x => ({ ...x, ...patch }));
 
-    const valid = ds.length > 0 && !!f.membershipId && !!f.code && (off || !!(f.area && f.role && f.start && f.end));
+    const missing = [
+        ds.length === 0 && "date", !f.membershipId && "employee", !f.code && "shift",
+        ...(off ? [] : [!f.area && "area", !f.role && "role", !f.start && "start time", !f.end && "end time"])
+    ].filter(Boolean) as string[];
+    const valid = missing.length === 0;
     const dirty = JSON.stringify(f) !== JSON.stringify(initial);
 
     const title = p.spec.mode === "assign" ? "Assign" : p.spec.mode === "edit" ? "Edit Shift" : "Request";
@@ -114,6 +118,7 @@ export function AssignPopup(p: Props) {
                     </>
                 )}
 
+                {!valid && <div className="plan-entry-meta" style={{ marginTop: 12, color: "#c62828" }}>Please fill in all fields (missing: {missing.join(", ")}).</div>}
                 {err && <div className="auth-error">{err}</div>}
 
                 <div className="plan-modal-footer">

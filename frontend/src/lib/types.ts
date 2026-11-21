@@ -58,10 +58,13 @@ export interface Shift {
     role_label: string | null;
     shift_code?: string | null;      // needs migration 001
     area_label?: string | null;      // needs migration 001
+    draft?: ShiftDraft | null;       // pending change of a published shift (migration 003)
     notes: string | null;
     status: "draft" | "published";
 }
 
+/** Unpublished change on a published shift: new values, or {_delete:true}. Employees keep seeing the old values until Publish. */
+export type ShiftDraft = Partial<Pick<Shift, "shift_date" | "membership_id" | "start_time" | "end_time" | "shift_code" | "area_label" | "role_label">> & { _delete?: boolean };
 export type EntryStatus = "pending" | "approved" | "rejected";
 
 export interface TimeEntry {

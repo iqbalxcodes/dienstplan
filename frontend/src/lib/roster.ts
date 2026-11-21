@@ -1,7 +1,7 @@
 // Roster helpers: shift presets, month grid, and DB writes that survive a missing migration 001.
 import { supabase } from "./supabase";
 import { addDays, startOfMonth } from "./dates";
-import type { Membership, OrganizationSettings, ShiftType } from "./types";
+import type { Membership, OrganizationSettings, Shift, ShiftDraft, ShiftType } from "./types";
 
 export const DEFAULT_SHIFT_TYPES: ShiftType[] = [
     { code: "F", name: "Früh", color: "#17a53a", kind: "work", start: "06:30", end: "15:00" },
@@ -19,6 +19,16 @@ export const OFF_END = "23:59:00";
 export const shiftTypesOf = (s?: OrganizationSettings) => (s?.shift_types?.length ? s.shift_types : DEFAULT_SHIFT_TYPES);
 export const isOff = (t?: ShiftType) => t?.kind === "off";
 export const lastName = (m?: Membership | null) => m?.full_name.trim().split(/\s+/).pop() ?? "?";
+
+/** Manager view of a shift: pending (unpublished) changes applied on top. */
+export const viewOf = (s: Shift): Shift => (s.draft && !s.draft._delete ? ({ ...s, ...s.draft } as Shift) : s);
+
+/** Park a change on a published shift until Publish. Returns an error message or null. */
+export async function setDraft(id: string, draft: ShiftDraft | null): Promise<string | null> {
+    const { error } = await supabase.from("shifts").update({ draft }).eq("id", id);
+    if (!error) return null;
+    return error.code === "PGRST204" ? "Run backend/sql/003_shift_drafts.sql first (needed to edit published shifts)." : error.message;
+}
 
 export interface RosterForm {
     date: string;

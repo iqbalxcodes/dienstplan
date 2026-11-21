@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
-import { Bell, ChevronDown, Clock, Settings } from "lucide-react";
+import { Bell, ChevronDown, Clock, Settings, TriangleAlert } from "lucide-react";
 import pkg from "../../package.json";
 import { useAuth } from "../lib/auth";
 import { useSettings } from "../lib/i18n";
@@ -126,10 +126,14 @@ function Strip() {
 
 /** Footer = status/notification bar (left) + History pagination + version (right). */
 function Footer() {
-    const { msg, setInfoEl, setNavEl } = useStatus();
+    const { msg, notice, setInfoEl, setNavEl } = useStatus();
     return (
         <footer id="statusBar">
-            <div id="contextArea">{msg && <span className={`status-msg-${msg.kind}`}>{msg.text}</span>}</div>
+            <div id="contextArea">
+                {msg
+                    ? <span className={`status-msg-${msg.kind}`}>{msg.text}</span>
+                    : notice && <span className="footer-notice"><TriangleAlert size={20} />{notice}</span>}
+            </div>
             <div id="paginationInfo" ref={setInfoEl} />
             <div id="paginationNav" ref={setNavEl} />
             <div className="app-version">Dienstplan v. {pkg.version}</div>
