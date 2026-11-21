@@ -19,6 +19,7 @@ interface Props {
     onToggle: (date: string, memberId: string) => void;
     onShift: (s: Shift) => void;
     onReq: (r: ShiftRequest) => void;
+    onNote: (date: string) => void;
 }
 
 const hm = (t: string) => t.slice(0, 5);
@@ -43,8 +44,8 @@ export function Week(p: Props) {
             <div className="ro-row wk-row ro-notes">
                 <div />
                 {p.days.map((d, i) => (
-                    <div key={i} className={cols(i)}>
-                        {p.notes.filter(n => n.weekday === i + 1 || n.note_date === iso(d)).map(n => n.text).join(" · ")}
+                    <div key={i} className={cols(i) + (p.manager ? " edit" : "")} onClick={() => p.manager && p.onNote(iso(d))}>
+                        {p.notes.filter(n => n.note_date === iso(d)).map(n => n.text).join(" · ")}
                     </div>
                 ))}
             </div>

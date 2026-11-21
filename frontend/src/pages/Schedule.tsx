@@ -1,5 +1,5 @@
 // Roster (weekly + monthly). Employees select free dates and send requests; managers assign directly,
-// edit/delete shifts and approve/reject requests. Every change can be undone.
+// edit/delete shifts, approve/reject requests and edit Vermerke. Every shift change can be undone.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Info } from "lucide-react";
 import { Modal } from "../components/Modal";
@@ -72,6 +72,8 @@ function DayCell(p: CellProps) {
     );
 }
 
+interface NoteForm { title: string; text: string; date?: string; weekday?: number; }
+
 export default function Schedule() {
 
     const { org, me, isManager } = useAuth();
@@ -85,6 +87,7 @@ export default function Schedule() {
     const [selMember, setSelMember] = useState<string | null>(null);   // week mode: selection is one row only
     const [popup, setPopup] = useState<PopupSpec | null>(null);
     const [group, setGroup] = useState<{ title: string; list: Entry[] } | null>(null);
+    const [note, setNote] = useState<NoteForm | null>(null);
     const [undo, setUndo] = useState<(() => Promise<unknown>)[]>([]);
 
     const settings = org!.settings ?? {};
@@ -226,6 +229,35 @@ export default function Schedule() {
         }
         setSelMember(mid);
         setSelected(s => { const n = new Set(mid === selMember ? s : []); if (!n.delete(d)) n.add(d); return n; });
+    }
+
+    // ---------- Vermerke (week: per date · month: per weekday, every week) ----------
+
+    function openNote(title: string, date?: string, weekday?: number) {
+        if (!isManager) return;
+        const text = data.notes
+            .filter(n => (date ? n.note_date === date : n.weekday === weekday && !n.note_date))
+            .map(n => n.text).join("\n");
+        setNote({ title, text, date, weekday });
+    }
+
+    async function saveNote() {
+        const n = note!;
+        const col = n.date ? "note_date" : "weekday";
+        const val = n.date ?? n.weekday!;
+
+        const del = await supabase.from("roster_notes").delete().eq("organization_id", org!.id).eq(col, val);
+        if (del.error) { say(del.error.message, "error"); return; }
+
+        if (n.text.trim()) {
+            const { error } = await supabase.from("roster_notes").insert({
+                organization_id: org!.id, note_date: n.date ?? null, weekday: n.weekday ?? null, text: n.text.trim()
+            });
+            if (error) { say(error.message, "error"); return; }
+        }
+        setNote(null);
+        say("Vermerk gespeichert", "success");
+        await load();
     }
 
     // ---------- writes (return an error string, or null on success) ----------
@@ -377,7 +409,8 @@ export default function Schedule() {
                         manager={isManager} lang={user.language} today={today} selected={selected} selMember={selMember}
                         onToggle={toggle}
                         onShift={s => setPopup({ mode: "edit", shift: s })}
-                        onReq={r => setPopup({ mode: "request", req: r })} />
+                        onReq={r => setPopup({ mode: "request", req: r })}
+                        onNote={d => openNote(`Vermerk — ${d.slice(8)}.${d.slice(5, 7)}.`, d)} />
                 ) : (
                     <div className="ro-grid">
                         <div className="ro-row ro-head">
@@ -386,7 +419,8 @@ export default function Schedule() {
 
                         <div className="ro-row ro-notes">
                             {Array.from({ length: 7 }, (_, i) => (
-                                <div key={i} className={i >= 5 ? "we" : i % 2 ? "alt" : ""}>
+                                <div key={i} className={(i >= 5 ? "we" : i % 2 ? "alt" : "") + (isManager ? " edit" : "")}
+                                    onClick={() => openNote(`Vermerk — ${weekdayName(i)}`, undefined, i + 1)}>
                                     {data.notes.filter(n => n.weekday === i + 1).map(n => n.text).join(" · ")}
                                 </div>
                             ))}
@@ -431,6 +465,14 @@ export default function Schedule() {
                     isManager={isManager} meId={me!.id} onClose={() => setPopup(null)}
                     onSubmit={(f, d) => submit(popup, f, d)}
                     onDelete={popup.mode === "assign" ? undefined : () => removeOrReject(popup)} />
+            )}
+
+            {note && (
+                <Modal title={note.title} onClose={() => setNote(null)} onSubmit={saveNote}>
+                    <label>{note.date ? "Vermerk / Event" : "Vermerk / Event (every week)"}</label>
+                    <textarea autoFocus value={note.text} onChange={e => setNote({ ...note, text: e.target.value })} />
+                    <p className="plan-entry-meta">Empty + Save = delete.</p>
+                </Modal>
             )}
 
             {group && (
