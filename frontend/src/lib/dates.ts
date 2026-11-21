@@ -1,5 +1,11 @@
 export const DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 export const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+export const startOfWeek = (d: Date) => addDays(d, -((d.getDay() + 6) % 7));
+export function isoWeek(d: Date): number {
+    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+    return Math.ceil(((+t - Date.UTC(t.getUTCFullYear(), 0, 1)) / 86400000 + 1) / 7);
+}
 
 const pad = (n: number) => String(n).padStart(2, "0");
 

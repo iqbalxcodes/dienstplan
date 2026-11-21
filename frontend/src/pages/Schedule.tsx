@@ -1,14 +1,15 @@
-// Roster (monthly). Employees select free dates and send requests; managers assign directly,
+// Roster (weekly + monthly). Employees select free dates and send requests; managers assign directly,
 // edit/delete shifts and approve/reject requests. Every change can be undone.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Info } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { AssignPopup, type PopupSpec } from "../components/schedule/AssignPopup";
+import { Week } from "../components/schedule/Week";
 import { useAuth } from "../lib/auth";
 import { useSettings } from "../lib/i18n";
 import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
-import { isSameDay, iso, parseDate, startOfMonth, startOfToday } from "../lib/dates";
+import { addDays, isoWeek, isSameDay, iso, parseDate, startOfMonth, startOfToday, startOfWeek } from "../lib/dates";
 import {
     buildWeeks, insertShifts, isOff, lastName, NO_CODE_COLOR, OFF_END, OFF_START,
     setDraft, shiftTypesOf, updateShift, viewOf, type RosterForm
@@ -16,7 +17,7 @@ import {
 import { findShiftConflicts } from "../lib/shifts";
 import { DEFAULT_AREAS, DEFAULT_ROLES, type Membership, type RosterNote, type Shift, type ShiftRequest } from "../lib/types";
 
-interface Entry { key: string; code: string | null; member?: Membership; shift?: Shift; req?: ShiftRequest; dirty?: boolean; del?: boolean; }
+export interface Entry { key: string; code: string | null; member?: Membership; shift?: Shift; req?: ShiftRequest; dirty?: boolean; del?: boolean; }
 interface Data { members: Membership[]; shifts: Shift[]; requests: ShiftRequest[]; notes: RosterNote[]; }
 const EMPTY: Data = { members: [], shifts: [], requests: [], notes: [] };
 
@@ -76,10 +77,12 @@ export default function Schedule() {
     const { org, me, isManager } = useAuth();
     const { settings: user } = useSettings();
     const { say, setNotice } = useStatus();
-    const [month, setMonth] = useState(() => startOfMonth(startOfToday()));
+    const [mode, setMode] = useState<"week" | "month">("week");
+    const [date, setDate] = useState(startOfToday);   // any day inside the shown week/month
     const [width, setWidth] = useState(window.innerWidth);
     const [data, setData] = useState<Data>(EMPTY);
     const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [selMember, setSelMember] = useState<string | null>(null);   // week mode: selection is one row only
     const [popup, setPopup] = useState<PopupSpec | null>(null);
     const [group, setGroup] = useState<{ title: string; list: Entry[] } | null>(null);
     const [undo, setUndo] = useState<(() => Promise<unknown>)[]>([]);
@@ -92,10 +95,15 @@ export default function Schedule() {
     const colorOf = (c: string | null) => typeOf(c)?.color ?? NO_CODE_COLOR;
     const uid = me!.user_id;
 
-    // cards per day: wide 6 (3x2) · medium 4 (2x2) · phone 2 (1 col)
+    // cards per day (month): wide 6 (3x2) · medium 4 (2x2) · phone 2 (1 col)
     const cap = width > 1100 ? 6 : width > 700 ? 4 : 2;
     const cols = cap === 6 ? 3 : cap === 4 ? 2 : 1;
-    const weeks = useMemo(() => buildWeeks(month), [month]);
+    const month = startOfMonth(date);
+    const weekStart = startOfWeek(date);
+    // week mode = one row of 7 days; load() only needs weeks[0][0] .. weeks[last][6]
+    const weeks = useMemo(() => mode === "month"
+        ? buildWeeks(startOfMonth(date))
+        : [Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(date), i))], [mode, date]);
 
     useEffect(() => {
         let t: number;
@@ -193,13 +201,31 @@ export default function Schedule() {
         await load();
     }
 
-    function toggle(d: string) {
+    // ---------- navigation ----------
+
+    const step = (n: number) => setDate(d => mode === "week" ? addDays(d, 7 * n) : new Date(d.getFullYear(), d.getMonth() + n, 1));
+
+    function switchMode() {
+        setSelected(new Set());
+        setSelMember(null);
+        // week -> month keeps the date; month -> week jumps to today when it is inside the shown month
+        setDate(d => {
+            const t = startOfToday();
+            return mode === "month" && t.getMonth() === d.getMonth() && t.getFullYear() === d.getFullYear() ? t : d;
+        });
+        setMode(m => (m === "week" ? "month" : "week"));
+    }
+
+    // mid = member row (week mode only); month mode passes null
+    function toggle(d: string, mid: string | null = null) {
+        if (!isManager && mid && mid !== me!.id) return;   // employees: own row only
         // employees can only pick days where they have nothing yet
         if (!isManager && (byDate.get(d) ?? []).some(e => e.member?.id === me!.id)) {
             say("You already have an entry on that day", "info");
             return;
         }
-        setSelected(s => { const n = new Set(s); if (!n.delete(d)) n.add(d); return n; });
+        setSelMember(mid);
+        setSelected(s => { const n = new Set(mid === selMember ? s : []); if (!n.delete(d)) n.add(d); return n; });
     }
 
     // ---------- writes (return an error string, or null on success) ----------
@@ -225,7 +251,7 @@ export default function Schedule() {
 
     async function submit(spec: PopupSpec, f: RosterForm, dates: string[]): Promise<string | null> {
 
-        if (spec.mode === "assign" && !isManager) {                       // employee -> request
+        if (spec.mode === "assign" && !isManager) {                       // employee -> request (F = Frei = freiwunsch)
             const off = isOff(typeOf(f.code));
             const rows = dates.map(d => ({
                 organization_id: org!.id, membership_id: me!.id, request_date: d, shift_code: f.code,
@@ -285,6 +311,7 @@ export default function Schedule() {
         }
 
         setSelected(new Set());
+        setSelMember(null);
         await load();
         return null;
     }
@@ -332,15 +359,12 @@ export default function Schedule() {
 
             <div className="ro-panel">
                 <div className="ro-bar">
-                    <div className="ro-side"><h2>{monthName}</h2></div>
+                    <div className="ro-side"><h2>{mode === "week" ? `KW ${isoWeek(weekStart)}` : monthName}</h2></div>
 
                     <div className="ro-side">
-                        <button className="ro-btn" onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}>Prev.</button>
-                        <button className="ro-btn" onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}>Next</button>
-                        <select className="ro-btn" value="month" onChange={() => undefined}>
-                            <option value="month">Month</option>
-                            <option value="week" disabled>Weekly (soon)</option>
-                        </select>
+                        <button className="ro-btn" onClick={() => step(-1)}>Prev.</button>
+                        <button className="ro-btn" onClick={() => step(1)}>Next</button>
+                        <button className="ro-btn" onClick={switchMode}>{mode === "week" ? "Weekly" : "Monthly"}</button>
                     </div>
 
                     <div className="ro-side">
@@ -348,41 +372,49 @@ export default function Schedule() {
                     </div>
                 </div>
 
-                <div className="ro-grid">
-                    <div className="ro-row ro-head">
-                        {Array.from({ length: 7 }, (_, i) => <div key={i} className={i >= 5 ? "we" : i % 2 ? "alt" : ""}>{weekdayName(i)}</div>)}
-                    </div>
+                {mode === "week" ? (
+                    <Week days={weeks[0]} members={data.members} byDate={byDate} notes={data.notes} types={types}
+                        manager={isManager} lang={user.language} today={today} selected={selected} selMember={selMember}
+                        onToggle={toggle}
+                        onShift={s => setPopup({ mode: "edit", shift: s })}
+                        onReq={r => setPopup({ mode: "request", req: r })} />
+                ) : (
+                    <div className="ro-grid">
+                        <div className="ro-row ro-head">
+                            {Array.from({ length: 7 }, (_, i) => <div key={i} className={i >= 5 ? "we" : i % 2 ? "alt" : ""}>{weekdayName(i)}</div>)}
+                        </div>
 
-                    <div className="ro-row ro-notes">
-                        {Array.from({ length: 7 }, (_, i) => (
-                            <div key={i} className={i >= 5 ? "we" : i % 2 ? "alt" : ""}>
-                                {data.notes.filter(n => n.weekday === i + 1).map(n => n.text).join(" · ")}
+                        <div className="ro-row ro-notes">
+                            {Array.from({ length: 7 }, (_, i) => (
+                                <div key={i} className={i >= 5 ? "we" : i % 2 ? "alt" : ""}>
+                                    {data.notes.filter(n => n.weekday === i + 1).map(n => n.text).join(" · ")}
+                                </div>
+                            ))}
+                        </div>
+
+                        {weeks.map((w, wi) => (
+                            <div key={wi} className="ro-row ro-wk">
+                                {w.map((d, i) => {
+                                    const key = iso(d);
+                                    return (
+                                        <DayCell key={key} date={d} other={d.getMonth() !== month.getMonth()} alt={i % 2 === 1} weekend={i >= 5}
+                                            today={isSameDay(d, today)} selected={selected.has(key)} cols={cols} slots={cap - 1}
+                                            entries={byDate.get(key) ?? []} manager={isManager} color={colorOf}
+                                            info={data.notes.filter(n => n.note_date === key).map(n => n.text).join("\n")}
+                                            onToggle={() => toggle(key)}
+                                            onShift={s => setPopup({ mode: "edit", shift: s })}
+                                            onReq={r => setPopup({ mode: "request", req: r })}
+                                            onGroup={(title, list) => setGroup({ title, list })} />
+                                    );
+                                })}
                             </div>
                         ))}
                     </div>
-
-                    {weeks.map((w, wi) => (
-                        <div key={wi} className="ro-row ro-wk">
-                            {w.map((d, i) => {
-                                const key = iso(d);
-                                return (
-                                    <DayCell key={key} date={d} other={d.getMonth() !== month.getMonth()} alt={i % 2 === 1} weekend={i >= 5}
-                                        today={isSameDay(d, today)} selected={selected.has(key)} cols={cols} slots={cap - 1}
-                                        entries={byDate.get(key) ?? []} manager={isManager} color={colorOf}
-                                        info={data.notes.filter(n => n.note_date === key).map(n => n.text).join("\n")}
-                                        onToggle={() => toggle(key)}
-                                        onShift={s => setPopup({ mode: "edit", shift: s })}
-                                        onReq={r => setPopup({ mode: "request", req: r })}
-                                        onGroup={(title, list) => setGroup({ title, list })} />
-                                );
-                            })}
-                        </div>
-                    ))}
-                </div>
+                )}
 
                 <div className="ro-foot">
                     <div className="ro-side">
-                        <button className="ro-btn" onClick={() => setPopup({ mode: "assign", dates: sorted })}>
+                        <button className="ro-btn" onClick={() => setPopup({ mode: "assign", dates: sorted, membershipId: selMember ?? undefined })}>
                             Assign{sorted.length ? ` (${sorted.length})` : ""}
                         </button>
                         {undo.length > 0 && <button className="ro-btn" onClick={doUndo}>Undo</button>}

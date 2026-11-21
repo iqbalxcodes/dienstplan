@@ -5,6 +5,7 @@ import type { Membership, Shift, ShiftRequest, ShiftType } from "../../lib/types
 
 export type PopupSpec =
     | { mode: "assign"; dates: string[] }
+    | { mode: "assign"; dates: string[]; membershipId?: string }
     | { mode: "edit"; shift: Shift }
     | { mode: "request"; req: ShiftRequest };
 

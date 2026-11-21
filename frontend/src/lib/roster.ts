@@ -4,11 +4,11 @@ import { addDays, startOfMonth } from "./dates";
 import type { Membership, OrganizationSettings, Shift, ShiftDraft, ShiftType } from "./types";
 
 export const DEFAULT_SHIFT_TYPES: ShiftType[] = [
-    { code: "F", name: "Früh", color: "#17a53a", kind: "work", start: "06:30", end: "15:00" },
-    { code: "FX", name: "Früh Extra", color: "#f59e0b", kind: "work", start: "06:30", end: "15:00" },
+    { code: "FS", name: "Frühschicht", color: "#17a53a", kind: "work", start: "06:30", end: "15:00" },
     { code: "M", name: "Büro", color: "#b8c400", kind: "work", start: "09:00", end: "17:30" },
+    { code: "F", name: "Frei", color: "#9ca3af", kind: "off" },
     { code: "U", name: "Urlaub", color: "#a855f7", kind: "off" },
-    { code: "Sch", name: "Schule", color: "#3b82f6", kind: "off" }
+    { code: "Schule", name: "Schule", color: "#3b82f6", kind: "off" }
 ];
 
 export const NO_CODE_COLOR = "#5b6b86";

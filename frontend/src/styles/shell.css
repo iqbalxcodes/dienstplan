@@ -156,3 +156,19 @@ body { background: #f4f6fa; }
     .ro-card { height: 36px; font-size: 11px; }
     .preset-row { grid-template-columns: 1fr 1fr; }
 }
+
+/* weekly */
+.ro-grid.wk { overflow-x: auto; }
+.wk-row { grid-template-columns: 150px repeat(7, minmax(0, 1fr)); min-width: 900px; }
+.wk-name { display: flex; flex-direction: column; justify-content: center; padding: 8px 10px; background: #f8f9f2; font-size: 14px; }
+.wk-name span { margin-top: 4px; }
+.wk-cell { display: flex; flex-direction: column; gap: 5px; padding: 5px; min-height: 96px; cursor: pointer; min-width: 0; }
+.wk-cell.sel { outline: 3px solid #2563eb; outline-offset: -3px; background: #e6efff !important; }
+.wk-card { flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 6px 10px 6px 14px; border-radius: 10px; color: #1d3557; background: color-mix(in srgb, var(--c) 28%, #fff); box-shadow: inset 6px 0 0 var(--c); }
+.wk-card.off { align-items: center; background: none; box-shadow: none; font-size: 20px; font-weight: 700; }
+.wk-top { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; }
+.wk-time { font-size: 22px; font-weight: 700; white-space: nowrap; }
+.wk-area { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wk-card.ghost { opacity: 0.55; outline: 2px dashed #1d3557; outline-offset: -2px; }
+.wk-card.draft { outline: 2px dashed rgba(29, 53, 87, 0.75); outline-offset: -3px; }
+.wk-card.del { opacity: 0.45; text-decoration: line-through; }
