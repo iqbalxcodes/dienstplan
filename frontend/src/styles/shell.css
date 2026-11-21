@@ -172,3 +172,18 @@ body { background: #f4f6fa; }
 .wk-card.ghost { opacity: 0.55; outline: 2px dashed #1d3557; outline-offset: -2px; }
 .wk-card.draft { outline: 2px dashed rgba(29, 53, 87, 0.75); outline-offset: -3px; }
 .wk-card.del { opacity: 0.45; text-decoration: line-through; }
+
+/* ======== ZEITERFASSUNG ======== */
+.zt { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 32px; align-items: start; }
+.zt-stats { background: #234670; border-radius: 24px; padding: 18px 14px; color: #fff; }
+.zt-stats > div { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid #fff; font-size: 14px; }
+.zt-table { background: #fff; overflow-x: auto; }
+.zt-table table { width: 100%; border-collapse: collapse; }
+.zt-table th { text-align: left; padding: 10px; font-size: 17px; white-space: nowrap; }
+.zt-table td { padding: 8px 10px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.zt-table tbody tr:nth-child(even) { background: #f1f3f7; }
+.zt-totals { gap: 40px; font-size: 20px; font-weight: 700; flex-wrap: wrap; }
+@media (max-width: 900px) {
+    .zt { grid-template-columns: 1fr; }
+    .zt-totals { gap: 12px; font-size: 14px; }
+}

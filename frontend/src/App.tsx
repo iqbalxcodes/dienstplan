@@ -9,6 +9,7 @@ import Admin from "./pages/Admin";
 import History from "./pages/History";
 import Settings from "./pages/Settings";
 import ResetPassword from "./pages/ResetPassword";
+import Zeiterfassung from "./pages/Zeiterfassung";
 
 export default function App() {
     return (
@@ -23,6 +24,7 @@ export default function App() {
                 <Route path="history" element={<RequireRole><History /></RequireRole>} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="zeiterfassung" element={<Zeiterfassung />} />
             </Route>
         </Routes>
     );

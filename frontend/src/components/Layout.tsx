@@ -52,6 +52,7 @@ function Header() {
     const link = ({ isActive }: { isActive: boolean }) => "hdr-link" + (isActive ? " active" : "");
     const icon = ({ isActive }: { isActive: boolean }) => "hdr-icon" + (isActive ? " active" : "");
     const managerActive = pathname.startsWith("/manager") || pathname.startsWith("/admin");
+    const timesActive = pathname.startsWith("/hours") || pathname.startsWith("/zeiterfassung");
 
     return (
         <header className="app-header">
@@ -70,7 +71,11 @@ function Header() {
                     <nav className="hdr-nav">
                         <NavLink to="/" end className={link}>{t("nav.dashboard")}</NavLink>
                         <NavLink to="/schedule" className={link}>{t("nav.schedule")}</NavLink>
-                        <NavLink to="/hours" className={link}>{t("nav.hours")}</NavLink>
+                        <Menu className={"hdr-link" + (timesActive ? " active" : "")} active={timesActive}
+                            button={<>{t("nav.hours")} <ChevronDown size={16} /></>}>
+                            <Link to="/zeiterfassung">{t("nav.timesheet")}</Link>
+                            <Link to="/hours">{t("nav.leave")}</Link>
+                        </Menu>
                         {isManager && (
                             <Menu className={"hdr-link" + (managerActive ? " active" : "")} active={managerActive}
                                 button={<>{t("nav.manager")} <ChevronDown size={16} /></>}>

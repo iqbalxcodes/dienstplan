@@ -6,7 +6,8 @@ export type Language = "de" | "en" | "id";
 const TRANSLATIONS: Record<Language, Record<string, string>> = {
     de: {
         "hours.freiwunsch": "Freiwunsch", "hours.urlaub": "Urlaub",
-        "nav.dashboard": "Übersicht", "nav.schedule": "Dienstpläne", "nav.hours": "Stunden", "nav.manager": "Manager",
+        "nav.dashboard": "Übersicht", "nav.schedule": "Dienstpläne", "nav.hours": "Zeiten", "nav.manager": "Manager",
+        "nav.timesheet": "Zeiterfassung", "nav.leave": "Freiwünsche & Urlaub",
         "nav.admin": "Admin", "nav.history": "Aktivität", "nav.settings": "Einstellungen",
         "login.title": "Dienstplan Login", "login.email": "E-Mail", "login.password": "Passwort",
         "login.remember": "Auf diesem Gerät merken", "login.submit": "Anmelden",
@@ -18,7 +19,8 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     },
     en: {
         "hours.freiwunsch": "Time Off Request", "hours.urlaub": "Vacation",
-        "nav.dashboard": "Overview", "nav.schedule": "Schedule", "nav.hours": "Hours", "nav.manager": "Manager",
+        "nav.dashboard": "Overview", "nav.schedule": "Schedule", "nav.hours": "Times", "nav.manager": "Manager",
+        "nav.timesheet": "Time Tracking", "nav.leave": "Time Off & Vacation",
         "nav.admin": "Admin", "nav.history": "Activity", "nav.settings": "Settings",
         "login.title": "Dienstplan Login", "login.email": "Email", "login.password": "Password",
         "login.remember": "Remember me on this device", "login.submit": "Log in",
@@ -30,7 +32,8 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     },
     id: {
         "hours.freiwunsch": "Permintaan Libur", "hours.urlaub": "Cuti",
-        "nav.dashboard": "Dasbor", "nav.schedule": "Jadwal", "nav.hours": "Jam Kerja", "nav.manager": "Manajer",
+        "nav.dashboard": "Dasbor", "nav.schedule": "Jadwal", "nav.hours": "Waktu", "nav.manager": "Manajer",
+        "nav.timesheet": "Catatan Waktu", "nav.leave": "Libur & Cuti",
         "nav.admin": "Admin", "nav.history": "Aktivitas", "nav.settings": "Pengaturan",
         "login.title": "Login Dienstplan", "login.email": "Email", "login.password": "Kata sandi",
         "login.remember": "Ingat saya di perangkat ini", "login.submit": "Masuk",
