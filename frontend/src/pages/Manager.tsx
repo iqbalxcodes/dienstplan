@@ -10,6 +10,7 @@ import { addDays, duration, fmtDT, parseDate, toLocalInput } from "../lib/dates"
 import { fetchEvidence } from "../lib/complaints";
 import { findShiftConflicts } from "../lib/shifts";
 import { LEAVE_LABELS, type LeaveType, type Membership } from "../lib/types";
+import { Modal } from "../components/Modal";
 
 const now = () => new Date().toISOString();
 const uid = async () => (await supabase.auth.getUser()).data.user?.id ?? null;
@@ -288,7 +289,7 @@ function Crew() {
     const log = useLog();
     const { say } = useStatus();
     const [list, setList] = useState<Membership[]>([]);
-    const [editId, setEditId] = useState<string | null>(null);
+    const [edit, setEdit] = useState<Membership | null>(null);
     const [d, setD] = useState(BLANK);
 
     const load = useCallback(async () => {
@@ -302,14 +303,15 @@ function Crew() {
 
     function start(m: Membership) {
         const n = split(m.full_name);
-        setEditId(m.id);
+        setEdit(m);
         setD({
             first: n.first, last: n.last, role: m.role, contract: m.contract ?? "", hours: String(m.weekly_target_hours),
             job: m.job_title ?? "", phone: m.phone ?? "", email: m.email ?? ""
         });
     }
 
-    async function done(m: Membership) {
+    async function done() {
+        const m = edit!;
         const full = `${d.first} ${d.last}`.trim();
         const email = d.email.trim().toLowerCase();
         if (!full || !email) { alert("Name and email are required."); return; }
@@ -320,7 +322,7 @@ function Crew() {
         };
         const { error } = await supabase.from("memberships").update(patch).eq("id", m.id);
         if (error) { alert(error.message); return; }
-        setEditId(null);
+        setEdit(null);
 
         if (m.role !== patch.role) {
             await log("crew.role_changed", `${full}: ${m.role} \u2192 ${patch.role}`,
@@ -361,56 +363,23 @@ function Crew() {
 
             <div className="mg-crew">
                 {list.map(m => {
-                    const editing = editId === m.id;
                     const n = split(m.full_name);
                     return (
                         <div key={m.id} className={"mg-card" + (m.active ? "" : " off")}>
                             <span className="mg-av">{m.full_name.charAt(0).toUpperCase()}</span>
 
                             <div className="mg-head">
-                                {editing ? (
-                                    <div className="mg-ed">
-                                        {m.role === "admin"
-                                            ? <b>Admin</b>
-                                            : <select className="mg-in" value={d.role} onChange={set("role")}>
-                                                <option value="employee">Crew</option>
-                                                <option value="manager">Manager</option>
-                                            </select>}
-                                        <input className="mg-in" placeholder="First name" value={d.first} onChange={set("first")} />
-                                        <input className="mg-in" placeholder="Last name" value={d.last} onChange={set("last")} />
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div>{m.active ? "Active" : "Deactivated"} - {ROLE[m.role]}</div>
-                                        <div>{n.last.toUpperCase()}{n.first && ","} {n.first.toUpperCase()}</div>
-                                    </>
-                                )}
+                                <div>{m.active ? "Active" : "Deactivated"} - {ROLE[m.role]}</div>
+                                <div>{n.last.toUpperCase()}{n.first && ","} {n.first.toUpperCase()}</div>
                             </div>
 
                             <div className="mg-body">
-                                {editing ? (
-                                    <div className="mg-ed">
-                                        <select className="mg-in" value={d.contract} onChange={set("contract")}>
-                                            <option value="">Vertrag</option>
-                                            <option value="vollzeit">Vollzeit</option>
-                                            <option value="teilzeit">Teilzeit</option>
-                                            <option value="minijob">Minijob</option>
-                                        </select>
-                                        <input className="mg-in" style={{ width: 60 }} type="number" title="Std/Woche" value={d.hours} onChange={set("hours")} />
-                                        <input className="mg-in" placeholder="Servicefachkraft" value={d.job} onChange={set("job")} />
-                                        <input className="mg-in" placeholder="+49…" value={d.phone} onChange={set("phone")} />
-                                        <input className="mg-in" type="email" placeholder="Email" value={d.email} onChange={set("email")} />
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div>{[m.contract?.toUpperCase(), `${m.weekly_target_hours} Std/Woche`, m.job_title].filter(Boolean).join(" - ")}</div>
-                                        <div>{[m.phone, m.email].filter(Boolean).join(" - ") || "\u2014"}</div>
-                                    </>
-                                )}
+                                <div>{[m.contract?.toUpperCase(), `${m.weekly_target_hours} Std/Woche`, m.job_title].filter(Boolean).join(" - ")}</div>
+                                <div>{[m.phone, m.email].filter(Boolean).join(" - ") || "\u2014"}</div>
                             </div>
 
                             <div className="mg-btns">
-                                <button className="mg-btn" onClick={() => (editing ? done(m) : start(m))}>{editing ? "Done" : "Edit"}</button>
+                                <button className="mg-btn" onClick={() => start(m)}>Edit</button>
                                 <button className="mg-btn" disabled={!(m.email && m.active)} onClick={() => recover(m)}>Recover</button>
                                 <button className="mg-btn" onClick={() => toggleActive(m)}>{m.active ? "Deactivate" : "Reactivate"}</button>
                             </div>
@@ -418,6 +387,39 @@ function Crew() {
                     );
                 })}
             </div>
+
+            {edit && (
+                <Modal title="Edit Crew Member" onClose={() => setEdit(null)} onSubmit={done} submitLabel="Done">
+                    {edit.role !== "admin" && (
+                        <>
+                            <label>Role</label>
+                            <select value={d.role} onChange={set("role")}>
+                                <option value="employee">Crew</option>
+                                <option value="manager">Manager</option>
+                            </select>
+                        </>
+                    )}
+                    <label>First name</label>
+                    <input type="text" value={d.first} onChange={set("first")} />
+                    <label>Last name</label>
+                    <input type="text" value={d.last} onChange={set("last")} />
+                    <label>Vertrag</label>
+                    <select value={d.contract} onChange={set("contract")}>
+                        <option value="">—</option>
+                        <option value="vollzeit">Vollzeit</option>
+                        <option value="teilzeit">Teilzeit</option>
+                        <option value="minijob">Minijob</option>
+                    </select>
+                    <label>Std/Woche</label>
+                    <input type="number" value={d.hours} onChange={set("hours")} />
+                    <label>Job (e.g. Servicefachkraft)</label>
+                    <input type="text" value={d.job} onChange={set("job")} />
+                    <label>Phone</label>
+                    <input type="text" placeholder="+49…" value={d.phone} onChange={set("phone")} />
+                    <label>Email</label>
+                    <input type="email" value={d.email} onChange={set("email")} />
+                </Modal>
+            )}
         </div>
     );
 }
