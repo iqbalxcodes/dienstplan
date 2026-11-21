@@ -45,6 +45,9 @@ export interface Membership {
     active: boolean;
     created_at: string;
     email: string | null;
+    phone?: string | null;
+    contract?: "vollzeit" | "teilzeit" | "minijob" | null;
+    job_title?: string | null;
 }
 
 export interface Shift {
