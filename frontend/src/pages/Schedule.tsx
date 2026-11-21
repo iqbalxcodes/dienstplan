@@ -1,175 +1,369 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Page } from "../components/Page";
-import { Rack } from "../components/schedule/Rack";
-import { Month, buildWeeks, type PopupSpec } from "../components/schedule/Month";
-import { ShiftPopup } from "../components/schedule/ShiftPopup";
+// Roster (monthly). Employees select free dates and send requests; managers assign directly,
+// edit/delete shifts and approve/reject requests. Every change can be undone.
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Info } from "lucide-react";
+import { Modal } from "../components/Modal";
+import { AssignPopup, type PopupSpec } from "../components/schedule/AssignPopup";
 import { useAuth } from "../lib/auth";
-import { useShiftEdit } from "../lib/shiftEdit";
+import { useSettings } from "../lib/i18n";
+import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
-import { addDays, iso, MONTHS, startOfMonth, startOfToday } from "../lib/dates";
-import type { LeaveRequest, Membership, Shift, ShiftChangeRequest } from "../lib/types";
+import { isSameDay, iso, parseDate, startOfMonth, startOfToday } from "../lib/dates";
+import {
+    buildWeeks, insertShifts, isOff, lastName, NO_CODE_COLOR, OFF_END, OFF_START,
+    shiftTypesOf, updateShift, type RosterForm
+} from "../lib/roster";
+import { findShiftConflicts } from "../lib/shifts";
+import { DEFAULT_AREAS, DEFAULT_ROLES, type Membership, type RosterNote, type Shift, type ShiftRequest } from "../lib/types";
 
-const MODE_KEY = "dienstplan_view_mode_v1";
-const MODES: [string, string, string][] = [["month", "Month", "Month"], ["3", "3D", "3 Days"], ["7", "7D", "7 Days"], ["30", "30D", "30 Days"], ["auto", "Auto", "Auto"]];
+interface Entry { key: string; code: string | null; member?: Membership; shift?: Shift; req?: ShiftRequest; }
+interface Data { members: Membership[]; shifts: Shift[]; requests: ShiftRequest[]; notes: RosterNote[]; }
+const EMPTY: Data = { members: [], shifts: [], requests: [], notes: [] };
 
-interface Data {
-    members: Membership[];
-    shifts: Shift[];
-    pending: Record<string, number>;
-    leave: LeaveRequest[];
-    changes: ShiftChangeRequest[];
+interface CellProps {
+    date: Date; other: boolean; alt: boolean; weekend: boolean; today: boolean; selected: boolean;
+    cols: number; slots: number; entries: Entry[]; info: string; manager: boolean;
+    color: (code: string | null) => string;
+    onToggle: () => void;
+    onShift: (s: Shift) => void;
+    onReq: (r: ShiftRequest) => void;
+    onGroup: (title: string, list: Entry[]) => void;
 }
 
-const EMPTY: Data = { members: [], shifts: [], pending: {}, leave: [], changes: [] };
+function DayCell(p: CellProps) {
+
+    // too many people for the cell -> one card per shift: "N Mitarbeiter" (hover = names)
+    const grouped = p.entries.length > p.slots;
+    const groups = new Map<string, Entry[]>();
+    if (grouped) p.entries.forEach(e => {
+        const k = `${e.req ? "r" : "s"}:${e.code}`;
+        groups.set(k, [...(groups.get(k) ?? []), e]);
+    });
+
+    const cls = "ro-cell" + (p.weekend ? " we" : p.alt ? " alt" : "") + (p.other ? " other" : "") + (p.today ? " today" : "") + (p.selected ? " sel" : "");
+    const open = (e: Entry) => (e.shift ? p.onShift(e.shift) : e.req && p.manager ? p.onReq(e.req) : undefined);
+
+    return (
+        <div className={cls} onClick={p.onToggle}>
+            <div className="ro-cards" style={{ "--cols": p.cols } as React.CSSProperties}>
+                <div className="ro-card ro-date">
+                    <b>{p.date.getDate()}</b>
+                    {p.info && <span title={p.info}><Info size={15} /></span>}
+                </div>
+
+                {!grouped && p.entries.map(e => (
+                    <div key={e.key} className={"ro-card" + (e.req ? " ghost" : "")} style={{ background: p.color(e.code) }}
+                        title={`${e.member?.full_name} · ${e.code ?? "?"}${e.req ? " (request)" : ""}`}
+                        onClick={ev => { ev.stopPropagation(); if (p.manager) open(e); }}>
+                        {lastName(e.member)}
+                    </div>
+                ))}
+
+                {grouped && [...groups.entries()].map(([k, list]) => (
+                    <div key={k} className={"ro-card" + (list[0].req ? " ghost" : "")} style={{ background: p.color(list[0].code) }}
+                        title={`${list[0].code}: ${list.map(e => e.member?.full_name).join(", ")}`}
+                        onClick={ev => { ev.stopPropagation(); if (p.manager) p.onGroup(`${list[0].code} — ${iso(p.date)}`, list); }}>
+                        {list.length} Mitarbeiter
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 export default function Schedule() {
 
-    const { org } = useAuth();
-    const [mode, setMode] = useState(() => localStorage.getItem(MODE_KEY) || "auto");
+    const { org, me, isManager } = useAuth();
+    const { settings: user } = useSettings();
+    const { say } = useStatus();
+    const [month, setMonth] = useState(() => startOfMonth(startOfToday()));
     const [width, setWidth] = useState(window.innerWidth);
-    const [start, setStart] = useState(startOfToday);
-    const [selected, setSelected] = useState(startOfToday);
-    const [monthDate, setMonthDate] = useState(() => startOfMonth(startOfToday()));
     const [data, setData] = useState<Data>(EMPTY);
+    const [selected, setSelected] = useState<Set<string>>(new Set());
     const [popup, setPopup] = useState<PopupSpec | null>(null);
-    const dateRef = useRef<HTMLInputElement>(null);
+    const [group, setGroup] = useState<{ title: string; list: Entry[] } | null>(null);
+    const [undo, setUndo] = useState<(() => Promise<unknown>)[]>([]);
 
-    // phone: 3 days, tablet: 7, wide: up to 30 (unless a fixed mode is chosen)
-    const fixed = mode !== "auto" && mode !== "month";
-    const dayCount = fixed ? Number(mode) : width <= 700 ? 3 : width <= 1100 ? 7 : width <= 1700 ? 14 : 30;
-    const colW = width <= 700 ? Math.floor((width - 128) / Math.max(1, dayCount)) : width <= 1100 ? 96 : width <= 1700 ? 76 : 60;
-    const isMonth = mode === "month";
+    const settings = org!.settings ?? {};
+    const types = shiftTypesOf(settings);
+    const areas = settings.areas?.length ? settings.areas : DEFAULT_AREAS;
+    const roles = settings.role_labels ?? DEFAULT_ROLES;
+    const typeOf = (c?: string | null) => types.find(t => t.code === c);
+    const colorOf = (c: string | null) => typeOf(c)?.color ?? NO_CODE_COLOR;
+    const uid = me!.user_id;
+
+    // cards per day: wide 6 (3x2) · medium 4 (2x2) · phone 2 (1 col)
+    const cap = width > 1100 ? 6 : width > 700 ? 4 : 2;
+    const cols = cap === 6 ? 3 : cap === 4 ? 2 : 1;
+    const weeks = useMemo(() => buildWeeks(month), [month]);
 
     useEffect(() => {
         let t: number;
-        const onResize = () => { window.clearTimeout(t); t = window.setTimeout(() => setWidth(window.innerWidth), 300); };
+        const onResize = () => { window.clearTimeout(t); t = window.setTimeout(() => setWidth(window.innerWidth), 200); };
         window.addEventListener("resize", onResize);
         return () => { window.removeEventListener("resize", onResize); window.clearTimeout(t); };
     }, []);
 
-    const center = useCallback((date: Date) => {
-        setSelected(date);
-        setStart(addDays(date, -Math.floor((dayCount - 1) / 2)));
-    }, [dayCount]);
-
-    // initial centering + re-center whenever the visible day count changes
-    useEffect(() => { center(selected); }, [dayCount]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    useEffect(() => {
-        if (dateRef.current && document.activeElement !== dateRef.current) dateRef.current.value = iso(selected);
-    }, [selected]);
-
-    const startKey = iso(start);
-    const monthKey = iso(monthDate);
-
     const load = useCallback(async () => {
+        const from = iso(weeks[0][0]), to = iso(weeks[weeks.length - 1][6]);
+        let reqQ = supabase.from("shift_requests").select("*").eq("organization_id", org!.id).eq("status", "pending")
+            .gte("request_date", from).lte("request_date", to);
+        if (!isManager) reqQ = reqQ.eq("membership_id", me!.id);
 
-        const orgId = org!.id;
-        const membersQ = supabase.from("memberships").select("*").eq("organization_id", orgId).eq("active", true).order("full_name");
-
-        if (isMonth) {
-            const weeks = buildWeeks(monthDate);
-            const from = iso(weeks[0][0]), to = iso(weeks[weeks.length - 1][6]);
-            const [m, s, c] = await Promise.all([
-                membersQ,
-                supabase.from("shifts").select("*").eq("organization_id", orgId).gte("shift_date", from).lte("shift_date", to),
-                supabase.from("shift_change_requests").select("*").eq("organization_id", orgId).eq("status", "pending")
-                    .gte("proposed_shift_date", from).lte("proposed_shift_date", to)
-            ]);
-            setData({ ...EMPTY, members: (m.data ?? []) as Membership[], shifts: (s.data ?? []) as Shift[], changes: (c.data ?? []) as ShiftChangeRequest[] });
-            return;
-        }
-
-        const end = addDays(start, dayCount - 1);
-        const [m, s, e, l] = await Promise.all([
-            membersQ,
-            supabase.from("shifts").select("*").eq("organization_id", orgId).gte("shift_date", iso(start)).lte("shift_date", iso(end)),
-            supabase.from("time_entries").select("membership_id").eq("organization_id", orgId).eq("status", "pending")
-                .gte("clock_in", start.toISOString()).lte("clock_in", addDays(end, 1).toISOString()),
-            supabase.from("leave_requests").select("*").eq("organization_id", orgId)
-                .lte("date_start", iso(end)).gte("date_end", iso(start))
+        const [m, s, r, n] = await Promise.all([
+            supabase.from("memberships").select("*").eq("organization_id", org!.id).eq("active", true).order("full_name"),
+            supabase.from("shifts").select("*").eq("organization_id", org!.id).gte("shift_date", from).lte("shift_date", to),
+            reqQ,                                                  // table may not exist yet (migration 002) -> empty
+            supabase.from("roster_notes").select("*").eq("organization_id", org!.id)
         ]);
-
-        const pending: Record<string, number> = {};
-        (e.data ?? []).forEach((x: any) => { pending[x.membership_id] = (pending[x.membership_id] ?? 0) + 1; });
-
-        setData({ members: (m.data ?? []) as Membership[], shifts: (s.data ?? []) as Shift[], pending, leave: (l.data ?? []) as LeaveRequest[], changes: [] });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [org, isMonth, startKey, monthKey, dayCount]);
+        setData({
+            members: (m.data ?? []) as Membership[], shifts: (s.data ?? []) as Shift[],
+            requests: (r.data ?? []) as ShiftRequest[], notes: (n.data ?? []) as RosterNote[]
+        });
+    }, [org, me, isManager, weeks]);
 
     useEffect(() => { void load(); }, [load]);
 
-    const { save, create } = useShiftEdit(load);
+    const byDate = useMemo(() => {
+        const map = new Map<string, Entry[]>();
+        const add = (d: string, e: Entry) => { if (e.member) map.set(d, [...(map.get(d) ?? []), e]); };
+        const member = (id: string) => data.members.find(x => x.id === id);
+        data.shifts.forEach(s => add(s.shift_date, { key: s.id, code: s.shift_code ?? null, member: member(s.membership_id), shift: s }));
+        data.requests.forEach(r => add(r.request_date, { key: r.id, code: r.shift_code, member: member(r.membership_id), req: r }));
+        const rank = (c: string | null) => { const i = types.findIndex(t => t.code === c); return i < 0 ? 99 : i; };
+        map.forEach(l => l.sort((a, b) => rank(a.code) - rank(b.code) || lastName(a.member).localeCompare(lastName(b.member))));
+        return map;
+    }, [data, types]);
 
-    function changeMode(m: string) {
-        if (m === "month" && mode !== "month") setMonthDate(startOfMonth(selected));
-        setMode(m);
-        localStorage.setItem(MODE_KEY, m);
+    // "Employee works 6 days non stop!"
+    const warnings = useMemo(() => {
+        const out: string[] = [];
+        const days = new Map<string, Set<string>>();
+        data.shifts.forEach(s => {
+            if (isOff(typeOf(s.shift_code))) return;
+            days.set(s.membership_id, (days.get(s.membership_id) ?? new Set()).add(s.shift_date));
+        });
+        days.forEach((set, id) => {
+            let run = 0, prev = 0;
+            [...set].sort().forEach(d => {
+                const t = parseDate(d).getTime();
+                run = t - prev === 86400000 ? run + 1 : 1;
+                prev = t;
+                if (run === 6) out.push(`${lastName(data.members.find(m => m.id === id))} works 6 days non stop!`);
+            });
+        });
+        return out;
+    }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const pushUndo = (fn: () => Promise<unknown>) => setUndo(u => [...u, fn]);
+
+    async function doUndo() {
+        const fn = undo[undo.length - 1];
+        if (!fn) return;
+        setUndo(u => u.slice(0, -1));
+        await fn();
+        await load();
+        say("Undone", "info");
     }
 
-    function onDateInput(value: string) {
-        const [y, m, d] = value.split("-").map(Number);
-        // ignore partial input while typing (don't rewrite the field)
-        if (!y || !m || !d || y < 1900 || y > 2200) return;
-        center(new Date(y, m - 1, d));
+    function toggle(d: string) {
+        // employees can only pick days where they have nothing yet
+        if (!isManager && (byDate.get(d) ?? []).some(e => e.member?.id === me!.id)) {
+            say("You already have an entry on that day", "info");
+            return;
+        }
+        setSelected(s => { const n = new Set(s); if (!n.delete(d)) n.add(d); return n; });
     }
 
-    const stepDays = (n: number) => { const s = addDays(start, n); setStart(s); setSelected(s); };
-    const stepMonth = (n: number) => setMonthDate(d => new Date(d.getFullYear(), d.getMonth() + n, 1));
+    // ---------- writes (return an error string, or null on success) ----------
 
-    const thisYear = new Date().getFullYear();
-    const years = Array.from({ length: 11 }, (_, i) => thisYear - 5 + i);
+    function rowOf(f: RosterForm, date: string) {
+        const off = isOff(typeOf(f.code));
+        return {
+            organization_id: org!.id, membership_id: f.membershipId, shift_date: date,
+            start_time: off ? OFF_START : f.start + ":00", end_time: off ? OFF_END : f.end + ":00",
+            shift_code: f.code, area_label: off ? null : f.area || null, role_label: off ? null : f.role || null
+        };
+    }
 
-    const centerBar = isMonth ? (
-        <div id="monthNavBar" className="month-nav">
-            <button className="rack-nav-btn" onClick={() => stepMonth(-1)} title="Previous month">&#9664;</button>
-            <select className="month-picker-select" value={monthDate.getMonth()}
-                onChange={e => setMonthDate(new Date(monthDate.getFullYear(), Number(e.target.value), 1))}>
-                {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
-            </select>
-            <select className="month-picker-select" value={monthDate.getFullYear()}
-                onChange={e => setMonthDate(new Date(Number(e.target.value), monthDate.getMonth(), 1))}>
-                {years.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-            <button className="rack-nav-btn" onClick={() => stepMonth(1)} title="Next month">&#9654;</button>
-        </div>
-    ) : (
-        <input type="date" ref={dateRef} className="sched-date-input" defaultValue={iso(selected)}
-            onChange={e => onDateInput(e.target.value)} />
-    );
+    async function overlap(f: RosterForm, dates: string[], exclude?: string): Promise<string | null> {
+        const r = rowOf(f, dates[0]);
+        for (const d of dates) {
+            const { conflicts, error } = await findShiftConflicts(org!.id, f.membershipId, d, r.start_time, r.end_time, exclude);
+            if (error) return "Failed to check for conflicts";
+            if (conflicts.length) return `Overlaps another shift on ${d.slice(8)}.${d.slice(5, 7)}.`;
+        }
+        return null;
+    }
 
-    const right = (
-        <>
-            <div className="rack-view-toggle">
-                {MODES.map(([v, label]) => (
-                    <button key={v} className={"rack-view-btn" + (mode === v ? " active" : "")} onClick={() => changeMode(v)}>{label}</button>
-                ))}
-            </div>
-            <select className="rack-view-select-mobile" value={mode} onChange={e => changeMode(e.target.value)}>
-                {MODES.map(([v, , long]) => <option key={v} value={v}>{long}</option>)}
-            </select>
-        </>
-    );
+    async function submit(spec: PopupSpec, f: RosterForm, dates: string[]): Promise<string | null> {
+
+        if (spec.mode === "assign" && !isManager) {                       // employee -> request
+            const off = isOff(typeOf(f.code));
+            const rows = dates.map(d => ({
+                organization_id: org!.id, membership_id: me!.id, request_date: d, shift_code: f.code,
+                area_label: off ? null : f.area || null, role_label: off ? null : f.role || null,
+                start_time: off ? OFF_START : f.start + ":00", end_time: off ? OFF_END : f.end + ":00", status: "pending"
+            }));
+            const { data: ins, error } = await supabase.from("shift_requests").insert(rows).select("id");
+            if (error) return error.code === "PGRST205" ? "Table shift_requests missing — run backend/sql/002_roster.sql." : error.message;
+            const ids = ins!.map(x => x.id);
+            pushUndo(async () => { await supabase.from("shift_requests").delete().in("id", ids); });
+            say("Request sent — waiting for approval", "success");
+
+        } else if (spec.mode === "assign") {                              // manager -> applied at once
+            const err = await overlap(f, dates);
+            if (err) return err;
+            const { data: ins, error } = await insertShifts(dates.map(d => ({ ...rowOf(f, d), status: "published", created_by: uid, updated_by: uid })));
+            if (error) return error.message;
+            const ids = ins!.map(x => x.id);
+            pushUndo(async () => { await supabase.from("shifts").delete().in("id", ids); });
+            say("Shift assigned", "success");
+
+        } else if (spec.mode === "edit") {
+            const old = spec.shift;
+            const err = await overlap(f, [f.date], old.id);
+            if (err) return err;
+            const { organization_id: _o, ...patch } = rowOf(f, f.date);
+            const e = await updateShift(old.id, { ...patch, updated_by: uid });
+            if (e) return e.message;
+            pushUndo(async () => {
+                await updateShift(old.id, {
+                    shift_date: old.shift_date, membership_id: old.membership_id, start_time: old.start_time, end_time: old.end_time,
+                    shift_code: old.shift_code ?? null, area_label: old.area_label ?? null, role_label: old.role_label
+                });
+            });
+            say("Shift updated", "success");
+
+        } else {                                                          // approve (as is, or edited)
+            const req = spec.req;
+            const err = await overlap(f, [f.date]);
+            if (err) return err;
+            const { data: ins, error } = await insertShifts([{ ...rowOf(f, f.date), status: "published", created_by: uid, updated_by: uid }]);
+            if (error) return error.message;
+            const sid = ins![0].id;
+            await supabase.from("shift_requests").update({ status: "approved", reviewed_by: uid, reviewed_at: new Date().toISOString() }).eq("id", req.id);
+            pushUndo(async () => {
+                await supabase.from("shifts").delete().eq("id", sid);
+                await supabase.from("shift_requests").update({ status: "pending", reviewed_by: null, reviewed_at: null }).eq("id", req.id);
+            });
+            say("Request approved", "success");
+        }
+
+        setSelected(new Set());
+        await load();
+        return null;
+    }
+
+    async function removeOrReject(spec: PopupSpec): Promise<string | null> {
+        if (spec.mode === "edit") {
+            const old = spec.shift;
+            const { error } = await supabase.from("shifts").delete().eq("id", old.id);
+            if (error) return error.message;
+            pushUndo(async () => { await insertShifts([old as unknown as Record<string, unknown>]); });
+            say("Shift deleted", "success");
+        } else if (spec.mode === "request") {
+            const req = spec.req;
+            const { error } = await supabase.from("shift_requests").delete().eq("id", req.id);
+            if (error) return error.message;
+            pushUndo(async () => { await supabase.from("shift_requests").insert(req); });
+            say("Request rejected", "success");
+        }
+        await load();
+        return null;
+    }
+
+    // ---------- render ----------
+
+    const weekdayName = (i: number) =>   // 2024-01-01 is a Monday
+        new Intl.DateTimeFormat(user.language, { weekday: width > 700 ? "long" : "short" }).format(new Date(2024, 0, 1 + i));
+    const monthName = new Intl.DateTimeFormat(user.language, { month: "long", year: "numeric" }).format(month);
+    const today = startOfToday();
+    const sorted = [...selected].sort();
 
     return (
-        <Page title="Schedule" className="rack-page" center={centerBar} right={right}>
+        <div className="dsh">
+            <div className="dsh-h"><h2>Roster</h2></div>
 
-            {isMonth ? (
-                <Month monthDate={monthDate} members={data.members} shifts={data.shifts} changes={data.changes}
-                    onPopup={setPopup} onStep={stepMonth} save={save} />
-            ) : (
-                <Rack days={Array.from({ length: dayCount }, (_, i) => addDays(start, i))} colW={colW}
-                    members={data.members} shifts={data.shifts} pending={data.pending} leave={data.leave}
-                    onShift={stepDays} save={save} />
-            )}
+            <div className="ro-panel">
+                <div className="ro-bar">
+                    <div className="ro-side">
+                        <h2>{monthName}</h2>
+                        <button className="ro-btn" onClick={() => say("Filter: coming soon", "info")}>Filter</button>
+                    </div>
+
+                    <div className="ro-side">
+                        <button className="ro-btn" onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}>Prev.</button>
+                        <button className="ro-btn" onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}>Next</button>
+                        <select className="ro-btn" value="month" onChange={() => undefined}>
+                            <option value="month">Month</option>
+                            <option value="week" disabled>Weekly (soon)</option>
+                        </select>
+                    </div>
+
+                    <div className="ro-side">
+                        {undo.length > 0 && <button className="ro-btn" onClick={doUndo}>Undo</button>}
+                        <button className="ro-btn" onClick={() => setPopup({ mode: "assign", dates: sorted })}>
+                            Assign{sorted.length ? ` (${sorted.length})` : ""}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="ro-grid">
+                    <div className="ro-row ro-head">
+                        {Array.from({ length: 7 }, (_, i) => <div key={i} className={i >= 5 ? "we" : i % 2 ? "alt" : ""}>{weekdayName(i)}</div>)}
+                    </div>
+
+                    <div className="ro-row ro-notes">
+                        {Array.from({ length: 7 }, (_, i) => (
+                            <div key={i} className={i >= 5 ? "we" : i % 2 ? "alt" : ""}>
+                                {data.notes.filter(n => n.weekday === i + 1).map(n => n.text).join(" · ")}
+                            </div>
+                        ))}
+                    </div>
+
+                    {weeks.map((w, wi) => (
+                        <div key={wi} className="ro-row">
+                            {w.map((d, i) => {
+                                const key = iso(d);
+                                return (
+                                    <DayCell key={key} date={d} other={d.getMonth() !== month.getMonth()} alt={i % 2 === 1} weekend={i >= 5}
+                                        today={isSameDay(d, today)} selected={selected.has(key)} cols={cols} slots={cap - 1}
+                                        entries={byDate.get(key) ?? []} manager={isManager} color={colorOf}
+                                        info={data.notes.filter(n => n.note_date === key).map(n => n.text).join("\n")}
+                                        onToggle={() => toggle(key)}
+                                        onShift={s => setPopup({ mode: "edit", shift: s })}
+                                        onReq={r => setPopup({ mode: "request", req: r })}
+                                        onGroup={(title, list) => setGroup({ title, list })} />
+                                );
+                            })}
+                        </div>
+                    ))}
+                </div>
+
+                {warnings.length > 0 && (
+                    <div className="ro-warn">⚠ {warnings.slice(0, 3).join("  ·  ")}{warnings.length > 3 ? `  ·  +${warnings.length - 3}` : ""}</div>
+                )}
+            </div>
 
             {popup && (
-                <ShiftPopup spec={popup} members={data.members} shifts={data.shifts} changes={data.changes}
-                    onClose={() => setPopup(null)} onCreate={create}
-                    onSave={(s, f) => save(s.id, s.membership_id, {
-                        shift_date: s.shift_date, start_time: f.start + ":00", end_time: f.end + ":00", role_label: f.role
-                    })} />
+                <AssignPopup key={popup.mode + (popup.mode === "edit" ? popup.shift.id : popup.mode === "request" ? popup.req.id : "")}
+                    spec={popup} members={data.members} types={types} areas={areas} roles={roles}
+                    isManager={isManager} meId={me!.id} onClose={() => setPopup(null)}
+                    onSubmit={(f, d) => submit(popup, f, d)}
+                    onDelete={popup.mode === "assign" ? undefined : () => removeOrReject(popup)} />
             )}
-        </Page>
+
+            {group && (
+                <Modal title={group.title} onClose={() => setGroup(null)}>
+                    {group.list.map(e => (
+                        <button key={e.key} className="ro-pick" onClick={() => {
+                            setGroup(null);
+                            setPopup(e.shift ? { mode: "edit", shift: e.shift } : { mode: "request", req: e.req! });
+                        }}>{e.member?.full_name}{e.req ? " (request)" : ""}</button>
+                    ))}
+                </Modal>
+            )}
+        </div>
     );
 }

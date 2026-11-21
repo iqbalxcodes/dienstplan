@@ -1,7 +1,14 @@
 // Mirrors the Supabase tables (backend/sql/schema.sql).
 export type MembershipRole = "employee" | "manager" | "admin";
 
-export interface ShiftType { code: string; name: string; color: string; }   // e.g. F / S / FX
+export interface ShiftType {
+    code: string;                    // F, FX, M, U, Sch ...
+    name: string;
+    color: string;
+    kind?: "work" | "off";           // off = U, Sch (no area/role/times)
+    start?: string;                  // default "HH:MM" for work types
+    end?: string;
+}
 
 export interface OrganizationSettings {
     shift_types?: ShiftType[];       // admin-defined shift codes + colors
@@ -125,3 +132,23 @@ export interface HoursSummary {
 export const DEFAULT_ROLES = ["Service crew", "Kitchen", "Bar", "Cashier", "Runner"];
 export const DEFAULT_AREAS = ["Restaurant"];
 export const DEFAULT_SHIFT_COLOR = "#17a53a";
+
+export interface ShiftRequest {
+    id: string;
+    organization_id: string;
+    membership_id: string;
+    request_date: string;
+    shift_code: string | null;
+    area_label: string | null;
+    role_label: string | null;
+    start_time: string;
+    end_time: string;
+    status: EntryStatus;
+}
+
+export interface RosterNote {
+    id: string;
+    note_date: string | null;        // specific day -> "i" icon on that date
+    weekday: number | null;          // 1=Mon..7=Sun, recurring (row under the weekday names)
+    text: string;
+}
