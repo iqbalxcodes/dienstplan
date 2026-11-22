@@ -7,6 +7,7 @@ import { useAuth } from "../lib/auth";
 import { useSettings } from "../lib/i18n";
 import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
+import { useCompact } from "../lib/useCompact";
 import { addDays, iso, parseDate, startOfMonth, startOfToday } from "../lib/dates";
 import { buildWeeks } from "../lib/roster";
 import type { EntryStatus, LeaveRequest, LeaveType, Membership } from "../lib/types";
@@ -48,6 +49,7 @@ function Section({ m, type, title, label, list, stats, reload }: SectionProps) {
     const { org } = useAuth();
     const { settings: user } = useSettings();
     const { say } = useStatus();
+    const compact = useCompact();
     const [month, setMonth] = useState(() => startOfMonth(startOfToday()));
     const [sel, setSel] = useState<Set<string>>(new Set());
     const [staged, setStaged] = useState<Range[][]>([]);          // assigned, not sent yet (one batch per Assign)
@@ -90,7 +92,7 @@ function Section({ m, type, title, label, list, stats, reload }: SectionProps) {
         reload();
     }
 
-    const weekday = (i: number) => new Intl.DateTimeFormat(user.language, { weekday: "long" }).format(new Date(2024, 0, 1 + i));
+    const weekday = (i: number) => new Intl.DateTimeFormat(user.language, { weekday: compact ? "short" : "long" }).format(new Date(2024, 0, 1 + i));
     const monthName = new Intl.DateTimeFormat(user.language, { month: "long", year: "numeric" }).format(month);
     const col = (i: number) => (i >= 5 ? "we" : i % 2 ? "alt" : "");
     const step = (n: number) => setMonth(x => new Date(x.getFullYear(), x.getMonth() + n, 1));

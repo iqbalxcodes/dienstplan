@@ -84,14 +84,14 @@ export function AssignPopup(p: Props) {
 
                 <label>Employee</label>
                 <select value={f.membershipId} disabled={!p.isManager} onChange={e => set({ membershipId: e.target.value })}>
-                    <option value="">- select -</option>
+                    <option value="">Select</option>
                     {p.isManager && p.spec.mode !== "request" && <option value={OPEN}>Open Shift</option>}
                     {p.members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
                 </select>
 
                 <label>Shift</label>
                 <select value={f.code} onChange={e => pickShift(e.target.value)}>
-                    <option value="">- select -</option>
+                    <option value="">Select</option>
                     {withCurrent(p.types.map(t => t.code), f.code).map(c => {
                         const t = p.types.find(x => x.code === c);
                         return <option key={c} value={c}>{t ? `${c} - ${t.name}` : c}</option>;
@@ -102,13 +102,13 @@ export function AssignPopup(p: Props) {
                     <>
                         <label>Area</label>
                         <select value={f.area} onChange={e => set({ area: e.target.value })}>
-                            <option value="">- select -</option>
+                            <option value="">Select</option>
                             {withCurrent(p.areas, f.area).map(a => <option key={a} value={a}>{a}</option>)}
                         </select>
 
                         <label>Role</label>
                         <select value={f.role} onChange={e => set({ role: e.target.value })}>
-                            <option value="">- select -</option>
+                            <option value="">Select</option>
                             {withCurrent(p.roles, f.role).map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
 
@@ -130,7 +130,8 @@ export function AssignPopup(p: Props) {
                         }}>{p.spec.mode === "edit" ? "Delete" : "Reject"}</button>
                     )}
                     <button onClick={p.onClose}>Cancel</button>
-                    <button className="primary" disabled={!valid || busy} onClick={() => run(() => p.onSubmit(f, ds))}>{submitLabel}</button>
+                    <button className={"primary" + (submitLabel === "Approve" ? " ok" : "")} disabled={!valid || busy}
+                        onClick={() => run(() => p.onSubmit(f, ds))}>{submitLabel}</button>
                 </div>
             </div>
         </div>

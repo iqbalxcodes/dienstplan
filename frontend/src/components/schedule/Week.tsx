@@ -2,6 +2,7 @@
 import { iso, isSameDay } from "../../lib/dates";
 import { isOff, NO_CODE_COLOR, OPEN } from "../../lib/roster";
 import { getShiftRange } from "../../lib/shifts";
+import { useCompact } from "../../lib/useCompact";
 import type { Membership, RosterNote, Shift, ShiftRequest, ShiftType } from "../../lib/types";
 import type { Entry } from "../../pages/Schedule";
 
@@ -24,12 +25,14 @@ interface Props {
 
 const hm = (t: string) => t.slice(0, 5);
 const hours = (s: Shift) => { const r = getShiftRange(s.shift_date, s.start_time, s.end_time); return Math.max(0, r.end - r.start - (s.break_minutes ?? 0)) / 60; };
+const p2 = (n: number) => String(n).padStart(2, "0");
 
 export function Week(p: Props) {
 
-    const typeOf = (c?: string | null) => p.types.find(t => t.code === c);
-    const colorOf = (c?: string | null) => typeOf(c)?.color ?? NO_CODE_COLOR;
-    const weekday = new Intl.DateTimeFormat(p.lang, { weekday: "long" });
+    const c = useCompact();
+    const typeOf = (code?: string | null) => p.types.find(t => t.code === code);
+    const colorOf = (code?: string | null) => typeOf(code)?.color ?? NO_CODE_COLOR;
+    const weekday = new Intl.DateTimeFormat(p.lang, { weekday: c ? "short" : "long" });   // de short = Mo. Di. Mi.
     const cols = (i: number) => (i >= 5 ? "we" : "");
 
     // managers always see the Open Shift row (to assign into it); employees only when this week has one
@@ -42,9 +45,14 @@ export function Week(p: Props) {
         <div className="ro-grid wk">
             <div className="ro-row wk-row ro-head">
                 <div />
-                {p.days.map((d, i) => (
-                    <div key={i} className={cols(i)}>{weekday.format(d)}, {String(d.getDate()).padStart(2, "0")}.{String(d.getMonth() + 1).padStart(2, "0")}.</div>
-                ))}
+                {p.days.map((d, i) => {
+                    const dd = `${p2(d.getDate())}.${p2(d.getMonth() + 1)}.`;
+                    return (
+                        <div key={i} className={cols(i)}>
+                            {c ? <><b>{weekday.format(d)}</b><span>{dd}</span></> : `${weekday.format(d)}, ${dd}`}
+                        </div>
+                    );
+                })}
             </div>
 
             <div className="ro-row wk-row ro-notes">
@@ -102,7 +110,7 @@ export function Week(p: Props) {
                                                     <span>{e.code}{e.open && e.claims ? ` (${e.claims})` : ""}</span>
                                                     <span>{e.shift ? hours(e.shift).toFixed(2) : ""}</span>
                                                 </div>
-                                                <div className="wk-time">{hm(s.start_time)} - {hm(s.end_time)}</div>
+                                                <div className="wk-time">{hm(s.start_time)}{c ? "-" : " - "}{hm(s.end_time)}</div>
                                                 <div className="wk-area">{[s.area_label, s.role_label].filter(Boolean).join(" - ")}</div>
                                             </div>
                                         );

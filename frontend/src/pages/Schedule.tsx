@@ -11,6 +11,7 @@ import { useSettings } from "../lib/i18n";
 import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
 import { getMembers } from "../lib/cache";
+import { useCompact } from "../lib/useCompact";
 import { addDays, isoWeek, isSameDay, iso, parseDate, startOfMonth, startOfToday, startOfWeek } from "../lib/dates";
 import {
     buildWeeks, insertShifts, isOff, lastName, NO_CODE_COLOR, OFF_END, OFF_START, OPEN,
@@ -86,6 +87,7 @@ export default function Schedule() {
     const { org, me, isManager } = useAuth();
     const { settings: user } = useSettings();
     const { say, setNotice } = useStatus();
+    const compact = useCompact();
     const [mode, setMode] = useState<"week" | "month">("week");
     const [date, setDate] = useState(startOfToday);   // any day inside the shown week/month
     const [width, setWidth] = useState(window.innerWidth);
@@ -106,7 +108,7 @@ export default function Schedule() {
     const uid = me!.user_id;
 
     // cards per day (month): wide 6 (3x2) · medium 4 (2x2) · phone 2 (1 col)
-    const cap = width > 1100 ? 6 : width > 700 ? 4 : 2;
+    const cap = compact ? 2 : width > 1100 ? 6 : 4;
     const cols = cap === 6 ? 3 : cap === 4 ? 2 : 1;
     const month = startOfMonth(date);
     const weekStart = startOfWeek(date);
@@ -410,7 +412,7 @@ export default function Schedule() {
     // ---------- render ----------
 
     const weekdayName = (i: number) =>   // 2024-01-01 is a Monday
-        new Intl.DateTimeFormat(user.language, { weekday: width > 700 ? "long" : "short" }).format(new Date(2024, 0, 1 + i));
+        new Intl.DateTimeFormat(user.language, { weekday: compact ? "short" : "long" }).format(new Date(2024, 0, 1 + i));
     const monthName = new Intl.DateTimeFormat(user.language, { month: "long", year: "numeric" }).format(month);
     const today = startOfToday();
     const sorted = [...selected].sort();

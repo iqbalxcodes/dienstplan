@@ -101,7 +101,7 @@ function EntryRow({ e, text, onSave, onApprove, onDelete }: RowProps) {
             )}
             <span className="entry-item"><Clock size={22} />{a && b ? duration(a, b) : "-"}</span>
             <span className="entry-item"><FileText size={22} /><span className="entry-note">{text || "-"}</span></span>
-            <div className="mg-act">
+            <div className="mg-act er">
                 <button className="mg-btn" onClick={edit ? done : start}>{edit ? "Done" : "Edit"}</button>
                 <button className="mg-btn" onClick={edit ? onDelete : onApprove}>{edit ? "Delete" : "Approve"}</button>
             </div>
