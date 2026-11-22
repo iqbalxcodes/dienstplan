@@ -55,12 +55,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!session) { apply(null); setReady(true); return; }
 
-        const { data: mine, error } = await supabase
+        const find = () => supabase
             .from("memberships")
             .select("*, organization:organizations(*)")
             .eq("user_id", session.user.id)
             .eq("active", true);
 
+        let { data: mine, error } = await find();
+
+        // invited by e-mail: link the crew row(s) that carry this (confirmed) e-mail, then look again
+        if (!error && mine?.length === 0) {
+            const { data: linked } = await supabase.rpc("claim_membership");
+            if (linked) ({ data: mine, error } = await find());
+        }
+        
         if (error || !mine || mine.length === 0) {
             if (error) console.error("Failed to load memberships", error);
             apply(null);

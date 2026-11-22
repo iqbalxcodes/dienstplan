@@ -431,12 +431,15 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
         void load();
     }
 
+    // no login yet -> invite (the link creates the account, claim_membership() links it); otherwise password recovery
     async function recover(m: Membership) {
         if (!m.email) { alert("This member has no email yet \u2014 add one first."); return; }
-        const { error } = await supabase.auth.resetPasswordForEmail(m.email, { redirectTo: `${window.location.origin}/reset` });
+        const { error } = m.user_id
+            ? await supabase.auth.resetPasswordForEmail(m.email, { redirectTo: `${window.location.origin}/reset` })
+            : await supabase.auth.signInWithOtp({ email: m.email, options: { shouldCreateUser: true, emailRedirectTo: window.location.origin } });
         if (error) { alert(error.message); return; }
-        await supabase.rpc("log_recovery_sent", { p_email: m.email });
-        say(`Recovery email sent to ${m.email}`, "success");
+        if (m.user_id) await supabase.rpc("log_recovery_sent", { p_email: m.email });
+        say(`${m.user_id ? "Recovery" : "Invitation"} email sent to ${m.email}`, "success");
     }
 
     return (
@@ -466,7 +469,7 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
 
                             <div className="mg-btns" onClick={e => e.stopPropagation()}>
                                 <button className="mg-btn" onClick={() => start(m)}>Edit</button>
-                                <button className="mg-btn" disabled={!(m.email && m.active)} onClick={() => recover(m)}>Recover</button>
+                                <button className="mg-btn" disabled={!(m.email && m.active)} onClick={() => recover(m)}>{m.user_id ? "Recover" : "Invite"}</button>
                                 <button className="mg-btn" onClick={() => toggleActive(m)}>{m.active ? "Deactivate" : "Reactivate"}</button>
                             </div>
                         </div>
