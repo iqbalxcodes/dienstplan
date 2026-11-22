@@ -1,5 +1,6 @@
 // Freiwünsche & Urlaub: two blocks, same mechanics.
 // Select days -> Assign (popup, type fixed) -> Send (inserts pending leave_requests).
+// LeaveSections is reused by the Manager page for a selected crew member.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Modal } from "../components/Modal";
 import { useAuth } from "../lib/auth";
@@ -8,7 +9,7 @@ import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
 import { addDays, iso, parseDate, startOfMonth, startOfToday } from "../lib/dates";
 import { buildWeeks } from "../lib/roster";
-import type { EntryStatus, LeaveRequest, LeaveType } from "../lib/types";
+import type { EntryStatus, LeaveRequest, LeaveType, Membership } from "../lib/types";
 
 interface Range { from: string; to: string; reason: string; }
 type Item = Pick<LeaveRequest, "date_start" | "date_end"> & { status: string };
@@ -37,20 +38,23 @@ const sixWeeks = (month: Date) => {
     return w;
 };
 
-interface SectionProps { type: LeaveType; title: string; label: string; list: LeaveRequest[]; stats?: [string, number][]; reload: () => void; }
+interface SectionProps {
+    m: Membership; type: LeaveType; title: string; label: string;
+    list: LeaveRequest[]; stats?: [string, number][]; reload: () => void;
+}
 
-function Section({ type, title, label, list, stats, reload }: SectionProps) {
+function Section({ m, type, title, label, list, stats, reload }: SectionProps) {
 
-    const { org, me } = useAuth();
+    const { org } = useAuth();
     const { settings: user } = useSettings();
     const { say } = useStatus();
     const [month, setMonth] = useState(() => startOfMonth(startOfToday()));
     const [sel, setSel] = useState<Set<string>>(new Set());
-    const [staged, setStaged] = useState<Range[][]>([]);     // assigned, not sent yet (one batch per Assign)
-    const [reason, setReason] = useState<string | null>(null);   // non-null = popup open
+    const [staged, setStaged] = useState<Range[][]>([]);          // assigned, not sent yet (one batch per Assign)
+    const [reason, setReason] = useState<string | null>(null);    // non-null = popup open
     const today = startOfToday();
     const weeks = useMemo(() => sixWeeks(month), [month]);
-    const work = type === "urlaub";                           // Urlaub counts Mon-Fri only
+    const work = type === "urlaub";                                // Urlaub counts Mon-Fri only
     const flat = staged.flat();
 
     // rejected last so a newer request on the same day wins
@@ -77,7 +81,7 @@ function Section({ type, title, label, list, stats, reload }: SectionProps) {
     async function send() {
         if (!flat.length) { say("Nothing to send", "info"); return; }
         const { error } = await supabase.from("leave_requests").insert(flat.map(r => ({
-            organization_id: org!.id, membership_id: me!.id, type,
+            organization_id: org!.id, membership_id: m.id, type,
             date_start: r.from, date_end: r.to, reason: r.reason || null, status: "pending"
         })));
         if (error) { say(error.message, "error"); return; }
@@ -89,7 +93,7 @@ function Section({ type, title, label, list, stats, reload }: SectionProps) {
     const weekday = (i: number) => new Intl.DateTimeFormat(user.language, { weekday: "long" }).format(new Date(2024, 0, 1 + i));
     const monthName = new Intl.DateTimeFormat(user.language, { month: "long", year: "numeric" }).format(month);
     const col = (i: number) => (i >= 5 ? "we" : i % 2 ? "alt" : "");
-    const step = (n: number) => setMonth(m => new Date(m.getFullYear(), m.getMonth() + n, 1));
+    const step = (n: number) => setMonth(x => new Date(x.getFullYear(), x.getMonth() + n, 1));
 
     return (
         <>
@@ -181,16 +185,16 @@ function Section({ type, title, label, list, stats, reload }: SectionProps) {
     );
 }
 
-export default function Hours() {
+export function LeaveSections({ m, name }: { m: Membership; name?: string }) {
 
-    const { org, me } = useAuth();
+    const { org } = useAuth();
     const [list, setList] = useState<LeaveRequest[]>([]);
 
     const load = useCallback(async () => {
         const { data } = await supabase.from("leave_requests").select("*")
-            .eq("organization_id", org!.id).eq("membership_id", me!.id).order("date_start");
+            .eq("organization_id", org!.id).eq("membership_id", m.id).order("date_start");
         setList((data ?? []) as LeaveRequest[]);
-    }, [org, me]);
+    }, [org, m.id]);
 
     useEffect(() => { void load(); }, [load]);
 
@@ -210,11 +214,17 @@ export default function Hours() {
         ["Genommener Urlaub", taken], ["Geplanter Urlaub", planned], ["Beantragter Urlaub", asked],
         ["Resturlaub aktuell", total - taken - planned - asked]
     ];
+    const sfx = name ? ` — ${name}` : "";
 
     return (
-        <div className="dsh">
-            <Section type="freiwunsch" title="Freiwünsche" label="Frei" list={list.filter(l => l.type === "freiwunsch")} reload={load} />
-            <Section type="urlaub" title="Urlaub" label="Urlaub" list={vac} stats={stats} reload={load} />
-        </div>
+        <>
+            <Section m={m} type="freiwunsch" title={`Freiwünsche${sfx}`} label="Frei" list={list.filter(l => l.type === "freiwunsch")} reload={load} />
+            <Section m={m} type="urlaub" title={`Urlaub${sfx}`} label="Urlaub" list={vac} stats={stats} reload={load} />
+        </>
     );
+}
+
+export default function Hours() {
+    const { me } = useAuth();
+    return <div className="dsh"><LeaveSections m={me!} /></div>;
 }

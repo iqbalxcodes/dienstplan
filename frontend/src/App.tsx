@@ -19,13 +19,12 @@ export default function App() {
                 <Route index element={<Dashboard />} />
                 <Route path="schedule" element={<Schedule />} />
                 <Route path="hours" element={<Hours />} />
+                <Route path="zeiterfassung" element={<Zeiterfassung />} />
                 <Route path="manager" element={<RequireRole><Manager /></RequireRole>} />
                 <Route path="admin" element={<RequireRole admin><Admin /></RequireRole>} />
                 <Route path="history" element={<RequireRole><History /></RequireRole>} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
-                <Route path="zeiterfassung" element={<Zeiterfassung />} />
-                <Route path="manager/crew/:id" element={<RequireRole><Zeiterfassung /></RequireRole>} />
             </Route>
         </Routes>
     );

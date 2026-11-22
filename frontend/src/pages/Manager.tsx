@@ -1,7 +1,8 @@
-// Manager: Crew cards, Pending Shift Approval, Complaints, Leave Request.
-// Edit = inline edit mode (Edit->Done, Approve->Delete).
+// Manager: Crew cards (click = select) + either the default panels (Pending Shift Approval,
+// Complaints, Leave Request) or, with a crew member selected, their Zeiterfassung + Freiwünsche/Urlaub.
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { CircleArrowOutUpRight, CircleArrowRight, Clock, FileText, MapPin } from "lucide-react";
+import { Modal } from "../components/Modal";
 import { useAuth } from "../lib/auth";
 import { useLog } from "../lib/activity";
 import { useStatus } from "../lib/status";
@@ -10,8 +11,8 @@ import { addDays, duration, fmtDT, parseDate, toLocalInput } from "../lib/dates"
 import { fetchEvidence } from "../lib/complaints";
 import { findShiftConflicts } from "../lib/shifts";
 import { LEAVE_LABELS, type LeaveType, type Membership } from "../lib/types";
-import { Modal } from "../components/Modal";
-import { useNavigate } from "react-router-dom";
+import { TimesheetBody } from "./Zeiterfassung";
+import { LeaveSections } from "./Hours";
 
 const now = () => new Date().toISOString();
 const uid = async () => (await supabase.auth.getUser()).data.user?.id ?? null;
@@ -284,7 +285,7 @@ function LeavePanel() {
 
 const BLANK = { first: "", last: "", role: "employee", contract: "", hours: "40", job: "", phone: "", email: "" };
 
-function Crew() {
+function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | null) => void }) {
 
     const { org } = useAuth();
     const log = useLog();
@@ -292,7 +293,6 @@ function Crew() {
     const [list, setList] = useState<Membership[]>([]);
     const [edit, setEdit] = useState<Membership | null>(null);
     const [d, setD] = useState(BLANK);
-    const nav = useNavigate();
 
     const load = useCallback(async () => {
         const { data } = await supabase.from("memberships").select("*").eq("organization_id", org!.id).order("full_name");
@@ -325,6 +325,7 @@ function Crew() {
         const { error } = await supabase.from("memberships").update(patch).eq("id", m.id);
         if (error) { alert(error.message); return; }
         setEdit(null);
+        if (sel?.id === m.id) onSel({ ...m, ...patch } as Membership);
 
         if (m.role !== patch.role) {
             await log("crew.role_changed", `${full}: ${m.role} \u2192 ${patch.role}`,
@@ -345,6 +346,7 @@ function Crew() {
         if (error) { alert(error.message); return; }
         await log(activate ? "crew.reactivate" : "crew.deactivate",
             `${m.full_name} ${activate ? "reactivated" : "deactivated"}`, {}, "membership", m.id);
+        if (sel?.id === m.id) onSel({ ...m, active: activate });
         void load();
     }
 
@@ -367,7 +369,8 @@ function Crew() {
                 {list.map(m => {
                     const n = split(m.full_name);
                     return (
-                        <div key={m.id} className={"mg-card" + (m.active ? "" : " off")} style={{ cursor: "pointer" }} onClick={() => nav(`/manager/crew/${m.id}`)}>
+                        <div key={m.id} className={"mg-card" + (m.active ? "" : " off") + (sel?.id === m.id ? " sel" : "")}
+                            style={{ cursor: "pointer" }} onClick={() => onSel(sel?.id === m.id ? null : m)}>
                             <span className="mg-av">{m.full_name.charAt(0).toUpperCase()}</span>
 
                             <div className="mg-head">
@@ -427,16 +430,30 @@ function Crew() {
 }
 
 export default function Manager() {
+
+    const [sel, setSel] = useState<Membership | null>(null);
+
     return (
         <div className="dsh">
             <Head title="Crew" />
-            <Crew />
-            <Head title="Pending Shift Approval" />
-            <Approvals />
-            <Head title="Complaints" />
-            <Complaints />
-            <Head title="Leave Request" exp={false} />
-            <LeavePanel />
+            <Crew sel={sel} onSel={setSel} />
+
+            {sel ? (
+                <>
+                    <Head title={`Zeiterfassung — ${sel.full_name}`} />
+                    <TimesheetBody key={sel.id} m={sel} />
+                    <LeaveSections key={sel.id} m={sel} name={sel.full_name} />
+                </>
+            ) : (
+                <>
+                    <Head title="Pending Shift Approval" />
+                    <Approvals />
+                    <Head title="Complaints" />
+                    <Complaints />
+                    <Head title="Leave Request" exp={false} />
+                    <LeavePanel />
+                </>
+            )}
         </div>
     );
 }
