@@ -439,20 +439,20 @@ export default function Manager() {
             <Crew sel={sel} onSel={setSel} />
 
             {sel ? (
-                <>
+                <div key={"sel-" + sel.id}>
                     <Head title={`Zeiterfassung — ${sel.full_name}`} />
-                    <TimesheetBody key={sel.id} m={sel} />
-                    <LeaveSections key={sel.id} m={sel} name={sel.full_name} />
-                </>
+                    <TimesheetBody m={sel} />
+                    <LeaveSections m={sel} name={sel.full_name} />
+                </div>
             ) : (
-                <>
+                <div key="default">
                     <Head title="Pending Shift Approval" />
                     <Approvals />
                     <Head title="Complaints" />
                     <Complaints />
                     <Head title="Leave Request" exp={false} />
                     <LeavePanel />
-                </>
+                </div>
             )}
         </div>
     );
