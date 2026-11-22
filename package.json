@@ -1,8 +1,13 @@
 {
   "devDependencies": {
-    "tsx": "^4.23.15"
+    "tsx": "^4.23.15",
+    "wrangler": "^4.166.0"
   },
   "dependencies": {
     "typescript": "^7.0.2"
+  },
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "preview": "wrangler dev"
   }
 }
