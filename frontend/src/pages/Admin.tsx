@@ -1,10 +1,12 @@
 // Admin settings. Same look as the other pages: blue panels (ro-panel) + white body.
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
+import { Field, Panel } from "../components/Panel";
 import { useAuth } from "../lib/auth";
 import { useLog } from "../lib/activity";
 import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
-import { DEFAULT_ROLES } from "../lib/types";
+import { shiftTypesOf } from "../lib/roster";
+import { DEFAULT_AREAS, DEFAULT_ROLES, type ShiftType } from "../lib/types";
 
 // Supports: /@lat,lng,z · ?q|ll|query=lat,lng · raw "lat, lng"
 function parseMapsInput(raw: string): [number, number] | null {
@@ -17,18 +19,65 @@ function parseMapsInput(raw: string): [number, number] | null {
 
 const num = (v: string) => (v.trim() === "" ? null : Number(v));
 
-function Panel({ title, children }: { title: string; children: ReactNode }) {
+/** Shift presets (F, FX, M, U, Sch ...) + areas. Stored in organizations.settings. */
+function Presets() {
+
+    const { org, patchOrg } = useAuth();
+    const log = useLog();
+    const { say } = useStatus();
+    const s = org!.settings ?? {};
+    const [types, setTypes] = useState<ShiftType[]>(() => shiftTypesOf(s).map(t => ({ ...t })));
+    const [areas, setAreas] = useState((s.areas?.length ? s.areas : DEFAULT_AREAS).join("\n"));
+    const [busy, setBusy] = useState(false);
+
+    const edit = (i: number, patch: Partial<ShiftType>) => setTypes(t => t.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+
+    async function save() {
+        setBusy(true);
+        const shift_types = types.filter(t => t.code.trim()).map(t => ({
+            code: t.code.trim(), name: t.name.trim() || t.code.trim(), color: t.color, kind: t.kind ?? "work",
+            ...((t.kind ?? "work") === "work" ? { start: t.start, end: t.end } : {})
+        }));
+        const settings = { ...s, shift_types, areas: areas.split("\n").map(x => x.trim()).filter(Boolean) };
+
+        const { error } = await supabase.from("organizations").update({ settings }).eq("id", org!.id);
+        setBusy(false);
+        if (error) { say(error.message, "error"); return; }
+
+        patchOrg({ settings });
+        void log("settings.update", "Shift presets updated", { shift_types: shift_types.length });
+        say("Saved", "success");
+    }
+
     return (
-        <div className="ro-panel ad-panel">
-            <div className="ro-bar"><div className="ro-side"><h2>{title}</h2></div></div>
-            <div className="ad-body">{children}</div>
-        </div>
+        <>
+            <span className="plan-entry-meta">Code · name · color · type · default start/end. “Off” types (e.g. U, Sch) fill the whole day.</span>
+            <div>
+                {types.map((t, i) => (
+                    <div key={i} className="preset-row">
+                        <input placeholder="Code" value={t.code} onChange={e => edit(i, { code: e.target.value })} />
+                        <input placeholder="Name" value={t.name} onChange={e => edit(i, { name: e.target.value })} />
+                        <input type="color" value={t.color} onChange={e => edit(i, { color: e.target.value })} />
+                        <select value={t.kind ?? "work"} onChange={e => edit(i, { kind: e.target.value as ShiftType["kind"] })}>
+                            <option value="work">Work</option>
+                            <option value="off">Off</option>
+                        </select>
+                        <input type="time" disabled={t.kind === "off"} value={t.start ?? ""} onChange={e => edit(i, { start: e.target.value })} />
+                        <input type="time" disabled={t.kind === "off"} value={t.end ?? ""} onChange={e => edit(i, { end: e.target.value })} />
+                        <button type="button" onClick={() => setTypes(x => x.filter((_, j) => j !== i))} title="Remove">✕</button>
+                    </div>
+                ))}
+                <button type="button" className="preset-add" onClick={() => setTypes(t => [...t, { code: "", name: "", color: "#6b7280", kind: "work", start: "09:00", end: "17:00" }])}>+ Add shift</button>
+            </div>
+
+            <Field label="Areas — one per line">
+                <textarea rows={4} value={areas} onChange={e => setAreas(e.target.value)} />
+            </Field>
+
+            <div><button className="mg-btn" disabled={busy} onClick={save}>Save presets</button></div>
+        </>
     );
 }
-
-const Field = ({ label, children }: { label: string; children: ReactNode }) => (
-    <div className="ad-f"><label>{label}</label>{children}</div>
-);
 
 export default function Admin() {
 
@@ -152,6 +201,8 @@ export default function Admin() {
                         <Field label="Jahresurlaub (days per year)"><input type="number" min="0" value={f.vac} onChange={set("vac")} /></Field>
                     </div>
                 </Panel>
+
+                <Panel title="Shift Presets"><Presets /></Panel>
             </div>
         </div>
     );
