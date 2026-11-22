@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
-import { Page, Section } from "../components/Page";
+// Admin settings. Same look as the other pages: blue panels (ro-panel) + white body.
+import { useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "../lib/auth";
 import { useLog } from "../lib/activity";
+import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
 import { DEFAULT_ROLES } from "../lib/types";
 
@@ -16,10 +17,24 @@ function parseMapsInput(raw: string): [number, number] | null {
 
 const num = (v: string) => (v.trim() === "" ? null : Number(v));
 
+function Panel({ title, children }: { title: string; children: ReactNode }) {
+    return (
+        <div className="ro-panel ad-panel">
+            <div className="ro-bar"><div className="ro-side"><h2>{title}</h2></div></div>
+            <div className="ad-body">{children}</div>
+        </div>
+    );
+}
+
+const Field = ({ label, children }: { label: string; children: ReactNode }) => (
+    <div className="ad-f"><label>{label}</label>{children}</div>
+);
+
 export default function Admin() {
 
     const { org, patchOrg } = useAuth();
     const log = useLog();
+    const { say } = useStatus();
     const s = org!.settings ?? {};
 
     const zones = useMemo<string[]>(() => {
@@ -37,24 +52,23 @@ export default function Admin() {
         roles: (s.role_labels ?? DEFAULT_ROLES).join("\n"),
         cutoff: String(s.leave_cutoff_days ?? 14),
         min: String(s.shift_min_hours ?? 1),
-        max: String(s.shift_max_hours ?? 16)
+        max: String(s.shift_max_hours ?? 16),
+        vac: String(s.vacation_days ?? 30)
     });
     const [mapsUrl, setMapsUrl] = useState("");
-    const [status, setStatus] = useState("");
     const [busy, setBusy] = useState(false);
 
     const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
 
     function extract() {
         const c = parseMapsInput(mapsUrl);
-        if (!c) { setStatus("\u26a0 Could not find coordinates in that link/text."); return; }
+        if (!c) { say("Could not find coordinates in that link/text.", "error"); return; }
         setF({ ...f, lat: String(c[0]), lng: String(c[1]) });
-        setStatus(`Extracted: ${c[0]}, ${c[1]} \u2014 remember to Save.`);
+        say(`Extracted: ${c[0]}, ${c[1]} — remember to Save.`, "info");
     }
 
     async function save() {
         setBusy(true);
-        setStatus("Saving…");
 
         const roleLabels = f.roles.split("\n").map(x => x.trim()).filter(Boolean);
         const settings = {
@@ -66,7 +80,8 @@ export default function Admin() {
             role_labels: roleLabels.length ? roleLabels : null,
             leave_cutoff_days: num(f.cutoff),
             shift_min_hours: num(f.min),
-            shift_max_hours: num(f.max)
+            shift_max_hours: num(f.max),
+            vacation_days: num(f.vac) ?? 30
         };
 
         const { error } = await supabase.from("organizations")
@@ -74,70 +89,70 @@ export default function Admin() {
             .eq("id", org!.id);
 
         setBusy(false);
-        if (error) { setStatus(""); alert(error.message); return; }
+        if (error) { say(error.message, "error"); return; }
 
         await log("settings.update", "Organization settings updated", { settings });
         patchOrg({ name: f.name.trim(), timezone: f.timezone, settings: settings as any });
-        setStatus(`Saved ✓ ${new Date().toLocaleTimeString("de-DE")}`);
+        say("Saved", "success");
     }
 
     return (
-        <Page title="Admin — Settings">
-            <div className="dash-stack">
+        <div className="dsh">
+            <div className="dsh-h split">
+                <h2>Admin</h2>
+                <button className="ro-export" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save"}</button>
+            </div>
 
-                <Section title="Organization">
-                    <div className="settings-grid">
-                        <div><span className="plan-entry-meta">Name</span><input type="text" value={f.name} onChange={set("name")} /></div>
-                        <div><span className="plan-entry-meta">Slug (URL)</span><input type="text" value={org!.slug} disabled /></div>
-                        <div>
-                            <span className="plan-entry-meta">Timezone</span>
+            <div className="ad-stack">
+                <Panel title="Organization">
+                    <div className="ad-grid">
+                        <Field label="Name"><input type="text" value={f.name} onChange={set("name")} /></Field>
+                        <Field label="Slug (URL)"><input type="text" value={org!.slug} disabled /></Field>
+                        <Field label="Timezone">
                             <select value={f.timezone} onChange={set("timezone")}>
                                 {zones.map(z => <option key={z} value={z}>{z.replace(/_/g, " ")}</option>)}
                             </select>
-                        </div>
+                        </Field>
                     </div>
-                </Section>
+                </Panel>
 
-                <Section title="Location & Check-in">
-                    <div className="settings-grid">
-                        <div><span className="plan-entry-meta">Workplace latitude</span><input type="number" step="any" value={f.lat} onChange={set("lat")} /></div>
-                        <div><span className="plan-entry-meta">Workplace longitude</span><input type="number" step="any" value={f.lng} onChange={set("lng")} /></div>
-                        <div><span className="plan-entry-meta">Check-in radius (meters)</span><input type="number" min="10" value={f.radius} onChange={set("radius")} /></div>
-                        <div>
-                            <span className="plan-entry-meta">Outside-radius behavior</span>
+                <Panel title="Location & Check-in">
+                    <div className="ad-grid">
+                        <Field label="Workplace latitude"><input type="number" step="any" value={f.lat} onChange={set("lat")} /></Field>
+                        <Field label="Workplace longitude"><input type="number" step="any" value={f.lng} onChange={set("lng")} /></Field>
+                        <Field label="Check-in radius (meters)"><input type="number" min="10" value={f.radius} onChange={set("radius")} /></Field>
+                        <Field label="Outside-radius behavior">
                             <select value={f.strict} onChange={set("strict")}>
                                 <option value="off">Allow silently</option>
                                 <option value="warn">Warn only</option>
                                 <option value="enforce">Block check-in</option>
                             </select>
-                        </div>
+                        </Field>
                     </div>
-                    <div style={{ marginTop: 12 }}>
-                        <span className="plan-entry-meta">Paste a Google Maps link or “lat, lng” — coordinates are extracted automatically</span>
-                        <div className="auth-pass-row" style={{ marginTop: 4 }}>
+                    <Field label="Google Maps link or “lat, lng” — coordinates are extracted automatically">
+                        <div className="ad-row">
                             <input type="text" placeholder="https://maps.google.com/… or -6.2562, 106.6641"
                                 value={mapsUrl} onChange={e => setMapsUrl(e.target.value)} />
-                            <button type="button" className="header-action-btn" onClick={extract} title="Extract coordinates">Extract</button>
+                            <button type="button" className="mg-btn" onClick={extract}>Extract</button>
                         </div>
+                    </Field>
+                </Panel>
+
+                <Panel title="Staff Role Labels">
+                    <Field label="One per line — these fill the role dropdown on the Dashboard.">
+                        <textarea rows={5} value={f.roles} onChange={set("roles")} />
+                    </Field>
+                </Panel>
+
+                <Panel title="Scheduling Rules">
+                    <div className="ad-grid">
+                        <Field label="Leave request cut-off (days ahead)"><input type="number" min="0" value={f.cutoff} onChange={set("cutoff")} /></Field>
+                        <Field label="Min shift duration (hours)"><input type="number" min="1" value={f.min} onChange={set("min")} /></Field>
+                        <Field label="Max shift duration (hours)"><input type="number" min="1" value={f.max} onChange={set("max")} /></Field>
+                        <Field label="Jahresurlaub (days per year)"><input type="number" min="0" value={f.vac} onChange={set("vac")} /></Field>
                     </div>
-                </Section>
-
-                <Section title="Staff Role Labels">
-                    <span className="plan-entry-meta">One per line — these fill the role dropdown on the Dashboard.</span>
-                    <textarea id="setRoles" rows={5} value={f.roles} onChange={set("roles")} />
-                </Section>
-
-                <Section title="Scheduling Rules">
-                    <div className="settings-grid">
-                        <div><span className="plan-entry-meta">Leave request cut-off (days ahead)</span><input type="number" min="0" value={f.cutoff} onChange={set("cutoff")} /></div>
-                        <div><span className="plan-entry-meta">Min shift duration (hours)</span><input type="number" min="1" value={f.min} onChange={set("min")} /></div>
-                        <div><span className="plan-entry-meta">Max shift duration (hours)</span><input type="number" min="1" value={f.max} onChange={set("max")} /></div>
-                    </div>
-                </Section>
-
-                <div className="plan-entry-meta">{status}</div>
-                <button className="att-btn" disabled={busy} onClick={save}>Save Settings</button>
+                </Panel>
             </div>
-        </Page>
+        </div>
     );
 }

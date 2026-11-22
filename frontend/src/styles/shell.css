@@ -223,3 +223,17 @@ body { background: #f4f6fa; }
     .mg-crew { grid-template-columns: 1fr; padding: 12px; }
     .mg-act { margin-left: 0; width: 100%; }
 }
+
+/* ======== ADMIN ======== */
+.ad-stack { display: flex; flex-direction: column; gap: 24px; }
+.ad-panel { flex: none; }
+.ad-body { background: #fff; padding: 18px 24px 22px; display: flex; flex-direction: column; gap: 16px; }
+.ad-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 24px; }
+.ad-f { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ad-f > label { font-size: 13px; font-weight: 700; color: #234670; }
+.ad-f input, .ad-f select, .ad-f textarea { width: 100%; box-sizing: border-box; border: 1px solid #c5cdd9; border-radius: 10px; padding: 0 12px; height: 42px; font: inherit; font-size: 14px; color: #1d3557; background: #fff; }
+.ad-f textarea { height: auto; padding: 10px 12px; resize: vertical; }
+.ad-f input:disabled { background: #e8ecf2; color: #6b7280; }
+.ad-row { display: flex; gap: 10px; align-items: center; }
+.ad-row .mg-btn { height: 42px; padding: 0 20px; flex: none; }
+.ro-export:disabled { opacity: 0.5; cursor: default; }
