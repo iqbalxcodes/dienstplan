@@ -237,3 +237,14 @@ body { background: #f4f6fa; }
 .ad-row { display: flex; gap: 10px; align-items: center; }
 .ad-row .mg-btn { height: 42px; padding: 0 20px; flex: none; }
 .ro-export:disabled { opacity: 0.5; cursor: default; }
+
+/* ======== ACTIVITY ======== */
+.zt-table.hs { max-height: 560px; overflow-y: auto; }
+.zt-table.hs tbody tr.r0 { background: #fff; }
+.zt-table.hs tbody tr.r1 { background: #f1f3f7; }
+.zt-table.hs tbody tr.hs-detail { background: #e6efff; }
+.hs-th { cursor: pointer; user-select: none; }
+.hs-row { cursor: pointer; }
+.hs-row:hover { filter: brightness(0.96); }
+.hs-detail td { white-space: normal; padding: 12px 14px; }
+.ro-btn:disabled { opacity: 0.4; cursor: default; }
