@@ -16,6 +16,9 @@ export const NO_CODE_COLOR = "#5b6b86";
 export const OFF_START = "00:00:00";
 export const OFF_END = "23:59:00";
 
+/** Value of the Employee select / row id that means "Open Shift" (no member yet). */
+export const OPEN = "open";
+
 export const shiftTypesOf = (s?: OrganizationSettings) => (s?.shift_types?.length ? s.shift_types : DEFAULT_SHIFT_TYPES);
 export const isOff = (t?: ShiftType) => t?.kind === "off";
 export const lastName = (m?: Membership | null) => m?.full_name.trim().split(/\s+/).pop() ?? "?";
@@ -32,7 +35,7 @@ export async function setDraft(id: string, draft: ShiftDraft | null): Promise<st
 
 export interface RosterForm {
     date: string;
-    membershipId: string;
+    membershipId: string;            // member id, or OPEN
     code: string;
     area: string;
     role: string;

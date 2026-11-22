@@ -24,7 +24,7 @@ const ACTION_LABELS: Record<string, string> = {
     "shift.reschedule": "Shift Moved", "shift.change_approved": "Shift Change Approved",
     "time.manual_edit": "Manual Time Edit",
     "leave.requested": "Leave Requested", "leave.approved": "Leave Approved", "leave.rejected": "Leave Rejected",
-    "auth.login": "Login", "auth.logout": "Logout", "recovery.sent": "Recovery Sent", "export.performed": "Data Exported"
+    "shift.open_assigned": "Open Shift Assigned", "auth.login": "Login", "auth.logout": "Logout", "recovery.sent": "Recovery Sent", "export.performed": "Data Exported"
 };
 
 const actionClass = (a: string) => "act-" + (["attendance", "settings", "crew", "shift", "auth", "export"].find(p => a.startsWith(p + ".")) ?? "system");

@@ -13,6 +13,7 @@ import { supabase } from "../lib/supabase";
 import { addDays, duration, fmtDT, hm, iso, parseDate } from "../lib/dates";
 import { useSettings } from "../lib/i18n";
 import { fileComplaint } from "../lib/complaints";
+import { findShiftConflicts } from "../lib/shifts";
 import { DEFAULT_AREAS, DEFAULT_ROLES, DEFAULT_SHIFT_COLOR, type Shift, type TimeEntry } from "../lib/types";
 
 // bundlers break Leaflet's default icon lookup
@@ -149,6 +150,9 @@ export default function Dashboard() {
     const { say } = useStatus();
     const log = useLog();
     const [upcoming, setUpcoming] = useState<Shift[]>([]);
+    const [openShifts, setOpenShifts] = useState<Shift[]>([]);
+    const [claimed, setClaimed] = useState<Set<string>>(new Set());   // open shifts I already applied for
+    const [ask, setAsk] = useState<Shift | null>(null);               // non-null = "send request?" popup
     const [open, setOpen] = useState<TimeEntry | null>(null);
     const [pos, setPos] = useState<LL | null>(null);
     const [geo, setGeo] = useState<"wait" | "ok" | "denied" | "unsupported">("wait");
@@ -175,7 +179,9 @@ export default function Dashboard() {
     const locked = checkedIn || !!todayShift;
 
     const refresh = useCallback(async () => {
-        const [shifts, entry] = await Promise.all([
+        await supabase.rpc("resolve_open_shifts", { p_org: org!.id });   // auto-assign single applicants (H-N)
+
+        const [shifts, entry, openQ, claims] = await Promise.all([
             supabase.from("shifts").select("*")
                 .eq("organization_id", org!.id).eq("membership_id", me!.id)
                 .eq("status", "published")
@@ -183,10 +189,18 @@ export default function Dashboard() {
                 .order("shift_date").order("start_time"),
             supabase.from("time_entries").select("*")
                 .eq("organization_id", org!.id).eq("membership_id", me!.id)
-                .is("clock_out", null).order("clock_in", { ascending: false }).limit(1).maybeSingle()
+                .is("clock_out", null).order("clock_in", { ascending: false }).limit(1).maybeSingle(),
+            supabase.from("shifts").select("*")
+                .eq("organization_id", org!.id).eq("is_open", true).eq("status", "published")
+                .gte("shift_date", iso(new Date())).lte("shift_date", iso(addDays(new Date(), 13)))
+                .order("shift_date").order("start_time"),
+            supabase.from("open_shift_claims").select("shift_id")
+                .eq("membership_id", me!.id).eq("status", "pending")
         ]);
         setUpcoming((shifts.data ?? []) as Shift[]);
         setOpen((entry.data as TimeEntry) ?? null);
+        setOpenShifts((openQ.data ?? []) as Shift[]);
+        setClaimed(new Set((claims.data ?? []).map((c: any) => c.shift_id as string)));
         setEntriesKey(k => k + 1);
     }, [org, me]);
 
@@ -221,6 +235,17 @@ export default function Dashboard() {
     function allow() {
         setGeoKey(k => k + 1);
         say("If nothing happens, enable location for this site in your browser settings.", "info");
+    }
+
+    async function claim() {
+        const s = ask!;
+        setAsk(null);
+        const { conflicts } = await findShiftConflicts(org!.id, me!.id, s.shift_date, s.start_time, s.end_time);
+        if (conflicts.length) { say("You already have an overlapping shift", "error"); return; }
+        const { error } = await supabase.from("open_shift_claims")
+            .insert({ organization_id: org!.id, shift_id: s.id, membership_id: me!.id, status: "pending" });
+        say(error ? error.message : "Request sent — waiting for approval", error ? "error" : "success");
+        await refresh();
     }
 
     async function checkIn() {
@@ -300,6 +325,32 @@ export default function Dashboard() {
                 ))}
             </div>
 
+            {openShifts.length > 0 && (
+                <>
+                    <div className="dsh-h"><h2>Open Shift</h2></div>
+                    <div className="shift-strip">
+                        {openShifts.map(s => {
+                            const wait = claimed.has(s.id);
+                            const day = weekday.format(parseDate(s.shift_date));
+                            const date = `${s.shift_date.slice(8)}.${s.shift_date.slice(5, 7)}.`;
+                            return (
+                                <div key={s.id} className={"shift-card" + (wait ? "" : " click")}
+                                    style={{ "--c": wait ? STATUS_COLOR.pending : colorOf(s.shift_code) } as React.CSSProperties}
+                                    onClick={() => { if (!wait) setAsk(s); }}>
+                                    <div className="shift-card-top">
+                                        {wait
+                                            ? <><span>Pending</span><span>{day}, {date}</span></>
+                                            : <><span>{day}</span><span>{date}</span></>}
+                                    </div>
+                                    <div className="shift-card-time">{hm(s.start_time)} - {hm(s.end_time)}</div>
+                                    <div className="shift-card-area">{[s.area_label, s.role_label].filter(Boolean).join(" - ") || "\u2014"}</div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </>
+            )}
+
             <div className="dsh-h">
                 <h2>{todayShift || checkedIn ? "Today\u2019s Shift" : "Extra Shift"}{code ? ` - ${code}` : ""}</h2>
                 <span className="dsh-note">
@@ -347,6 +398,12 @@ export default function Dashboard() {
 
             <div className="dsh-h"><h2>Recent Entries</h2></div>
             <MyEntries refreshKey={entriesKey} />
+
+            {ask && (
+                <Modal title="Open Shift" onClose={() => setAsk(null)} onSubmit={claim} submitLabel="Yes" cancelLabel="No">
+                    <p>Send request to work on {ask.shift_date.slice(8)}.{ask.shift_date.slice(5, 7)}. ({hm(ask.start_time)} - {hm(ask.end_time)})?</p>
+                </Modal>
+            )}
 
         </div>
     );

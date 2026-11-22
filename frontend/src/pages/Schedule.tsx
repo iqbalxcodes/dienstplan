@@ -1,5 +1,6 @@
 // Roster (weekly + monthly). Employees select free dates and send requests; managers assign directly,
 // edit/delete shifts, approve/reject requests and edit Vermerke. Every shift change can be undone.
+// Open shifts: manager picks "Open Shift" as Employee; after Publish employees can claim it (Dashboard).
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Info } from "lucide-react";
 import { Modal } from "../components/Modal";
@@ -12,15 +13,18 @@ import { supabase } from "../lib/supabase";
 import { getMembers } from "../lib/cache";
 import { addDays, isoWeek, isSameDay, iso, parseDate, startOfMonth, startOfToday, startOfWeek } from "../lib/dates";
 import {
-    buildWeeks, insertShifts, isOff, lastName, NO_CODE_COLOR, OFF_END, OFF_START,
+    buildWeeks, insertShifts, isOff, lastName, NO_CODE_COLOR, OFF_END, OFF_START, OPEN,
     setDraft, shiftTypesOf, updateShift, viewOf, type RosterForm
 } from "../lib/roster";
 import { findShiftConflicts } from "../lib/shifts";
 import { DEFAULT_AREAS, DEFAULT_ROLES, type Membership, type RosterNote, type Shift, type ShiftRequest } from "../lib/types";
 
-export interface Entry { key: string; code: string | null; member?: Membership; shift?: Shift; req?: ShiftRequest; dirty?: boolean; del?: boolean; }
-interface Data { members: Membership[]; shifts: Shift[]; requests: ShiftRequest[]; notes: RosterNote[]; }
-const EMPTY: Data = { members: [], shifts: [], requests: [], notes: [] };
+export interface Entry {
+    key: string; code: string | null; member?: Membership; shift?: Shift; req?: ShiftRequest;
+    dirty?: boolean; del?: boolean; open?: boolean; claims?: number;
+}
+interface Data { members: Membership[]; shifts: Shift[]; requests: ShiftRequest[]; notes: RosterNote[]; claims: { shift_id: string }[]; }
+const EMPTY: Data = { members: [], shifts: [], requests: [], notes: [], claims: [] };
 
 interface CellProps {
     date: Date; other: boolean; alt: boolean; weekend: boolean; today: boolean; selected: boolean;
@@ -32,13 +36,15 @@ interface CellProps {
     onGroup: (title: string, list: Entry[]) => void;
 }
 
+const who = (e: Entry) => (e.open ? "Open Shift" : e.member?.full_name);
+
 function DayCell(p: CellProps) {
 
     // too many people for the cell -> one card per shift: "N Mitarbeiter" (hover = names)
     const grouped = p.entries.length > p.slots;
     const groups = new Map<string, Entry[]>();
     if (grouped) p.entries.forEach(e => {
-        const k = `${e.req ? "r" : "s"}:${e.code}`;
+        const k = `${e.req ? "r" : e.open ? "o" : "s"}:${e.code}`;
         groups.set(k, [...(groups.get(k) ?? []), e]);
     });
 
@@ -55,17 +61,17 @@ function DayCell(p: CellProps) {
 
                 {!grouped && p.entries.map(e => (
                     <div key={e.key} className={"ro-card" + (e.req ? " ghost" : "") + (e.dirty ? " draft" : "") + (e.del ? " del" : "")} style={{ background: p.color(e.code) }}
-                        title={`${e.member?.full_name} · ${e.code ?? "?"}${e.req ? " (request)" : e.del ? " (deleted — publish to apply)" : e.dirty ? " (draft)" : ""}`}
+                        title={`${who(e)} · ${e.code ?? "?"}${e.req ? " (request)" : e.del ? " (deleted — publish to apply)" : e.dirty ? " (draft)" : ""}`}
                         onClick={ev => { ev.stopPropagation(); if (p.manager) open(e); }}>
-                        {lastName(e.member)}
+                        {e.open ? `Open${e.claims ? ` (${e.claims})` : ""}` : lastName(e.member)}
                     </div>
                 ))}
 
                 {grouped && [...groups.entries()].map(([k, list]) => (
                     <div key={k} className={"ro-card" + (list[0].req ? " ghost" : "")} style={{ background: p.color(list[0].code) }}
-                        title={`${list[0].code}: ${list.map(e => e.member?.full_name).join(", ")}`}
+                        title={`${list[0].code}: ${list.map(who).join(", ")}`}
                         onClick={ev => { ev.stopPropagation(); if (p.manager) p.onGroup(`${list[0].code} — ${iso(p.date)}`, list); }}>
-                        {list.length} Mitarbeiter
+                        {list.length} {list[0].open ? "Open" : "Mitarbeiter"}
                     </div>
                 ))}
             </div>
@@ -122,16 +128,22 @@ export default function Schedule() {
             .gte("request_date", from).lte("request_date", to);
         if (!isManager) reqQ = reqQ.eq("membership_id", me!.id);
 
-        const [m, s, r, n] = await Promise.all([
+        await supabase.rpc("resolve_open_shifts", { p_org: org!.id });   // auto-assign single applicants (H-N)
+
+        const [m, s, r, n, c] = await Promise.all([
             getMembers(org!.id, true),                             // stored list first, refreshed in the background
             supabase.from("shifts").select("*").eq("organization_id", org!.id).gte("shift_date", from).lte("shift_date", to),
             reqQ,                                                  // table may not exist yet (migration 002) -> empty
-            supabase.from("roster_notes").select("*").eq("organization_id", org!.id)
+            supabase.from("roster_notes").select("*").eq("organization_id", org!.id),
+            isManager
+                ? supabase.from("open_shift_claims").select("shift_id").eq("organization_id", org!.id).eq("status", "pending")
+                : Promise.resolve({ data: [] })
         ]);
         setData({
             members: m,
             shifts: ((s.data ?? []) as Shift[]).filter(x => isManager || x.status === "published"),   // drafts: managers only until published
-            requests: (r.data ?? []) as ShiftRequest[], notes: (n.data ?? []) as RosterNote[]
+            requests: (r.data ?? []) as ShiftRequest[], notes: (n.data ?? []) as RosterNote[],
+            claims: (c.data ?? []) as { shift_id: string }[]
         });
     }, [org, me, isManager, weeks]);
 
@@ -139,11 +151,15 @@ export default function Schedule() {
 
     const byDate = useMemo(() => {
         const map = new Map<string, Entry[]>();
-        const add = (d: string, e: Entry) => { if (e.member) map.set(d, [...(map.get(d) ?? []), e]); };
-        const member = (id: string) => data.members.find(x => x.id === id);
+        const add = (d: string, e: Entry) => { if (e.member || e.open) map.set(d, [...(map.get(d) ?? []), e]); };
+        const member = (id: string | null) => data.members.find(x => x.id === id);
         data.shifts.forEach(raw => {
             const s = viewOf(raw);
-            add(s.shift_date, { key: s.id, code: s.shift_code ?? null, member: member(s.membership_id), shift: s, dirty: raw.status === "draft" || !!raw.draft, del: !!raw.draft?._delete });
+            add(s.shift_date, {
+                key: s.id, code: s.shift_code ?? null, member: member(s.membership_id), shift: s,
+                open: !!s.is_open, claims: data.claims.filter(c => c.shift_id === s.id).length,
+                dirty: raw.status === "draft" || !!raw.draft, del: !!raw.draft?._delete
+            });
         });
         data.requests.forEach(r => add(r.request_date, { key: r.id, code: r.shift_code, member: member(r.membership_id), req: r }));
         const rank = (c: string | null) => { const i = types.findIndex(t => t.code === c); return i < 0 ? 99 : i; };
@@ -151,13 +167,13 @@ export default function Schedule() {
         return map;
     }, [data, types]);
 
-    // "Employee works 6 days non stop!"
+    // "Employee works 6 days non stop!" + open shifts that need a decision (manager)
     const warnings = useMemo(() => {
         const out: string[] = [];
         const days = new Map<string, Set<string>>();
         data.shifts.forEach(raw => {
             const s = viewOf(raw);
-            if (raw.draft?._delete || isOff(typeOf(s.shift_code))) return;
+            if (!s.membership_id || raw.draft?._delete || isOff(typeOf(s.shift_code))) return;
             days.set(s.membership_id, (days.get(s.membership_id) ?? new Set()).add(s.shift_date));
         });
         days.forEach((set, id) => {
@@ -169,6 +185,19 @@ export default function Schedule() {
                 if (run === 6) out.push(`${lastName(data.members.find(m => m.id === id))} works 6 days non stop!`);
             });
         });
+
+        if (isManager) {
+            const todayIso = iso(startOfToday());
+            const limit = iso(addDays(startOfToday(), settings.open_shift_auto_days ?? 1));
+            data.shifts.forEach(raw => {
+                const s = viewOf(raw);
+                if (!s.is_open || raw.status !== "published" || s.shift_date > limit || s.shift_date < todayIso) return;
+                const n = data.claims.filter(c => c.shift_id === s.id).length;
+                const d = `${s.shift_date.slice(8)}.${s.shift_date.slice(5, 7)}.`;
+                if (n === 0) out.push(`Open shift ${d}: nobody applied!`);
+                else if (n > 1) out.push(`Open shift ${d}: ${n} applicants, choose one!`);
+            });
+        }
         return out;
     }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -265,14 +294,16 @@ export default function Schedule() {
 
     function rowOf(f: RosterForm, date: string) {
         const off = isOff(typeOf(f.code));
+        const open = f.membershipId === OPEN;
         return {
-            organization_id: org!.id, membership_id: f.membershipId, shift_date: date,
+            organization_id: org!.id, membership_id: open ? null : f.membershipId, is_open: open, shift_date: date,
             start_time: off ? OFF_START : f.start + ":00", end_time: off ? OFF_END : f.end + ":00",
             shift_code: f.code, area_label: off ? null : f.area || null, role_label: off ? null : f.role || null
         };
     }
 
     async function overlap(f: RosterForm, dates: string[], exclude?: string): Promise<string | null> {
+        if (f.membershipId === OPEN) return null;                  // nobody to double-book yet
         const r = rowOf(f, dates[0]);
         for (const d of dates) {
             const { conflicts, error } = await findShiftConflicts(org!.id, f.membershipId, d, r.start_time, r.end_time, exclude);
@@ -304,7 +335,7 @@ export default function Schedule() {
             if (error) return error.message;
             const ids = ins!.map(x => x.id);
             pushUndo(async () => { await supabase.from("shifts").delete().in("id", ids); });
-            say("Shift assigned", "success");
+            say(f.membershipId === OPEN ? "Open shift added — publish to apply" : "Shift assigned", "success");
 
         } else if (spec.mode === "edit") {
             const old = data.shifts.find(x => x.id === spec.shift.id)!;   // raw row (spec.shift is the manager view)
@@ -316,7 +347,8 @@ export default function Schedule() {
                 if (e) return e.message;
                 pushUndo(async () => {
                     await updateShift(old.id, {
-                        shift_date: old.shift_date, membership_id: old.membership_id, start_time: old.start_time, end_time: old.end_time,
+                        shift_date: old.shift_date, membership_id: old.membership_id, is_open: old.is_open ?? false,
+                        start_time: old.start_time, end_time: old.end_time,
                         shift_code: old.shift_code ?? null, area_label: old.area_label ?? null, role_label: old.role_label
                     });
                 });
@@ -482,7 +514,7 @@ export default function Schedule() {
                         <button key={e.key} className="ro-pick" onClick={() => {
                             setGroup(null);
                             setPopup(e.shift ? { mode: "edit", shift: e.shift } : { mode: "request", req: e.req! });
-                        }}>{e.member?.full_name}{e.req ? " (request)" : ""}</button>
+                        }}>{who(e)}{e.req ? " (request)" : ""}</button>
                     ))}
                 </Modal>
             )}

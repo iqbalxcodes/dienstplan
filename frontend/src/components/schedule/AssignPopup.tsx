@@ -1,10 +1,9 @@
 // One popup for: Assign (new), Edit Shift (manager), Request (manager approves/rejects).
 import { useState } from "react";
-import { isOff, type RosterForm } from "../../lib/roster";
+import { isOff, OPEN, type RosterForm } from "../../lib/roster";
 import type { Membership, Shift, ShiftRequest, ShiftType } from "../../lib/types";
 
 export type PopupSpec =
-    | { mode: "assign"; dates: string[] }
     | { mode: "assign"; dates: string[]; membershipId?: string }
     | { mode: "edit"; shift: Shift }
     | { mode: "request"; req: ShiftRequest };
@@ -24,10 +23,10 @@ interface Props {
 
 function initialOf(spec: PopupSpec, isManager: boolean, meId: string): RosterForm {
     if (spec.mode === "assign")
-        return { date: spec.dates[0] ?? "", membershipId: isManager ? "" : meId, code: "", area: "", role: "", start: "", end: "" };
+        return { date: spec.dates[0] ?? "", membershipId: isManager ? (spec.membershipId ?? "") : meId, code: "", area: "", role: "", start: "", end: "" };
     if (spec.mode === "edit") {
         const s = spec.shift;
-        return { date: s.shift_date, membershipId: s.membership_id, code: s.shift_code ?? "", area: s.area_label ?? "", role: s.role_label ?? "", start: s.start_time.slice(0, 5), end: s.end_time.slice(0, 5) };
+        return { date: s.shift_date, membershipId: s.membership_id ?? OPEN, code: s.shift_code ?? "", area: s.area_label ?? "", role: s.role_label ?? "", start: s.start_time.slice(0, 5), end: s.end_time.slice(0, 5) };
     }
     const r = spec.req;
     return { date: r.request_date, membershipId: r.membership_id, code: r.shift_code ?? "", area: r.area_label ?? "", role: r.role_label ?? "", start: r.start_time.slice(0, 5), end: r.end_time.slice(0, 5) };
@@ -86,6 +85,7 @@ export function AssignPopup(p: Props) {
                 <label>Employee</label>
                 <select value={f.membershipId} disabled={!p.isManager} onChange={e => set({ membershipId: e.target.value })}>
                     <option value="">— select —</option>
+                    {p.isManager && p.spec.mode !== "request" && <option value={OPEN}>Open Shift</option>}
                     {p.members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
                 </select>
 

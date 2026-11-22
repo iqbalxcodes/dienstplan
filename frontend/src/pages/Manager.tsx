@@ -1,5 +1,6 @@
 // Manager: Crew cards (click = select) + either the default panels (Pending Shift Approval,
-// Complaints, Leave Request) or, with a crew member selected, their Zeiterfassung + Freiwünsche/Urlaub.
+// Open Shift Requests, Complaints, Leave Request) or, with a crew member selected, their
+// Zeiterfassung + Freiwünsche/Urlaub.
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { CircleArrowOutUpRight, CircleArrowRight, Clock, FileText, MapPin } from "lucide-react";
 import { Modal } from "../components/Modal";
@@ -182,6 +183,85 @@ function Approvals() {
                     <div className="mg-act">
                         <button className="mg-btn" onClick={() => rejectChange(r.id)}>Reject</button>
                         <button className="mg-btn" onClick={() => approveChange(r)}>Approve</button>
+                    </div>
+                </div>
+            ))}
+        </>
+    );
+}
+
+// ---------------- Open Shift Requests ----------------
+// Employees claim published open shifts (Dashboard). Several applicants -> manager picks one.
+// One applicant -> auto-assigned at H-N (setting below; resolve_open_shifts() in the DB).
+
+function OpenShifts() {
+
+    const { org, patchOrg } = useAuth();
+    const log = useLog();
+    const { say } = useStatus();
+    const [list, setList] = useState<any[]>([]);
+    const days = org!.settings?.open_shift_auto_days ?? 1;
+
+    const load = useCallback(async () => {
+        await supabase.rpc("resolve_open_shifts", { p_org: org!.id });
+        const { data } = await supabase.from("open_shift_claims")
+            .select("*, memberships:membership_id(full_name), shifts:shift_id(*)")
+            .eq("organization_id", org!.id).eq("status", "pending").order("created_at");
+        setList((data ?? []).filter((c: any) => c.shifts)
+            .sort((a: any, b: any) => a.shifts.shift_date.localeCompare(b.shifts.shift_date)));
+    }, [org]);
+
+    useEffect(() => { void load(); }, [load]);
+
+    async function setDays(n: number) {
+        const settings = { ...org!.settings, open_shift_auto_days: n };
+        const { error } = await supabase.from("organizations").update({ settings }).eq("id", org!.id);
+        if (error) { say(error.message, "error"); return; }
+        patchOrg({ settings });
+        say("Saved", "success");
+    }
+
+    async function approve(c: any) {
+        const s = c.shifts;
+        const { conflicts, error } = await findShiftConflicts(
+            c.organization_id, c.membership_id, s.shift_date, s.start_time, s.end_time, s.id);
+        if (error) { alert("Failed to check for conflicts"); return; }
+        if (conflicts.length) { alert("Cannot approve \u2014 this overlaps another shift"); return; }
+
+        const up = await supabase.from("shifts")
+            .update({ membership_id: c.membership_id, is_open: false, updated_at: now() }).eq("id", s.id);
+        if (up.error) { alert(up.error.message); return; }
+
+        await supabase.from("open_shift_claims").update({ status: "approved" }).eq("id", c.id);
+        await supabase.from("open_shift_claims").update({ status: "rejected" }).eq("shift_id", s.id).eq("status", "pending");
+        await log("shift.open_assigned", `Open shift ${dmy(s.shift_date)} assigned to ${c.memberships?.full_name}`, {}, "shift", s.id);
+        void load();
+    }
+
+    async function reject(id: string) {
+        await supabase.from("open_shift_claims").update({ status: "rejected" }).eq("id", id);
+        void load();
+    }
+
+    return (
+        <>
+            <div className="att-field" style={{ maxWidth: 460, marginBottom: 14 }}>
+                <label>Auto-assign single applicant</label>
+                <select value={days} onChange={e => setDays(Number(e.target.value))}>
+                    {[1, 2, 3].map(n => <option key={n} value={n}>H-{n}</option>)}
+                </select>
+            </div>
+
+            {list.length === 0 && <Empty text="No open shift requests." />}
+            {list.map(c => (
+                <div key={c.id} className="entry-card" style={{ "--c": "#dba43d" } as React.CSSProperties}>
+                    <strong>{c.memberships?.full_name ?? "Unknown"}</strong>
+                    <b>{c.shifts.shift_code ?? "\u2014"}</b>
+                    <span className="entry-item"><MapPin size={22} />{[c.shifts.area_label, c.shifts.role_label].filter(Boolean).join(" - ") || "\u2014"}</span>
+                    <span className="entry-item">{dmy(c.shifts.shift_date)} · {c.shifts.start_time.slice(0, 5)}–{c.shifts.end_time.slice(0, 5)}</span>
+                    <div className="mg-act">
+                        <button className="mg-btn" onClick={() => reject(c.id)}>Reject</button>
+                        <button className="mg-btn" onClick={() => approve(c)}>Approve</button>
                     </div>
                 </div>
             ))}
@@ -449,6 +529,8 @@ export default function Manager() {
                 <div key="default">
                     <Head title="Pending Shift Approval" />
                     <Approvals />
+                    <Head title="Open Shift Requests" exp={false} />
+                    <OpenShifts />
                     <Head title="Complaints" />
                     <Complaints />
                     <Head title="Leave Request" exp={false} />

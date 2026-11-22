@@ -22,6 +22,7 @@ export interface OrganizationSettings {
     shift_min_hours?: number | null;
     shift_max_hours?: number | null;
     vacation_days?: number;          // Jahresurlaub, default 30
+    open_shift_auto_days?: number;   // single applicant is auto-assigned at H-N (1-3), default 1
 }
 
 export interface Organization {
@@ -53,7 +54,8 @@ export interface Membership {
 export interface Shift {
     id: string;
     organization_id: string;
-    membership_id: string;
+    membership_id: string | null;    // null = open shift
+    is_open?: boolean;               // migration 005
     shift_date: string;   // YYYY-MM-DD
     start_time: string;   // HH:MM:SS
     end_time: string;
@@ -68,7 +70,7 @@ export interface Shift {
 }
 
 /** Unpublished change on a published shift: new values, or {_delete:true}. Employees keep seeing the old values until Publish. */
-export type ShiftDraft = Partial<Pick<Shift, "shift_date" | "membership_id" | "start_time" | "end_time" | "shift_code" | "area_label" | "role_label">> & { _delete?: boolean };
+export type ShiftDraft = Partial<Pick<Shift, "shift_date" | "membership_id" | "is_open" | "start_time" | "end_time" | "shift_code" | "area_label" | "role_label">> & { _delete?: boolean };
 export type EntryStatus = "pending" | "approved" | "rejected";
 
 export interface TimeEntry {

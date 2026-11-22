@@ -1,6 +1,6 @@
-// Weekly roster: one row per member, 7 day columns. Same select/open mechanics as the month grid.
+// Weekly roster: one row per member (+ Open Shift row), 7 day columns. Same select/open mechanics as the month grid.
 import { iso, isSameDay } from "../../lib/dates";
-import { isOff, NO_CODE_COLOR } from "../../lib/roster";
+import { isOff, NO_CODE_COLOR, OPEN } from "../../lib/roster";
 import { getShiftRange } from "../../lib/shifts";
 import type { Membership, RosterNote, Shift, ShiftRequest, ShiftType } from "../../lib/types";
 import type { Entry } from "../../pages/Schedule";
@@ -32,6 +32,12 @@ export function Week(p: Props) {
     const weekday = new Intl.DateTimeFormat(p.lang, { weekday: "long" });
     const cols = (i: number) => (i >= 5 ? "we" : "");
 
+    // managers always see the Open Shift row (to assign into it); employees only when this week has one
+    const hasOpen = p.days.some(d => (p.byDate.get(iso(d)) ?? []).some(e => e.open));
+    const rows: Membership[] = p.manager || hasOpen
+        ? [{ id: OPEN, full_name: "Open Shift", weekly_target_hours: 0 } as Membership, ...p.members]
+        : p.members;
+
     return (
         <div className="ro-grid wk">
             <div className="ro-row wk-row ro-head">
@@ -50,21 +56,26 @@ export function Week(p: Props) {
                 ))}
             </div>
 
-            {p.members.length === 0 && <div style={{ padding: 16, color: "#888" }}>No staff found</div>}
+            {rows.length === 0 && <div style={{ padding: 16, color: "#888" }}>No staff found</div>}
 
-            {p.members.map(m => {
+            {rows.map(m => {
+                const isOpen = m.id === OPEN;
                 const parts = m.full_name.trim().split(/\s+/);
                 const last = parts.pop(), first = parts.join(" ");
-                const mine = p.days.map(d => (p.byDate.get(iso(d)) ?? []).filter(e => e.member?.id === m.id));
+                const mine = p.days.map(d => (p.byDate.get(iso(d)) ?? []).filter(e => (isOpen ? e.open : e.member?.id === m.id)));
                 const total = mine.flat().reduce((sum, e) =>
                     e.shift && !e.del && !isOff(typeOf(e.code)) ? sum + hours(e.shift) : sum, 0);
 
                 return (
                     <div key={m.id} className="ro-row wk-row wk-member">
                         <div className="wk-name">
-                            <b>{last}{first && ","}</b>
-                            <b>{first}</b>
-                            <span>{total.toFixed(2)}/{Number(m.weekly_target_hours).toFixed(2)}</span>
+                            {isOpen ? <b>Open Shift</b> : (
+                                <>
+                                    <b>{last}{first && ","}</b>
+                                    <b>{first}</b>
+                                    <span>{total.toFixed(2)}/{Number(m.weekly_target_hours).toFixed(2)}</span>
+                                </>
+                            )}
                         </div>
 
                         {p.days.map((d, i) => {
@@ -86,8 +97,11 @@ export function Week(p: Props) {
                                             <div key={e.key} className={cls} onClick={open}>{e.code ?? "?"}</div>
                                         ) : (
                                             <div key={e.key} className={cls} style={{ "--c": colorOf(e.code) } as React.CSSProperties} onClick={open}
-                                                title={`${m.full_name} · ${e.code ?? "?"}${e.req ? " (request)" : ""}`}>
-                                                <div className="wk-top"><span>{e.code}</span><span>{e.shift ? hours(e.shift).toFixed(2) : ""}</span></div>
+                                                title={`${e.open ? "Open Shift" : m.full_name} · ${e.code ?? "?"}${e.req ? " (request)" : ""}`}>
+                                                <div className="wk-top">
+                                                    <span>{e.code}{e.open && e.claims ? ` (${e.claims})` : ""}</span>
+                                                    <span>{e.shift ? hours(e.shift).toFixed(2) : ""}</span>
+                                                </div>
                                                 <div className="wk-time">{hm(s.start_time)} - {hm(s.end_time)}</div>
                                                 <div className="wk-area">{[s.area_label, s.role_label].filter(Boolean).join(" - ")}</div>
                                             </div>
