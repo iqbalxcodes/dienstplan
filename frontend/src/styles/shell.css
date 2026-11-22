@@ -248,3 +248,7 @@ body { background: #f4f6fa; }
 .hs-row:hover { filter: brightness(0.96); }
 .hs-detail td { white-space: normal; padding: 12px 14px; }
 .ro-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* offline notice (footer, right side) */
+.footer-offline { display: flex; align-items: center; gap: 8px; margin-left: auto; font-weight: 700; color: #c62828; white-space: nowrap; }
+.footer-offline + .app-version { margin-left: 0; }

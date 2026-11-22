@@ -7,6 +7,7 @@ import { useAuth } from "../lib/auth";
 import { useLog } from "../lib/activity";
 import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
+import { bust, getMembers } from "../lib/cache";
 import { addDays, duration, fmtDT, parseDate, toLocalInput } from "../lib/dates";
 import { fetchEvidence } from "../lib/complaints";
 import { findShiftConflicts } from "../lib/shifts";
@@ -294,10 +295,8 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
     const [edit, setEdit] = useState<Membership | null>(null);
     const [d, setD] = useState(BLANK);
 
-    const load = useCallback(async () => {
-        const { data } = await supabase.from("memberships").select("*").eq("organization_id", org!.id).order("full_name");
-        setList((data ?? []) as Membership[]);
-    }, [org]);
+    // stored list shows instantly, refreshed in the background
+    const load = useCallback(() => getMembers(org!.id, false, setList), [org]);
 
     useEffect(() => { void load(); }, [load]);
 
@@ -333,6 +332,7 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
         } else {
             await log("crew.update", `Crew updated: ${full}`, { after: patch }, "membership", m.id);
         }
+        bust("members:");
         void load();
     }
 
@@ -347,6 +347,7 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
         await log(activate ? "crew.reactivate" : "crew.deactivate",
             `${m.full_name} ${activate ? "reactivated" : "deactivated"}`, {}, "membership", m.id);
         if (sel?.id === m.id) onSel({ ...m, active: activate });
+        bust("members:");
         void load();
     }
 

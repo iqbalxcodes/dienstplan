@@ -6,6 +6,7 @@ import { useAuth } from "../lib/auth";
 import { useLog } from "../lib/activity";
 import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
+import { getMembers } from "../lib/cache";
 import { iso } from "../lib/dates";
 
 const PER_PAGE = 20;
@@ -89,10 +90,7 @@ export default function History() {
         return () => { stale = true; };
     }, [base, sorted, page]);
 
-    useEffect(() => {
-        supabase.from("memberships").select("id, full_name").eq("organization_id", org!.id).order("full_name")
-            .then(({ data }) => setMembers(data ?? []));
-    }, [org]);
+    useEffect(() => { void getMembers(org!.id, false, setMembers); }, [org]);
 
     function sortBy(key: string) {
         setSortDir(d => ({ ...d, [key]: sortCol === key && d[key] === "desc" ? "asc" : "desc" }));

@@ -9,6 +9,7 @@ import { useAuth } from "../lib/auth";
 import { useSettings } from "../lib/i18n";
 import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
+import { getMembers } from "../lib/cache";
 import { addDays, isoWeek, isSameDay, iso, parseDate, startOfMonth, startOfToday, startOfWeek } from "../lib/dates";
 import {
     buildWeeks, insertShifts, isOff, lastName, NO_CODE_COLOR, OFF_END, OFF_START,
@@ -122,13 +123,13 @@ export default function Schedule() {
         if (!isManager) reqQ = reqQ.eq("membership_id", me!.id);
 
         const [m, s, r, n] = await Promise.all([
-            supabase.from("memberships").select("*").eq("organization_id", org!.id).eq("active", true).order("full_name"),
+            getMembers(org!.id, true),                             // stored list first, refreshed in the background
             supabase.from("shifts").select("*").eq("organization_id", org!.id).gte("shift_date", from).lte("shift_date", to),
             reqQ,                                                  // table may not exist yet (migration 002) -> empty
             supabase.from("roster_notes").select("*").eq("organization_id", org!.id)
         ]);
         setData({
-            members: (m.data ?? []) as Membership[],
+            members: m,
             shifts: ((s.data ?? []) as Shift[]).filter(x => isManager || x.status === "published"),   // drafts: managers only until published
             requests: (r.data ?? []) as ShiftRequest[], notes: (n.data ?? []) as RosterNote[]
         });

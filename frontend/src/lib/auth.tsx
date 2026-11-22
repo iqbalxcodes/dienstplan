@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { bust } from "./cache";
 import type { Membership, Organization } from "./types";
 
 const REMEMBER_KEY = "dienstplan_remember";
@@ -45,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // "Don't remember me": no tab sentinel = all windows were closed -> drop session
         if (localStorage.getItem(REMEMBER_KEY) === "0") {
-            if (!sessionStorage.getItem(TAB_ALIVE_KEY)) await supabase.auth.signOut();
+            if (!sessionStorage.getItem(TAB_ALIVE_KEY)) { bust(); await supabase.auth.signOut(); }
             sessionStorage.setItem(TAB_ALIVE_KEY, "1");
         }
 
@@ -78,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const choose = (id: string) => apply(choices?.find(c => c.id === id) ?? null);
 
     const logout = async () => {
+        bust();   // cache holds emails/phones: remove on logout
         try { await supabase.auth.signOut(); }
         catch (err) { console.error("signOut failed, clearing local state anyway:", err); }
         setUser(null);

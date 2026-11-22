@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
-import { Bell, ChevronDown, Clock, Settings, TriangleAlert } from "lucide-react";
+import { Bell, ChevronDown, Clock, Settings, TriangleAlert, WifiOff } from "lucide-react";
 import pkg from "../../package.json";
 import { useAuth } from "../lib/auth";
 import { useSettings } from "../lib/i18n";
@@ -45,7 +45,8 @@ function Header() {
         Promise.all([
             count("time_entries", "status", "pending"), count("shift_change_requests", "status", "pending"),
             count("complaints", "status", "open"), count("leave_requests", "status", "pending")
-        ]).then(([a, b, c, d]) => setPending({ approvals: a + b, complaints: c, leave: d }));
+        ]).then(([a, b, c, d]) => setPending({ approvals: a + b, complaints: c, leave: d }))
+            .catch(() => undefined);   // offline: keep the old numbers
     }, [org, isManager, pathname]);
 
     const total = pending.approvals + pending.complaints + pending.leave;
@@ -129,9 +130,21 @@ function Strip() {
     );
 }
 
-/** Footer = status/notification bar (left) + History pagination + version (right). */
+function useOnline() {
+    const [on, setOn] = useState(navigator.onLine);
+    useEffect(() => {
+        const up = () => setOn(true), down = () => setOn(false);
+        window.addEventListener("online", up);
+        window.addEventListener("offline", down);
+        return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down); };
+    }, []);
+    return on;
+}
+
+/** Footer = status/notification bar (left) + History pagination + offline notice + version (right). */
 function Footer() {
     const { msg, notice, setInfoEl, setNavEl } = useStatus();
+    const online = useOnline();
     return (
         <footer id="statusBar">
             <div id="contextArea">
@@ -141,6 +154,11 @@ function Footer() {
             </div>
             <div id="paginationInfo" ref={setInfoEl} />
             <div id="paginationNav" ref={setNavEl} />
+            {!online && (
+                <div className="footer-offline">
+                    <WifiOff size={18} />Offline! Data shown may not be accurate. Connect to the internet.
+                </div>
+            )}
             <div className="app-version">Dienstplan v. {pkg.version}</div>
         </footer>
     );

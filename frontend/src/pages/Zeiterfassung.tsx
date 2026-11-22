@@ -4,7 +4,7 @@ import { Modal } from "../components/Modal";
 import { useAuth } from "../lib/auth";
 import { useSettings } from "../lib/i18n";
 import { useStatus } from "../lib/status";
-import { supabase } from "../lib/supabase";
+import { getMembers } from "../lib/cache";
 import { startOfMonth, startOfToday } from "../lib/dates";
 import { ADJ, clock, dmy, hmm, hms, loadSheet, saveAdjustment, type AdjKind, type Sheet } from "../lib/timesheet";
 import type { Membership } from "../lib/types";
@@ -145,9 +145,8 @@ export default function Zeiterfassung() {
 
     useEffect(() => {
         if (!isManager) return;
-        supabase.from("memberships").select("*").eq("organization_id", org!.id).eq("active", true).order("full_name")
-            .then(({ data }) => setMembers((data ?? [me]) as Membership[]));
-    }, [org, me, isManager]);
+        void getMembers(org!.id, true, setMembers);
+    }, [org, isManager]);
 
     return (
         <div className="dsh">
