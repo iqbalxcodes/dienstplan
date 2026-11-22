@@ -9,6 +9,7 @@ import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
 import { useCompact } from "../lib/useCompact";
 import { addDays, iso, parseDate, startOfMonth, startOfToday } from "../lib/dates";
+import { isHoliday } from "../lib/holidays";
 import { buildWeeks } from "../lib/roster";
 import type { EntryStatus, LeaveRequest, LeaveType, Membership } from "../lib/types";
 
@@ -19,9 +20,10 @@ const STATUSES: EntryStatus[] = ["approved", "rejected", "pending"];
 const dmy = (s: string) => `${s.slice(8)}.${s.slice(5, 7)}.${s.slice(0, 4)}`;
 const short = (s: string) => `${s.slice(8)}.${s.slice(5, 7)}.`;
 
-function days(a: string, b: string, workOnly: boolean) {
+/** Days of a range. workOnly (Urlaub): Mon-Fri that are not a public holiday. */
+export function days(a: string, b: string, workOnly: boolean) {
     let n = 0;
-    for (let d = parseDate(a), e = parseDate(b); d <= e; d = addDays(d, 1)) if (!workOnly || d.getDay() % 6) n++;
+    for (let d = parseDate(a), e = parseDate(b); d <= e; d = addDays(d, 1)) if (!workOnly || (d.getDay() % 6 && !isHoliday(d))) n++;
     return n;
 }
 
@@ -46,7 +48,7 @@ interface SectionProps {
 
 function Section({ m, type, title, label, list, stats, reload }: SectionProps) {
 
-    const { org } = useAuth();
+    const { org, isManager } = useAuth();
     const { settings: user } = useSettings();
     const { say } = useStatus();
     const compact = useCompact();
@@ -58,8 +60,9 @@ function Section({ m, type, title, label, list, stats, reload }: SectionProps) {
     const [draft, setDraft] = useState<string | null>(null);      // non-null = filter popup open
     const today = startOfToday();
     const weeks = useMemo(() => sixWeeks(month), [month]);
-    const work = type === "urlaub";                                // Urlaub counts Mon-Fri only
+    const work = type === "urlaub";                                // Urlaub counts Mon-Fri (no holidays)
     const flat = staged.flat();
+    const cutoff = isManager ? 0 : (org!.settings?.leave_cutoff_days ?? 14);   // employees need notice, managers only "not in the past"
 
     // rejected last so a newer request on the same day wins
     const items: Item[] = [
@@ -70,7 +73,10 @@ function Section({ m, type, title, label, list, stats, reload }: SectionProps) {
     const hit = (k: string) => items.find(l => l.date_start <= k && k <= l.date_end);
 
     function toggle(k: string) {
-        if (parseDate(k) < today) { say("Date is in the past", "info"); return; }
+        if (parseDate(k) < addDays(today, cutoff)) {
+            say(cutoff ? `Requests need ${cutoff} days notice` : "Date is in the past", "info");
+            return;
+        }
         const h = hit(k);
         if (h && h.status !== "rejected") { say("There is already a request on that day", "info"); return; }
         setSel(s => { const n = new Set(s); if (!n.delete(k)) n.add(k); return n; });

@@ -155,10 +155,16 @@ button:disabled { opacity: 0.4; cursor: default; }
 .auth-eye:hover { background: #f0f0f0; color: #333; }
 .auth-eye svg { width: 18px; height: 18px; }
 
-#obCrewRows .plan-entry-actions > * { width: auto; }
-#obAddCrewRow { padding: 6px 12px; background: #fff; border: 1px dashed #ccc; border-radius: 8px; color: #555; font-size: 12px; }
+/* onboarding step 3: wider + taller card, crew rows never scroll sideways */
+.plan-modal.auth-card.wide { width: min(720px, 100%); min-height: min(560px, 90dvh); }
+#obCrewRows { max-height: min(46dvh, 360px); overflow-y: auto; padding-right: 2px; }
+.ob-empty { margin: 8px 0 0; color: var(--muted); font-size: 13px; text-align: center; }
+.ob-crew-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1.2fr) 40px; gap: 8px; align-items: center; margin-top: 8px; }
+.ob-crew-row > * { min-width: 0; margin: 0; }
+#obAddCrewRow { padding: 8px 14px; background: #fff; border: 1px dashed #aaa; border-radius: 8px; color: #555; font-size: 13px; }
 #obAddCrewRow:hover { background: #f5f5f5; }
-.ob-crew-remove { padding: 8px; background: #fff; border: 1px solid #ccc; border-radius: 8px; color: #c62828; }
+.ob-crew-remove { align-self: stretch; padding: 0; background: #fff; border: 1px solid #ccc; border-radius: 8px; color: #c62828; }
+.ob-crew-remove:hover { background: #ffebee; }
 
 .reset-wrap { flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto; }
 .reset-card { width: 100%; max-width: 380px; margin: 20px; }
@@ -545,6 +551,10 @@ button:disabled { opacity: 0.4; cursor: default; }
     .plan-modal-footer button { padding: 7px 12px; font-size: 13px; }
 }
 
-@media (max-width: 480px) {
-    #obCrewRows .plan-entry-actions { flex-direction: column; align-items: stretch; }
+/* onboarding step 3 on phone / narrow: each member = 2 lines (role + remove, then name, then email) */
+@media (max-width: 640px) {
+    .ob-crew-row { grid-template-columns: minmax(0, 1fr) 40px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .ob-crew-row > input { grid-column: 1 / -1; }
+    .plan-modal.auth-card.wide { min-height: 0; }
+    #obCrewRows { max-height: 44dvh; }
 }

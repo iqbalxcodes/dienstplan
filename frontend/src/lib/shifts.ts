@@ -3,6 +3,7 @@
 // day is exactly 1440 min (DST-proof). Night shifts (end <= start) roll
 // onto the next day.
 import { supabase } from "./supabase";
+import { viewOf } from "./roster";
 import type { Shift } from "./types";
 
 export interface MinuteRange { start: number; end: number; }
@@ -44,7 +45,10 @@ export function rangeToShiftFields(range: MinuteRange) {
     };
 }
 
-/** Other shifts of this member that overlap the proposed one (±1 day window catches night shifts). */
+/**
+ * Other shifts of this member that overlap the proposed one (±1 day window catches night shifts).
+ * Uses the manager view: shifts marked for deletion are ignored, pending moves count at their new time.
+ */
 export async function findShiftConflicts(
     orgId: string, membershipId: string, date: string, start: string, end: string, excludeId?: string
 ): Promise<{ conflicts: Shift[]; error: unknown }> {
@@ -62,8 +66,10 @@ export async function findShiftConflicts(
     if (error || !data) return { conflicts: [], error };
 
     const proposed = getShiftRange(date, start, end);
-    const conflicts = (data as Shift[]).filter(s =>
-        overlap(proposed, getShiftRange(s.shift_date, s.start_time, s.end_time)));
+    const conflicts = (data as Shift[])
+        .filter(raw => !raw.draft?._delete)
+        .map(viewOf)
+        .filter(s => s.membership_id === membershipId && overlap(proposed, getShiftRange(s.shift_date, s.start_time, s.end_time)));
 
     return { conflicts, error: null };
 }

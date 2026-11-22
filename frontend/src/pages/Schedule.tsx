@@ -1,7 +1,7 @@
 // Roster (weekly + monthly). Employees select free dates and send requests; managers assign directly,
 // edit/delete shifts, approve/reject requests and edit Vermerke. Every shift change can be undone.
 // Open shifts: manager picks "Open Shift" as Employee; after Publish employees can claim it (Dashboard).
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Info } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { AssignPopup, type PopupSpec } from "../components/schedule/AssignPopup";
@@ -17,7 +17,7 @@ import {
     buildWeeks, insertShifts, isOff, lastName, NO_CODE_COLOR, OFF_END, OFF_START, OPEN,
     setDraft, shiftTypesOf, updateShift, viewOf, type RosterForm
 } from "../lib/roster";
-import { findShiftConflicts } from "../lib/shifts";
+import { findShiftConflicts, getShiftRange } from "../lib/shifts";
 import { DEFAULT_AREAS, DEFAULT_ROLES, type Membership, type RosterNote, type Shift, type ShiftRequest } from "../lib/types";
 
 export interface Entry {
@@ -103,6 +103,7 @@ export default function Schedule() {
     const [undo, setUndo] = useState<(() => Promise<unknown>)[]>([]);
     const [filter, setFilter] = useState<Filter>(NO_FILTER);
     const [fdraft, setFdraft] = useState<Filter | null>(null);         // non-null = filter popup open
+    const seq = useRef(0);                                             // newest load() wins
 
     const settings = org!.settings ?? {};
     const types = shiftTypesOf(settings);
@@ -111,6 +112,17 @@ export default function Schedule() {
     const typeOf = (c?: string | null) => types.find(t => t.code === c);
     const colorOf = (c: string | null) => typeOf(c)?.color ?? NO_CODE_COLOR;
     const uid = me!.user_id;
+
+    /** Admin setting: shift length limits (defaults match the Admin form). Off-types are exempt. */
+    function limits(f: RosterForm): string | null {
+        if (isOff(typeOf(f.code)) || !f.start || !f.end) return null;
+        const r = getShiftRange("2000-01-01", f.start, f.end);   // night shifts roll over midnight
+        const h = (r.end - r.start) / 60;
+        const min = settings.shift_min_hours ?? 1, max = settings.shift_max_hours ?? 16;
+        if (h < min) return `Shift is shorter than ${min} h`;
+        if (h > max) return `Shift is longer than ${max} h`;
+        return null;
+    }
 
     // cards per day (month): wide 6 (3x2) · medium 4 (2x2) · phone 2 (1 col)
     const cap = compact ? 2 : width > 1100 ? 6 : 4;
@@ -130,6 +142,7 @@ export default function Schedule() {
     }, []);
 
     const load = useCallback(async () => {
+        const id = ++seq.current;
         const from = iso(weeks[0][0]), to = iso(weeks[weeks.length - 1][6]);
         let reqQ = supabase.from("shift_requests").select("*").eq("organization_id", org!.id).eq("status", "pending")
             .gte("request_date", from).lte("request_date", to);
@@ -138,7 +151,8 @@ export default function Schedule() {
         await supabase.rpc("resolve_open_shifts", { p_org: org!.id });   // auto-assign single applicants (H-N)
 
         const [m, s, r, n, c] = await Promise.all([
-            getMembers(org!.id, true),                             // stored list first, refreshed in the background
+            // stored list first, then the fresh one (onData) - without it new crew would only show on the next visit
+            getMembers(org!.id, true, v => { if (id === seq.current) setData(d => ({ ...d, members: v })); }),
             supabase.from("shifts").select("*").eq("organization_id", org!.id).gte("shift_date", from).lte("shift_date", to),
             reqQ,                                                  // table may not exist yet (migration 002) -> empty
             supabase.from("roster_notes").select("*").eq("organization_id", org!.id),
@@ -146,6 +160,7 @@ export default function Schedule() {
                 ? supabase.from("open_shift_claims").select("shift_id").eq("organization_id", org!.id).eq("status", "pending")
                 : Promise.resolve({ data: [] })
         ]);
+        if (id !== seq.current) return;                            // a newer load started: drop this stale answer
         setData({
             members: m,
             shifts: ((s.data ?? []) as Shift[]).filter(x => isManager || x.status === "published"),   // drafts: managers only until published
@@ -327,6 +342,9 @@ export default function Schedule() {
 
     async function submit(spec: PopupSpec, f: RosterForm, dates: string[]): Promise<string | null> {
 
+        const lim = limits(f);
+        if (lim) return lim;
+
         if (spec.mode === "assign" && !isManager) {                       // employee -> request (F = Frei = freiwunsch)
             const off = isOff(typeOf(f.code));
             const rows = dates.map(d => ({
@@ -379,7 +397,11 @@ export default function Schedule() {
             const { data: ins, error } = await insertShifts([{ ...rowOf(f, f.date), status: "draft", created_by: uid, updated_by: uid }]);
             if (error) return error.message;
             const sid = ins![0].id;
-            await supabase.from("shift_requests").update({ status: "approved", reviewed_by: uid, reviewed_at: new Date().toISOString() }).eq("id", req.id);
+            const up = await supabase.from("shift_requests").update({ status: "approved", reviewed_by: uid, reviewed_at: new Date().toISOString() }).eq("id", req.id);
+            if (up.error) {                                                // keep request + shift consistent: undo the insert
+                await supabase.from("shifts").delete().eq("id", sid);
+                return up.error.message;
+            }
             pushUndo(async () => {
                 await supabase.from("shifts").delete().eq("id", sid);
                 await supabase.from("shift_requests").update({ status: "pending", reviewed_by: null, reviewed_at: null }).eq("id", req.id);
@@ -409,10 +431,11 @@ export default function Schedule() {
                 say("Shift marked for deletion - publish to apply", "success");
             }
         } else if (spec.mode === "request") {
-            const req = spec.req;
-            const { error } = await supabase.from("shift_requests").delete().eq("id", req.id);
+            const req = spec.req;                                          // keep the row (audit trail), just close it
+            const { error } = await supabase.from("shift_requests")
+                .update({ status: "rejected", reviewed_by: uid, reviewed_at: new Date().toISOString() }).eq("id", req.id);
             if (error) return error.message;
-            pushUndo(async () => { await supabase.from("shift_requests").insert(req); });
+            pushUndo(async () => { await supabase.from("shift_requests").update({ status: "pending", reviewed_by: null, reviewed_at: null }).eq("id", req.id); });
             say("Request rejected", "success");
         }
         await load();

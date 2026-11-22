@@ -238,7 +238,7 @@ function OnboardCard({ onBack }: { onBack: () => void }) {
     }
 
     return (
-        <div className="plan-modal auth-card" id="onboardCard">
+        <div className={"plan-modal auth-card" + (step === 3 ? " wide" : "")} id="onboardCard">
             <h3>Register Your Business</h3>
             <p className="auth-hint" style={{ margin: "-6px 0 6px" }}>Step {step} of 3</p>
 
@@ -297,20 +297,24 @@ function OnboardCard({ onBack }: { onBack: () => void }) {
             {step === 3 && (
                 <div>
                     <label>Team Members (optional - you can add them later in Manager → Crew)</label>
+
                     <div id="obCrewRows">
+                        {crew.length === 0 && <p className="ob-empty">No members yet. Tap “+ Add member”.</p>}
                         {crew.map((r, i) => (
-                            <div key={i} className="plan-entry-actions" style={{ marginTop: 6 }}>
-                                <select style={{ flex: "0 0 110px" }} value={r.role} onChange={e => setRow(i, { role: e.target.value })}>
+                            <div key={i} className="ob-crew-row">
+                                <select value={r.role} onChange={e => setRow(i, { role: e.target.value })}>
                                     <option value="employee">Employee</option>
                                     <option value="manager">Manager</option>
                                 </select>
-                                <input type="text" placeholder="Full name" style={{ flex: 1 }} value={r.name} onChange={e => setRow(i, { name: e.target.value })} />
-                                <input type="email" placeholder="Email" style={{ flex: 1 }} value={r.email} onChange={e => setRow(i, { email: e.target.value })} />
-                                <button type="button" className="ob-crew-remove" onClick={() => setCrew(c => c.filter((_, j) => j !== i))}>✕</button>
+                                <input type="text" placeholder="Full name" value={r.name} onChange={e => setRow(i, { name: e.target.value })} />
+                                <input type="email" placeholder="Email" value={r.email} onChange={e => setRow(i, { email: e.target.value })} />
+                                <button type="button" className="ob-crew-remove" aria-label="Remove member"
+                                    onClick={() => setCrew(c => c.filter((_, j) => j !== i))}>✕</button>
                             </div>
                         ))}
                     </div>
-                    <button type="button" id="obAddCrewRow" style={{ marginTop: 6 }}
+
+                    <button type="button" id="obAddCrewRow" style={{ marginTop: 8 }}
                         onClick={() => setCrew(c => [...c, { role: "employee", name: "", email: "" }])}>+ Add member</button>
                     <p className="auth-hint" style={{ textAlign: "left" }}>
                         Members log in with the email you enter here: they tap “First login? Send me a login link”

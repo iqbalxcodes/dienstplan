@@ -8,7 +8,7 @@ import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
 import { LoginOverlay } from "./LoginOverlay";
 
-/** Button + popover. Closes on outside click or when an item is clicked. */
+/** Button + popover. Closes on outside tap/click or when an item is clicked. */
 function Menu({ button, className, active, align = "left", children }:
     { button: ReactNode; className: string; active?: boolean; align?: "left" | "right"; children: ReactNode }) {
 
@@ -17,9 +17,9 @@ function Menu({ button, className, active, align = "left", children }:
 
     useEffect(() => {
         if (!open) return;
-        const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-        document.addEventListener("mousedown", close);
-        return () => document.removeEventListener("mousedown", close);
+        const close = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+        document.addEventListener("pointerdown", close);
+        return () => document.removeEventListener("pointerdown", close);
     }, [open]);
 
     return (
@@ -40,11 +40,13 @@ function Header() {
     // bell: pending work for managers (refreshed on every page change)
     useEffect(() => {
         if (!isManager || !org) return;
-        const count = (table: string, col: string, val: string) =>
-            supabase.from(table).select("id", { count: "exact", head: true }).eq("organization_id", org.id).eq(col, val).then(r => r.count ?? 0);
+        const q = (table: string) => supabase.from(table).select("id", { count: "exact", head: true }).eq("organization_id", org.id);
+        const n = (b: PromiseLike<{ count: number | null }>) => b.then(r => r.count ?? 0);
         Promise.all([
-            count("time_entries", "status", "pending"), count("shift_change_requests", "status", "pending"),
-            count("complaints", "status", "open"), count("leave_requests", "status", "pending")
+            n(q("time_entries").eq("status", "pending").not("clock_out", "is", null)),   // a running check-in is not "waiting for approval"
+            n(q("shift_change_requests").eq("status", "pending")),
+            n(q("complaints").eq("status", "open")),
+            n(q("leave_requests").eq("status", "pending"))
         ]).then(([a, b, c, d]) => setPending({ approvals: a + b, complaints: c, leave: d }))
             .catch(() => undefined);   // offline: keep the old numbers
     }, [org, isManager, pathname]);

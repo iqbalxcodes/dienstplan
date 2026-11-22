@@ -49,9 +49,16 @@ export function TimesheetBody({ m }: { m: Membership }) {
     }
 
     async function saveEdit() {
+        // validate everything first: a typo must never turn into 0 (= delete)
+        const hours = {} as Record<AdjKind, number>;
         for (const k of KINDS) {
-            const hours = Number(edit![k].h.replace(",", ".")) || 0;
-            const err = await saveAdjustment(org!.id, m.id, month, k, hours, edit![k].note, me!.user_id);
+            const raw = edit![k].h.replace(",", ".").trim();
+            const n = raw === "" ? 0 : Number(raw);
+            if (!Number.isFinite(n)) { say(`${ADJ[k]}: not a number`, "error"); return; }
+            hours[k] = n;
+        }
+        for (const k of KINDS) {
+            const err = await saveAdjustment(org!.id, m.id, month, k, hours[k], edit![k].note, me!.user_id);
             if (err) { say(err, "error"); return; }
         }
         setEdit(null);

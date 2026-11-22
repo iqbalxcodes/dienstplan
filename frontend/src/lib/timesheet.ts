@@ -1,5 +1,8 @@
 // Zeiterfassung: one member, one month. Rows + stats. All durations are SECONDS.
 // Only APPROVED entries count towards totals/stats; other statuses are shown but greyed out.
+//
+// Soll (contract) = weekly/7 per calendar day, from the day the member joined until TODAY (never the future),
+// minus weekly/5 for every Mon-Fri that is a public holiday or approved leave (nothing expected that day).
 import { supabase } from "./supabase";
 import { addDays, iso, parseDate, startOfMonth } from "./dates";
 import { isHoliday } from "./holidays";
@@ -41,6 +44,7 @@ export const dmy = (s: string) => {
 
 // ---- calculations ----
 type Worked = { clock_in: string | null; clock_out: string | null; shifts?: { break_minutes: number } | null };
+type Leave = { type: string; date_start: string; date_end: string };
 
 const pause = (e: Worked) => (e.shifts?.break_minutes ?? 0) * 60;
 const worked = (e: Worked) =>
@@ -64,6 +68,18 @@ function night(a: Date, b: Date): number {
     return sec;
 }
 
+/** All rows of a query, 1000 at a time (Supabase caps one response at 1000 rows). Throws on error. */
+const PAGE = 1000;
+async function pages<T>(build: (from: number, to: number) => PromiseLike<{ data: any; error: any }>): Promise<T[]> {
+    const out: T[] = [];
+    for (let i = 0; ; i += PAGE) {
+        const { data, error } = await build(i, i + PAGE - 1);
+        if (error) throw error;
+        out.push(...((data ?? []) as T[]));
+        if (!data || data.length < PAGE) return out;
+    }
+}
+
 export interface Row { e: TimeEntry; counted: boolean; pause: number; elapsed: number; soll: number; balance: number; }
 export interface Stat { label: string; value: number; kind?: AdjKind; note?: string | null; }
 export interface Sheet { rows: Row[]; stats: Stat[]; totals: { elapsed: number; soll: number; balance: number }; }
@@ -73,27 +89,33 @@ export async function loadSheet(orgId: string, m: Membership, month: Date, setti
     const from = startOfMonth(month);
     const next = new Date(from.getFullYear(), from.getMonth() + 1, 1);
     const last = addDays(next, -1);
+    const today = startOfDay(new Date());
+    const cut = last < today ? last : today;      // Soll never runs into the future
     const org = (t: string, cols: string) => supabase.from(t).select(cols).eq("organization_id", orgId).eq("membership_id", m.id);
 
     const [cur, prior, adjQ, planQ, leaveQ] = await Promise.all([
         org("time_entries", "*, shifts:shift_id(*)")
             .gte("clock_in", from.toISOString()).lt("clock_in", next.toISOString()).order("clock_in"),
-        org("time_entries", "clock_in, clock_out, shifts:shift_id(break_minutes)")
-            .eq("status", "approved").lt("clock_in", from.toISOString()),
+        pages<Worked>((a, b) => org("time_entries", "clock_in, clock_out, shifts:shift_id(break_minutes)")
+            .eq("status", "approved").lt("clock_in", from.toISOString()).order("clock_in").range(a, b)),
         org("time_adjustments", "*"),
         org("shifts", "*").eq("status", "published").gte("shift_date", iso(from)).lte("shift_date", iso(last)),
         org("leave_requests", "type, date_start, date_end").eq("status", "approved")
-            .in("type", ["urlaub", "sick"]).lte("date_start", iso(last)).gte("date_end", iso(from))
+            .in("type", ["urlaub", "sick"]).lte("date_start", iso(cut))
     ]);
 
     if (cur.error) throw cur.error;
+    if (leaveQ.error) throw leaveQ.error;           // a wrong Soll is worse than an error message
     if (adjQ.error) console.error("time_adjustments (run backend/sql/004_timesheet.sql):", adjQ.error);
 
     // ---- table rows ----
+    const seen = new Set<string>();                  // one planned Soll per shift, even with duplicate entries
     const rows: Row[] = ((cur.data ?? []) as unknown as TimeEntry[]).map(e => {
         const counted = e.status === "approved" && !!e.clock_in && !!e.clock_out;
         const elapsed = e.clock_in && e.clock_out ? worked(e) : 0;
-        const soll = planned(e.shifts);
+        const dup = counted && !!e.shift_id && seen.has(e.shift_id);
+        if (counted && e.shift_id) seen.add(e.shift_id);
+        const soll = dup ? 0 : planned(e.shifts);
         return { e, counted, pause: pause(e), elapsed, soll, balance: e.clock_out ? elapsed - soll : 0 };
     });
     const ok = rows.filter(r => r.counted);
@@ -101,14 +123,35 @@ export async function loadSheet(orgId: string, m: Membership, month: Date, setti
     const ist = sum(r => r.elapsed);
     const totals = { elapsed: ist, soll: sum(r => r.soll), balance: ist - sum(r => r.soll) };
 
-    // ---- Soll (contract): weekly hours / 7 per calendar day, counted from the day the member was created ----
+    // ---- Soll (contract) ----
     const weekly = Number(m.weekly_target_hours);
     const joined = startOfDay(new Date(m.created_at));
-    const sollSec = joined > last ? 0 : (weekly / 7) * dayCount(joined > from ? joined : from, last) * 3600;
-    const sollPrior = joined < from ? (weekly / 7) * dayCount(joined, addDays(from, -1)) * 3600 : 0;
+    const leaves = (leaveQ.data ?? []) as unknown as Leave[];
+
+    /** Mon-Fri days (ISO) covered by approved leave inside [a,b], optionally only one type. */
+    const leaveDays = (a: Date, b: Date, type?: string) => {
+        const set = new Set<string>();
+        for (const l of leaves) {
+            if (type && l.type !== type) continue;
+            const x = parseDate(l.date_start), y = parseDate(l.date_end);
+            for (let d = x > a ? x : a, e = y < b ? y : b; d <= e; d = addDays(d, 1)) if (d.getDay() % 6) set.add(iso(d));
+        }
+        return set;
+    };
+    /** Seconds of Soll that do not apply in [a,b]: Mon-Fri public holidays + approved leave. */
+    const credit = (a: Date, b: Date) => {
+        const set = leaveDays(a, b);
+        for (let d = a; d <= b; d = addDays(d, 1)) if (d.getDay() % 6 && isHoliday(d)) set.add(iso(d));
+        return set.size * (weekly / 5) * 3600;
+    };
+    const soll = (a: Date, b: Date) => (b < a ? 0 : Math.max(0, dayCount(a, b) * (weekly / 7) * 3600 - credit(a, b)));
+
+    const dayBefore = addDays(from, -1);
+    const sollSec = soll(joined > from ? joined : from, cut);
+    const sollPrior = soll(joined, dayBefore < today ? dayBefore : today);
 
     // ---- carry-over = everything before this month: (Ist - Soll) + adjustments ----
-    const istPrior = ((prior.data ?? []) as unknown as Worked[]).reduce((s, e) => s + (e.clock_in && e.clock_out ? worked(e) : 0), 0);
+    const istPrior = prior.reduce((s, e) => s + (e.clock_in && e.clock_out ? worked(e) : 0), 0);
     const adjAll = (adjQ.data ?? []) as unknown as Adjustment[];
     const m0 = iso(from);
     const carry = istPrior - sollPrior + adjAll.filter(a => a.month < m0).reduce((s, a) => s + effect(a), 0);
@@ -124,15 +167,8 @@ export async function loadSheet(orgId: string, m: Membership, month: Date, setti
         .filter(s => !isOff(types.find(t => t.code === s.shift_code)))
         .reduce((s, x) => s + planned(x), 0);
 
-    // ---- leave hours: Mon-Fri days of approved leave inside the month x weekly/5 ----
-    const leaveHours = (type: string) => ((leaveQ.data ?? []) as unknown as { type: string; date_start: string; date_end: string }[])
-        .filter(l => l.type === type)
-        .reduce((s, l) => {
-            const a = parseDate(l.date_start), b = parseDate(l.date_end);
-            let n = 0;
-            for (let d = a < from ? from : a, end = b > last ? last : b; d <= end; d = addDays(d, 1)) if (d.getDay() % 6) n++;   // 0=Sun, 6=Sat -> skipped
-            return s + n * (weekly / 5) * 3600;
-        }, 0);
+    // ---- leave hours shown in the stats: Mon-Fri days of approved leave inside the month x weekly/5 ----
+    const leaveHours = (type: string) => leaveDays(from, last, type).size * (weekly / 5) * 3600;
 
     // ---- special hours (from approved entries, local time, by check-in day) ----
     const hol = ok.filter(r => isHoliday(new Date(r.e.clock_in!))).reduce((s, r) => s + r.elapsed, 0);
@@ -166,6 +202,8 @@ export async function loadSheet(orgId: string, m: Membership, month: Date, setti
 export async function saveAdjustment(
     orgId: string, membershipId: string, month: Date, kind: AdjKind, hours: number, note: string, userId: string | null
 ): Promise<string | null> {
+
+    if (!Number.isFinite(hours)) return "Invalid number";
 
     const minutes = Math.round((kind === "correction" ? hours : Math.abs(hours)) * 60);
     const mon = iso(startOfMonth(month));
