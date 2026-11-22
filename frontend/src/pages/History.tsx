@@ -1,6 +1,6 @@
 // Activity log. Same look as Zeiterfassung (blue bar + zt-table + blue footer).
 // Filter button opens the search/action/member filter. Click a row = details. Only admin can delete.
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Modal } from "../components/Modal";
 import { useAuth } from "../lib/auth";
 import { useLog } from "../lib/activity";
@@ -8,8 +8,6 @@ import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
 import { getMembers } from "../lib/cache";
 import { iso } from "../lib/dates";
-
-const PER_PAGE = 20;
 
 const COLUMNS = [
     { key: "time", label: "Time", dbKey: "created_at" },
@@ -45,14 +43,16 @@ export default function History() {
     const [rows, setRows] = useState<any[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
+    const [perPage, setPerPage] = useState(20);                   // follows the table height
     const [filter, setFilter] = useState<Filter>(NONE);
     const [draft, setDraft] = useState<Filter | null>(null);      // non-null = filter popup open
     const [members, setMembers] = useState<{ id: string; full_name: string }[]>([]);
     const [sortCol, setSortCol] = useState("time");
     const [sortDir, setSortDir] = useState<Record<string, "asc" | "desc">>({ time: "desc" });
     const [expanded, setExpanded] = useState<string | null>(null);
+    const tableRef = useRef<HTMLDivElement>(null);
 
-    const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
+    const totalPages = Math.max(1, Math.ceil(total / perPage));
     const active = filter.search.trim() !== "" || filter.action !== "all" || filter.member !== "all";
 
     const base = useCallback((forCount: boolean) => {
@@ -78,9 +78,9 @@ export default function History() {
             if (stale) return;
             setTotal(count ?? 0);
 
-            const pg = Math.min(page, Math.max(1, Math.ceil((count ?? 0) / PER_PAGE)));
-            const from = (pg - 1) * PER_PAGE;
-            const { data, error } = await sorted(base(false)).range(from, from + PER_PAGE - 1);
+            const pg = Math.min(page, Math.max(1, Math.ceil((count ?? 0) / perPage)));
+            const from = (pg - 1) * perPage;
+            const { data, error } = await sorted(base(false)).range(from, from + perPage - 1);
             if (stale) return;
             if (error) { console.error(error); return; }
             if (pg !== page) setPage(pg);
@@ -88,9 +88,25 @@ export default function History() {
             setExpanded(null);
         })();
         return () => { stale = true; };
-    }, [base, sorted, page]);
+    }, [base, sorted, page, perPage]);
 
     useEffect(() => { void getMembers(org!.id, false, setMembers); }, [org]);
+
+    // rows per page = how many rows fit in the table area (no empty gap above the footer)
+    useEffect(() => {
+        const el = tableRef.current;
+        if (!el) return;
+        const fit = () => {
+            const head = el.querySelector("thead")?.getBoundingClientRect().height ?? 40;
+            const row = el.querySelector("tbody tr.hs-row")?.getBoundingClientRect().height ?? 40;
+            const n = Math.max(5, Math.floor((el.clientHeight - head) / row));
+            setPerPage(p => (p === n ? p : n));
+        };
+        fit();
+        const ro = new ResizeObserver(fit);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [rows]);
 
     function sortBy(key: string) {
         setSortDir(d => ({ ...d, [key]: sortCol === key && d[key] === "desc" ? "asc" : "desc" }));
@@ -143,7 +159,7 @@ export default function History() {
     }
 
     return (
-        <div className="dsh">
+        <div className="dsh fit">
             <div className="dsh-h split">
                 <h2>Activity</h2>
                 <button className="ro-export" onClick={exportCsv}>Export CSV</button>
@@ -153,15 +169,11 @@ export default function History() {
                 <div className="ro-bar">
                     <div className="ro-side"><h2>{total} entries</h2></div>
                     <div className="ro-side">
-                        <button className="ro-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Prev.</button>
-                        <button className="ro-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</button>
-                    </div>
-                    <div className="ro-side">
                         <button className="ro-btn" onClick={() => setDraft(filter)}>Filter{active ? " •" : ""}</button>
                     </div>
                 </div>
 
-                <div className="zt-table hs">
+                <div className="zt-table hs" ref={tableRef}>
                     <table>
                         <thead>
                             <tr>
@@ -217,8 +229,12 @@ export default function History() {
                 </div>
 
                 <div className="ro-foot">
-                    <div className="ro-side">{isAdmin ? "Admin: expand a row to delete it." : "Read-only view."}</div>
-                    <div className="ro-side zt-totals"><span>Page {page} / {totalPages}</span></div>
+                    <div className="ro-side" />
+                    <div className="ro-side">
+                        <span className="hs-page">Page {page} / {totalPages}</span>
+                        <button className="ro-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Prev.</button>
+                        <button className="ro-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</button>
+                    </div>
                 </div>
             </div>
 
