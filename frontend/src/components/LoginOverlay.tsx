@@ -58,14 +58,14 @@ function LoginCard({ onRegister }: { onRegister: () => void }) {
         const { error } = await supabase.auth.signInWithOtp({
             email: email.trim(), options: { shouldCreateUser: true, emailRedirectTo: window.location.origin }
         });
-        if (error) setErr(error.message); else setInfo(`Login link sent to ${email.trim()} — open it on this device.`);
+        if (error) setErr(error.message); else setInfo(`Login link sent to ${email.trim()} - open it on this device.`);
     }
 
     async function sendReset() {
         if (!fEmail.trim()) return;
         setFBusy(true);
         const { error } = await supabase.auth.resetPasswordForEmail(fEmail.trim(), { redirectTo: `${window.location.origin}/reset` });
-        setFMsg(error ? error.message : "Recovery email sent \u2014 check your inbox (and spam folder).");
+        setFMsg(error ? error.message : "Recovery email sent - check your inbox (and spam folder).");
         setFBusy(false);
     }
 
@@ -133,7 +133,7 @@ function NoWorkplace({ onRegister }: { onRegister: () => void }) {
             <h3>No workplace yet</h3>
             <p className="auth-hint">Signed in as <b>{user?.email}</b>.</p>
             <p className="auth-hint">
-                This email is not linked to a workplace. Ask your manager to add it under Manager → Crew, then check again —
+                This email is not linked to a workplace. Ask your manager to add it under Manager → Crew, then check again -
                 or register your own business.
             </p>
             <div className="auth-actions-row">
@@ -188,8 +188,8 @@ function OnboardCard({ onBack }: { onBack: () => void }) {
         setBusy(false);
 
         if (error) { setErr(error.message); return; }
-        if (data.user && data.user.identities?.length === 0) { setErr("This email is already registered — go back and log in."); return; }
-        if (!data.session) { setInfo(`We sent a confirmation link to ${email.trim()}. Open it on this device — you will continue here automatically.`); return; }
+        if (data.user && data.user.identities?.length === 0) { setErr("This email is already registered - go back and log in."); return; }
+        if (!data.session) { setInfo(`We sent a confirmation link to ${email.trim()}. Open it on this device - you will continue here automatically.`); return; }
         setStep(2);
     }
 
@@ -210,7 +210,7 @@ function OnboardCard({ onBack }: { onBack: () => void }) {
         setErr("");
         navigator.geolocation?.getCurrentPosition(
             p => setPos([p.coords.latitude, p.coords.longitude]),
-            () => setErr("Location not available — you can set it later in Admin."),
+            () => setErr("Location not available - you can set it later in Admin."),
             { enableHighAccuracy: true, timeout: 10000 }
         );
     }
@@ -231,7 +231,7 @@ function OnboardCard({ onBack }: { onBack: () => void }) {
         });
         setBusy(false);
 
-        if (error) { setErr(error.code === "PGRST202" ? "Missing DB function — run backend/sql/006_onboarding.sql." : error.message); return; }
+        if (error) { setErr(error.code === "PGRST202" ? "Missing DB function - run backend/sql/006_onboarding.sql." : error.message); return; }
 
         await supabase.auth.updateUser({ data: { onboarding: false } });   // best effort
         await reload();
@@ -279,7 +279,7 @@ function OnboardCard({ onBack }: { onBack: () => void }) {
                         {zones.map(z => <option key={z} value={z}>{z.replace(/_/g, " ")}</option>)}
                     </select>
 
-                    <label>Workplace location (for check-in distance) — optional</label>
+                    <label>Workplace location (for check-in distance) - optional</label>
                     <div className="auth-pass-row">
                         <input readOnly value={pos ? `${pos[0].toFixed(5)}, ${pos[1].toFixed(5)}` : "not set"} />
                         <button type="button" className="auth-eye" style={{ width: "auto", padding: "0 12px" }} onClick={locate}>Use my location</button>
@@ -296,7 +296,7 @@ function OnboardCard({ onBack }: { onBack: () => void }) {
 
             {step === 3 && (
                 <div>
-                    <label>Team Members (optional — you can add them later in Manager → Crew)</label>
+                    <label>Team Members (optional - you can add them later in Manager → Crew)</label>
                     <div id="obCrewRows">
                         {crew.map((r, i) => (
                             <div key={i} className="plan-entry-actions" style={{ marginTop: 6 }}>

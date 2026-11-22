@@ -154,7 +154,7 @@ export function Rack({ days, colW, members, shifts, pending, leave, onShift, sav
 
                                     const cutL = r.start < rangeStart, cutR = r.end > rangeEnd;
                                     const canDrag = isManager || m.id === me?.id;
-                                    const meta = [s.role_label, `${s.start_time.slice(0, 5)}\u2013${s.end_time.slice(0, 5)}`, s.is_night_shift ? "Nachtdienst" : null]
+                                    const meta = [s.role_label, `${s.start_time.slice(0, 5)}-${s.end_time.slice(0, 5)}`, s.is_night_shift ? "Nachtdienst" : null]
                                         .filter(Boolean).join(" \u00b7 ");
 
                                     return (

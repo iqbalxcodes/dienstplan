@@ -30,7 +30,7 @@ export const hms = (sec: number) => {
     return `${sec < 0 && a ? "- " : ""}${Math.floor(a / 3600)}:${p2(Math.floor(a % 3600 / 60))}:${p2(a % 60)}`;
 };
 export const clock = (s?: string | null) => {
-    if (!s) return "\u2014";
+    if (!s) return "-";
     const d = new Date(s);
     return `${d.getHours()}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`;
 };

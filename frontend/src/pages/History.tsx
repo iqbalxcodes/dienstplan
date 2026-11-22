@@ -189,7 +189,7 @@ export default function History() {
                             {rows.map((r, i) => {
                                 const when = new Date(r.created_at);
                                 const open = expanded === r.id;
-                                const name = r.memberships?.full_name ?? "\u2014";
+                                const name = r.memberships?.full_name ?? "-";
                                 return (
                                     <Fragment key={r.id}>
                                         <tr className={"hs-row " + (i % 2 ? "r1" : "r0")} onClick={() => setExpanded(open ? null : r.id)}>
@@ -204,8 +204,8 @@ export default function History() {
                                                     <div className="detail-grid-hist">
                                                         <div><span className="plan-entry-meta">Full timestamp</span> <strong>{when.toLocaleString("de-DE")}</strong></div>
                                                         <div><span className="plan-entry-meta">Member</span> <strong>{name}</strong></div>
-                                                        <div><span className="plan-entry-meta">Actor role</span> <strong>{String(r.details?.actor_role ?? "\u2014")}</strong></div>
-                                                        <div><span className="plan-entry-meta">Entity type</span> <strong>{r.entity_type ?? "\u2014"}</strong></div>
+                                                        <div><span className="plan-entry-meta">Actor role</span> <strong>{String(r.details?.actor_role ?? "-")}</strong></div>
+                                                        <div><span className="plan-entry-meta">Entity type</span> <strong>{r.entity_type ?? "-"}</strong></div>
                                                         {Object.entries(r.details ?? {}).map(([k, v]) => (
                                                             <div key={k}>
                                                                 <span className="plan-entry-meta">{k}</span>{" "}

@@ -61,7 +61,7 @@ function DayCell(p: CellProps) {
 
                 {!grouped && p.entries.map(e => (
                     <div key={e.key} className={"ro-card" + (e.req ? " ghost" : "") + (e.dirty ? " draft" : "") + (e.del ? " del" : "")} style={{ background: p.color(e.code) }}
-                        title={`${who(e)} · ${e.code ?? "?"}${e.req ? " (request)" : e.del ? " (deleted — publish to apply)" : e.dirty ? " (draft)" : ""}`}
+                        title={`${who(e)} · ${e.code ?? "?"}${e.req ? " (request)" : e.del ? " (deleted - publish to apply)" : e.dirty ? " (draft)" : ""}`}
                         onClick={ev => { ev.stopPropagation(); if (p.manager) open(e); }}>
                         {e.open ? `Open${e.claims ? ` (${e.claims})` : ""}` : lastName(e.member)}
                     </div>
@@ -70,7 +70,7 @@ function DayCell(p: CellProps) {
                 {grouped && [...groups.entries()].map(([k, list]) => (
                     <div key={k} className={"ro-card" + (list[0].req ? " ghost" : "")} style={{ background: p.color(list[0].code) }}
                         title={`${list[0].code}: ${list.map(who).join(", ")}`}
-                        onClick={ev => { ev.stopPropagation(); if (p.manager) p.onGroup(`${list[0].code} — ${iso(p.date)}`, list); }}>
+                        onClick={ev => { ev.stopPropagation(); if (p.manager) p.onGroup(`${list[0].code} - ${iso(p.date)}`, list); }}>
                         {list.length} {list[0].open ? "Open" : "Mitarbeiter"}
                     </div>
                 ))}
@@ -323,10 +323,10 @@ export default function Schedule() {
                 start_time: off ? OFF_START : f.start + ":00", end_time: off ? OFF_END : f.end + ":00", status: "pending"
             }));
             const { data: ins, error } = await supabase.from("shift_requests").insert(rows).select("id");
-            if (error) return error.code === "PGRST205" ? "Table shift_requests missing — run backend/sql/002_roster.sql." : error.message;
+            if (error) return error.code === "PGRST205" ? "Table shift_requests missing - run backend/sql/002_roster.sql." : error.message;
             const ids = ins!.map(x => x.id);
             pushUndo(async () => { await supabase.from("shift_requests").delete().in("id", ids); });
-            say("Request sent — waiting for approval", "success");
+            say("Request sent - waiting for approval", "success");
 
         } else if (spec.mode === "assign") {                              // manager -> applied at once
             const err = await overlap(f, dates);
@@ -335,7 +335,7 @@ export default function Schedule() {
             if (error) return error.message;
             const ids = ins!.map(x => x.id);
             pushUndo(async () => { await supabase.from("shifts").delete().in("id", ids); });
-            say(f.membershipId === OPEN ? "Open shift added — publish to apply" : "Shift assigned", "success");
+            say(f.membershipId === OPEN ? "Open shift added - publish to apply" : "Shift assigned", "success");
 
         } else if (spec.mode === "edit") {
             const old = data.shifts.find(x => x.id === spec.shift.id)!;   // raw row (spec.shift is the manager view)
@@ -358,7 +358,7 @@ export default function Schedule() {
                 if (e) return e;
                 pushUndo(async () => { await setDraft(old.id, prev); });
             }
-            say("Shift updated — publish to apply", "success");
+            say("Shift updated - publish to apply", "success");
 
         } else {                                                          // approve (as is, or edited)
             const req = spec.req;
@@ -394,7 +394,7 @@ export default function Schedule() {
                 const e = await setDraft(old.id, { _delete: true });
                 if (e) return e;
                 pushUndo(async () => { await setDraft(old.id, prev); });
-                say("Shift marked for deletion — publish to apply", "success");
+                say("Shift marked for deletion - publish to apply", "success");
             }
         } else if (spec.mode === "request") {
             const req = spec.req;
@@ -443,7 +443,7 @@ export default function Schedule() {
                         onToggle={toggle}
                         onShift={s => setPopup({ mode: "edit", shift: s })}
                         onReq={r => setPopup({ mode: "request", req: r })}
-                        onNote={d => openNote(`Vermerk — ${d.slice(8)}.${d.slice(5, 7)}.`, d)} />
+                        onNote={d => openNote(`Vermerk - ${d.slice(8)}.${d.slice(5, 7)}.`, d)} />
                 ) : (
                     <div className="ro-grid">
                         <div className="ro-row ro-head">
@@ -453,7 +453,7 @@ export default function Schedule() {
                         <div className="ro-row ro-notes">
                             {Array.from({ length: 7 }, (_, i) => (
                                 <div key={i} className={(i >= 5 ? "we" : i % 2 ? "alt" : "") + (isManager ? " edit" : "")}
-                                    onClick={() => openNote(`Vermerk — ${weekdayName(i)}`, undefined, i + 1)}>
+                                    onClick={() => openNote(`Vermerk - ${weekdayName(i)}`, undefined, i + 1)}>
                                     {data.notes.filter(n => n.weekday === i + 1).map(n => n.text).join(" · ")}
                                 </div>
                             ))}

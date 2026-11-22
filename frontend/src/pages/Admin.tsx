@@ -70,7 +70,7 @@ function Presets() {
                 <button type="button" className="preset-add" onClick={() => setTypes(t => [...t, { code: "", name: "", color: "#6b7280", kind: "work", start: "09:00", end: "17:00" }])}>+ Add shift</button>
             </div>
 
-            <Field label="Areas — one per line">
+            <Field label="Areas - one per line">
                 <textarea rows={4} value={areas} onChange={e => setAreas(e.target.value)} />
             </Field>
 
@@ -113,7 +113,7 @@ export default function Admin() {
         const c = parseMapsInput(mapsUrl);
         if (!c) { say("Could not find coordinates in that link/text.", "error"); return; }
         setF({ ...f, lat: String(c[0]), lng: String(c[1]) });
-        say(`Extracted: ${c[0]}, ${c[1]} — remember to Save.`, "info");
+        say(`Extracted: ${c[0]}, ${c[1]} - remember to Save.`, "info");
     }
 
     async function save() {
@@ -178,7 +178,7 @@ export default function Admin() {
                             </select>
                         </Field>
                     </div>
-                    <Field label="Google Maps link or “lat, lng” — coordinates are extracted automatically">
+                    <Field label="Google Maps link or “lat, lng” - coordinates are extracted automatically">
                         <div className="ad-row">
                             <input type="text" placeholder="https://maps.google.com/… or -6.2562, 106.6641"
                                 value={mapsUrl} onChange={e => setMapsUrl(e.target.value)} />
@@ -188,7 +188,7 @@ export default function Admin() {
                 </Panel>
 
                 <Panel title="Staff Role Labels">
-                    <Field label="One per line — these fill the role dropdown on the Dashboard.">
+                    <Field label="One per line - these fill the role dropdown on the Dashboard.">
                         <textarea rows={5} value={f.roles} onChange={set("roles")} />
                     </Field>
                 </Panel>

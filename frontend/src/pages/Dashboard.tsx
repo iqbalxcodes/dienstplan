@@ -105,7 +105,7 @@ function MyEntries({ refreshKey }: { refreshKey: number }) {
     async function submit() {
         if (!complaint || !complaint.message.trim()) return;
         const err = await fileComplaint(org!.id, me!.id, complaint.entryId, complaint.message, complaint.files);
-        say(err ?? "Complaint filed — a manager will review it", err ? "error" : "success");
+        say(err ?? "Complaint filed - a manager will review it", err ? "error" : "success");
         setComplaint(null);
     }
 
@@ -118,11 +118,11 @@ function MyEntries({ refreshKey }: { refreshKey: number }) {
                 return (
                     <div key={e.id} className="entry-card" style={{ "--c": STATUS_COLOR[e.status] } as React.CSSProperties}>
                         <span className="entry-pill">{e.status}</span>
-                        <strong>{e.shift_code ?? e.shifts?.shift_code ?? "\u2014"}</strong>
-                        <span className="entry-item"><MapPin size={22} />{area || "\u2014"}</span>
+                        <strong>{e.shift_code ?? e.shifts?.shift_code ?? "-"}</strong>
+                        <span className="entry-item"><MapPin size={22} />{area || "-"}</span>
                         <span className="entry-item"><CircleArrowRight size={22} />{fmtDT(e.clock_in)}</span>
                         <span className="entry-item"><CircleArrowOutUpRight size={22} />{fmtDT(e.clock_out)}</span>
-                        <span className="entry-item"><Clock size={22} />{e.clock_in && e.clock_out ? duration(e.clock_in, e.clock_out) : "\u2014"}</span>
+                        <span className="entry-item"><Clock size={22} />{e.clock_in && e.clock_out ? duration(e.clock_in, e.clock_out) : "-"}</span>
                         <span className="entry-item" title={e.employee_note ?? ""}><FileText size={22} /><span className="entry-note">{e.employee_note || "-"}</span></span>
                         {e.status === "rejected" && (
                             <button className="entry-btn" onClick={() => setComplaint({ entryId: e.id, message: "", files: [] })}>File Complaint</button>
@@ -244,13 +244,13 @@ export default function Dashboard() {
         if (conflicts.length) { say("You already have an overlapping shift", "error"); return; }
         const { error } = await supabase.from("open_shift_claims")
             .insert({ organization_id: org!.id, shift_id: s.id, membership_id: me!.id, status: "pending" });
-        say(error ? error.message : "Request sent — waiting for approval", error ? "error" : "success");
+        say(error ? error.message : "Request sent - waiting for approval", error ? "error" : "success");
         await refresh();
     }
 
     async function checkIn() {
         if (strict === "enforce" && dist !== null && dist > nearM) {
-            alert(`Check-in blocked \u2014 you are ~${dist} m from the workplace.`);
+            alert(`Check-in blocked - you are ~${dist} m from the workplace.`);
             return;
         }
         const t = new Date().toISOString();
@@ -300,7 +300,7 @@ export default function Dashboard() {
             { workplace: org!.name, elapsed: hms(elapsedSec) }, "time_entry", open!.id);
 
         setComment("");
-        say("Checked out — waiting for approval", "success");
+        say("Checked out - waiting for approval", "success");
         await refresh();
     }
 
@@ -320,7 +320,7 @@ export default function Dashboard() {
                             <span>{s.shift_date.slice(8)}.{s.shift_date.slice(5, 7)}.</span>
                         </div>
                         <div className="shift-card-time">{hm(s.start_time)} - {hm(s.end_time)}</div>
-                        <div className="shift-card-area">{[s.area_label, s.role_label].filter(Boolean).join(" - ") || "\u2014"}</div>
+                        <div className="shift-card-area">{[s.area_label, s.role_label].filter(Boolean).join(" - ") || "-"}</div>
                     </div>
                 ))}
             </div>
@@ -343,7 +343,7 @@ export default function Dashboard() {
                                             : <><span>{day}</span><span>{date}</span></>}
                                     </div>
                                     <div className="shift-card-time">{hm(s.start_time)} - {hm(s.end_time)}</div>
-                                    <div className="shift-card-area">{[s.area_label, s.role_label].filter(Boolean).join(" - ") || "\u2014"}</div>
+                                    <div className="shift-card-area">{[s.area_label, s.role_label].filter(Boolean).join(" - ") || "-"}</div>
                                 </div>
                             );
                         })}
@@ -378,7 +378,7 @@ export default function Dashboard() {
                 </div>
                 <div className="att-field">
                     <label>Scheduled</label>
-                    <input readOnly value={todayShift ? `${hm(todayShift.start_time)} - ${hm(todayShift.end_time)}` : "\u2014"} />
+                    <input readOnly value={todayShift ? `${hm(todayShift.start_time)} - ${hm(todayShift.end_time)}` : "-"} />
                 </div>
                 <div className="att-field">
                     <label>Elapsed</label>

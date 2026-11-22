@@ -38,11 +38,11 @@ export function toLocalInput(isoStr: string): string {
     return `${iso(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export const fmt = (isoStr: string | null) => (isoStr ? new Date(isoStr).toLocaleString("de-DE") : "\u2014");
+export const fmt = (isoStr: string | null) => (isoStr ? new Date(isoStr).toLocaleString("de-DE") : "-");
 
 /** 21.11.2026 - 09:11:00 */
 export const fmtDT = (s: string | null) =>
-    s ? `${new Date(s).toLocaleDateString("de-DE")} - ${new Date(s).toLocaleTimeString("de-DE")}` : "\u2014";
+    s ? `${new Date(s).toLocaleDateString("de-DE")} - ${new Date(s).toLocaleTimeString("de-DE")}` : "-";
 
 /** "06:30:00" -> "6:30" */
 export const hm = (t: string) => `${+t.slice(0, 2)}:${t.slice(3, 5)}`;

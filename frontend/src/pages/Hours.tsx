@@ -86,7 +86,7 @@ function Section({ m, type, title, label, list, stats, reload }: SectionProps) {
         })));
         if (error) { say(error.message, "error"); return; }
         setStaged([]);
-        say(`${label} request sent — waiting for approval`, "success");
+        say(`${label} request sent - waiting for approval`, "success");
         reload();
     }
 
@@ -214,7 +214,7 @@ export function LeaveSections({ m, name }: { m: Membership; name?: string }) {
         ["Genommener Urlaub", taken], ["Geplanter Urlaub", planned], ["Beantragter Urlaub", asked],
         ["Resturlaub aktuell", total - taken - planned - asked]
     ];
-    const sfx = name ? ` — ${name}` : "";
+    const sfx = name ? ` - ${name}` : "";
 
     return (
         <>

@@ -47,7 +47,7 @@ export function useShiftEdit(reload: () => void | Promise<void>) {
         });
 
         if (error) { console.error(error); say("Failed to submit change request", "error"); }
-        else say("Change requested — waiting for manager approval", "success");
+        else say("Change requested - waiting for manager approval", "success");
         await reload();
     }
 

@@ -29,8 +29,8 @@ export default function Settings() {
     const note = !isPushSupported()
         ? "Push notifications are not supported in this browser."
         : enabled && Notification.permission === "denied"
-            ? "Notifications are blocked in your browser settings — enable them for this site to receive reminders."
-            : "Get a notification 15 minutes before your shift starts or ends — even when the app is closed.";
+            ? "Notifications are blocked in your browser settings - enable them for this site to receive reminders."
+            : "Get a notification 15 minutes before your shift starts or ends - even when the app is closed.";
 
     return (
         <div className="dsh">

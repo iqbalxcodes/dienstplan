@@ -132,14 +132,14 @@ export function Month({ monthDate, members, shifts, changes, onPopup, onStep, sa
                                     <div key={s.id} className="month-shift-card"
                                         data-shift-id={s.id} data-membership-id={s.membership_id}>
                                         <span className="month-card-name">{nameOf(s.membership_id)}</span>
-                                        <span className="month-card-meta">{s.role_label ?? ""} · {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}</span>
+                                        <span className="month-card-meta">{s.role_label ?? ""} · {s.start_time.slice(0, 5)}-{s.end_time.slice(0, 5)}</span>
                                     </div>
                                 ))}
                                 {changes.filter(r => r.proposed_shift_date === key && nameOf(r.requested_by_membership_id)).map(r => (
                                     <div key={r.id} className="month-shift-card pending-ghost"
                                         data-request-id={r.id} data-membership-id={r.requested_by_membership_id}>
                                         <span className="month-card-name">{nameOf(r.requested_by_membership_id)}</span>
-                                        <span className="month-card-meta">{r.proposed_start_time.slice(0, 5)}–{r.proposed_end_time.slice(0, 5)} · pending</span>
+                                        <span className="month-card-meta">{r.proposed_start_time.slice(0, 5)}-{r.proposed_end_time.slice(0, 5)} · pending</span>
                                     </div>
                                 ))}
                             </div>

@@ -5,9 +5,7 @@ import App from "./App";
 import { SettingsProvider } from "./lib/i18n";
 import { AuthProvider } from "./lib/auth";
 import { StatusProvider } from "./lib/status";
-import "./styles/style.css";
-import "./styles/dienstplan.css";
-import "./styles/shell.css";
+import "./styles/app.css";
 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>

@@ -86,8 +86,8 @@ function EntryRow({ e, text, onSave, onApprove, onDelete }: RowProps) {
     return (
         <div className="entry-card" style={{ "--c": "#dba43d" } as React.CSSProperties}>
             <strong>{e.memberships?.full_name ?? "Unknown"}</strong>
-            <b>{e.shift_code ?? e.shifts?.shift_code ?? "\u2014"}</b>
-            <span className="entry-item"><MapPin size={22} />{area || "\u2014"}</span>
+            <b>{e.shift_code ?? e.shifts?.shift_code ?? "-"}</b>
+            <span className="entry-item"><MapPin size={22} />{area || "-"}</span>
             {edit ? (
                 <>
                     <span className="entry-item"><CircleArrowRight size={22} /><input className="mg-in" type="datetime-local" value={inn} onChange={x => setInn(x.target.value)} /></span>
@@ -99,7 +99,7 @@ function EntryRow({ e, text, onSave, onApprove, onDelete }: RowProps) {
                     <span className="entry-item"><CircleArrowOutUpRight size={22} />{fmtDT(e.clock_out)}</span>
                 </>
             )}
-            <span className="entry-item"><Clock size={22} />{a && b ? duration(a, b) : "\u2014"}</span>
+            <span className="entry-item"><Clock size={22} />{a && b ? duration(a, b) : "-"}</span>
             <span className="entry-item"><FileText size={22} /><span className="entry-note">{text || "-"}</span></span>
             <div className="mg-act">
                 <button className="mg-btn" onClick={edit ? done : start}>{edit ? "Done" : "Edit"}</button>
@@ -147,7 +147,7 @@ function Approvals() {
             req.organization_id, shift.membership_id, req.proposed_shift_date,
             req.proposed_start_time, req.proposed_end_time, req.shift_id);
         if (error) { alert("Failed to check for conflicts"); return; }
-        if (conflicts.length) { alert("Cannot approve \u2014 this overlaps another shift"); return; }
+        if (conflicts.length) { alert("Cannot approve - this overlaps another shift"); return; }
 
         await supabase.from("shifts").update({
             shift_date: req.proposed_shift_date, start_time: req.proposed_start_time,
@@ -179,7 +179,7 @@ function Approvals() {
             {changes.map(r => (
                 <div key={r.id} className="entry-card" style={{ "--c": "#dba43d" } as React.CSSProperties}>
                     <strong>{r.memberships?.full_name ?? "Unknown"}</strong>
-                    <span className="entry-item">Shift change: {dmy(r.proposed_shift_date)} · {r.proposed_start_time.slice(0, 5)}–{r.proposed_end_time.slice(0, 5)}</span>
+                    <span className="entry-item">Shift change: {dmy(r.proposed_shift_date)} · {r.proposed_start_time.slice(0, 5)}-{r.proposed_end_time.slice(0, 5)}</span>
                     <div className="mg-act">
                         <button className="mg-btn" onClick={() => rejectChange(r.id)}>Reject</button>
                         <button className="mg-btn" onClick={() => approveChange(r)}>Approve</button>
@@ -226,7 +226,7 @@ function OpenShifts() {
         const { conflicts, error } = await findShiftConflicts(
             c.organization_id, c.membership_id, s.shift_date, s.start_time, s.end_time, s.id);
         if (error) { alert("Failed to check for conflicts"); return; }
-        if (conflicts.length) { alert("Cannot approve \u2014 this overlaps another shift"); return; }
+        if (conflicts.length) { alert("Cannot approve - this overlaps another shift"); return; }
 
         const up = await supabase.from("shifts")
             .update({ membership_id: c.membership_id, is_open: false, updated_at: now() }).eq("id", s.id);
@@ -256,9 +256,9 @@ function OpenShifts() {
             {list.map(c => (
                 <div key={c.id} className="entry-card" style={{ "--c": "#dba43d" } as React.CSSProperties}>
                     <strong>{c.memberships?.full_name ?? "Unknown"}</strong>
-                    <b>{c.shifts.shift_code ?? "\u2014"}</b>
-                    <span className="entry-item"><MapPin size={22} />{[c.shifts.area_label, c.shifts.role_label].filter(Boolean).join(" - ") || "\u2014"}</span>
-                    <span className="entry-item">{dmy(c.shifts.shift_date)} · {c.shifts.start_time.slice(0, 5)}–{c.shifts.end_time.slice(0, 5)}</span>
+                    <b>{c.shifts.shift_code ?? "-"}</b>
+                    <span className="entry-item"><MapPin size={22} />{[c.shifts.area_label, c.shifts.role_label].filter(Boolean).join(" - ") || "-"}</span>
+                    <span className="entry-item">{dmy(c.shifts.shift_date)} · {c.shifts.start_time.slice(0, 5)}-{c.shifts.end_time.slice(0, 5)}</span>
                     <div className="mg-act">
                         <button className="mg-btn" onClick={() => reject(c.id)}>Reject</button>
                         <button className="mg-btn" onClick={() => approve(c)}>Approve</button>
@@ -433,7 +433,7 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
 
     // no login yet -> invite (the link creates the account, claim_membership() links it); otherwise password recovery
     async function recover(m: Membership) {
-        if (!m.email) { alert("This member has no email yet \u2014 add one first."); return; }
+        if (!m.email) { alert("This member has no email yet - add one first."); return; }
         const { error } = m.user_id
             ? await supabase.auth.resetPasswordForEmail(m.email, { redirectTo: `${window.location.origin}/reset` })
             : await supabase.auth.signInWithOtp({ email: m.email, options: { shouldCreateUser: true, emailRedirectTo: window.location.origin } });
@@ -464,7 +464,7 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
 
                             <div className="mg-body">
                                 <div>{[m.contract?.toUpperCase(), `${m.weekly_target_hours} Std/Woche`, m.job_title].filter(Boolean).join(" - ")}</div>
-                                <div>{[m.phone, m.email].filter(Boolean).join(" - ") || "\u2014"}</div>
+                                <div>{[m.phone, m.email].filter(Boolean).join(" - ") || "-"}</div>
                             </div>
 
                             <div className="mg-btns" onClick={e => e.stopPropagation()}>
@@ -494,7 +494,7 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
                     <input type="text" value={d.last} onChange={set("last")} />
                     <label>Vertrag</label>
                     <select value={d.contract} onChange={set("contract")}>
-                        <option value="">—</option>
+                        <option value="">-</option>
                         <option value="vollzeit">Vollzeit</option>
                         <option value="teilzeit">Teilzeit</option>
                         <option value="minijob">Minijob</option>
@@ -524,7 +524,7 @@ export default function Manager() {
 
             {sel ? (
                 <div key={"sel-" + sel.id}>
-                    <Head title={`Zeiterfassung — ${sel.full_name}`} />
+                    <Head title={`Zeiterfassung - ${sel.full_name}`} />
                     <TimesheetBody m={sel} />
                     <LeaveSections m={sel} name={sel.full_name} />
                 </div>

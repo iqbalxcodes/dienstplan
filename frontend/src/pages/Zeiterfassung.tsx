@@ -87,8 +87,8 @@ export function TimesheetBody({ m }: { m: Membership }) {
                                 {rows.length === 0 && <tr><td colSpan={COLUMNS.length} style={{ color: "#888" }}>No entries.</td></tr>}
                                 {rows.map(r => (
                                     <tr key={r.e.id} className={r.counted ? "" : "off"} title={r.counted ? "" : `Status: ${r.e.status}`}>
-                                        <td>{r.e.clock_in ? dmy(r.e.clock_in) : "\u2014"}</td>
-                                        <td>{r.e.shift_code ?? r.e.shifts?.shift_code ?? "\u2014"}</td>
+                                        <td>{r.e.clock_in ? dmy(r.e.clock_in) : "-"}</td>
+                                        <td>{r.e.shift_code ?? r.e.shifts?.shift_code ?? "-"}</td>
                                         <td>{clock(r.e.clock_in)}</td>
                                         <td>{hms(r.pause)}</td>
                                         <td>{clock(r.e.clock_out)}</td>
@@ -116,7 +116,7 @@ export function TimesheetBody({ m }: { m: Membership }) {
             </div>
 
             {edit && (
-                <Modal title={`Edit — ${monthName}`} onClose={() => setEdit(null)} onSubmit={saveEdit}>
+                <Modal title={`Edit - ${monthName}`} onClose={() => setEdit(null)} onSubmit={saveEdit}>
                     <p className="plan-entry-meta">Hours (e.g. 1.5). Korrektur may be negative. 0 = delete.</p>
                     {KINDS.map(k => (
                         <div key={k}>
@@ -151,7 +151,7 @@ export default function Zeiterfassung() {
     return (
         <div className="dsh">
             <div className="dsh-h split">
-                <h2>Zeiterfassung{isManager && m.id !== me!.id ? ` — ${m.full_name}` : ""}</h2>
+                <h2>Zeiterfassung{isManager && m.id !== me!.id ? ` - ${m.full_name}` : ""}</h2>
                 <div className="ro-side">
                     {isManager && (
                         <select className="ro-btn" value={target} onChange={e => setTarget(e.target.value)}>
