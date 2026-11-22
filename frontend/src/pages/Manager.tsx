@@ -11,6 +11,7 @@ import { fetchEvidence } from "../lib/complaints";
 import { findShiftConflicts } from "../lib/shifts";
 import { LEAVE_LABELS, type LeaveType, type Membership } from "../lib/types";
 import { Modal } from "../components/Modal";
+import { useNavigate } from "react-router-dom";
 
 const now = () => new Date().toISOString();
 const uid = async () => (await supabase.auth.getUser()).data.user?.id ?? null;
@@ -291,6 +292,7 @@ function Crew() {
     const [list, setList] = useState<Membership[]>([]);
     const [edit, setEdit] = useState<Membership | null>(null);
     const [d, setD] = useState(BLANK);
+    const nav = useNavigate();
 
     const load = useCallback(async () => {
         const { data } = await supabase.from("memberships").select("*").eq("organization_id", org!.id).order("full_name");
@@ -365,7 +367,7 @@ function Crew() {
                 {list.map(m => {
                     const n = split(m.full_name);
                     return (
-                        <div key={m.id} className={"mg-card" + (m.active ? "" : " off")}>
+                        <div key={m.id} className={"mg-card" + (m.active ? "" : " off")} style={{ cursor: "pointer" }} onClick={() => nav(`/manager/crew/${m.id}`)}>
                             <span className="mg-av">{m.full_name.charAt(0).toUpperCase()}</span>
 
                             <div className="mg-head">
@@ -378,7 +380,7 @@ function Crew() {
                                 <div>{[m.phone, m.email].filter(Boolean).join(" - ") || "\u2014"}</div>
                             </div>
 
-                            <div className="mg-btns">
+                            <div className="mg-btns" onClick={e => e.stopPropagation()}>
                                 <button className="mg-btn" onClick={() => start(m)}>Edit</button>
                                 <button className="mg-btn" disabled={!(m.email && m.active)} onClick={() => recover(m)}>Recover</button>
                                 <button className="mg-btn" onClick={() => toggleActive(m)}>{m.active ? "Deactivate" : "Reactivate"}</button>

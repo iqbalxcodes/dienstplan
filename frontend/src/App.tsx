@@ -25,6 +25,7 @@ export default function App() {
                 <Route path="settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
                 <Route path="zeiterfassung" element={<Zeiterfassung />} />
+                <Route path="manager/crew/:id" element={<RequireRole><Zeiterfassung /></RequireRole>} />
             </Route>
         </Routes>
     );
