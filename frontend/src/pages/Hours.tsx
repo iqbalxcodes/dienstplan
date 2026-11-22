@@ -54,6 +54,8 @@ function Section({ m, type, title, label, list, stats, reload }: SectionProps) {
     const [sel, setSel] = useState<Set<string>>(new Set());
     const [staged, setStaged] = useState<Range[][]>([]);          // assigned, not sent yet (one batch per Assign)
     const [reason, setReason] = useState<string | null>(null);    // non-null = popup open
+    const [status, setStatus] = useState("");                     // filter: "" = all
+    const [draft, setDraft] = useState<string | null>(null);      // non-null = filter popup open
     const today = startOfToday();
     const weeks = useMemo(() => sixWeeks(month), [month]);
     const work = type === "urlaub";                                // Urlaub counts Mon-Fri only
@@ -112,7 +114,7 @@ function Section({ m, type, title, label, list, stats, reload }: SectionProps) {
                         </aside>
                     )}
                     <div className="lv-card">
-                        {STATUSES.map(s => {
+                        {STATUSES.filter(s => !status || s === status).map(s => {
                             const rows = list.filter(l => l.status === s);
                             return (
                                 <div key={s}>
@@ -137,7 +139,7 @@ function Section({ m, type, title, label, list, stats, reload }: SectionProps) {
                             <button className="ro-btn" onClick={() => step(1)}>Next</button>
                         </div>
                         <div className="ro-side">
-                            <button className="ro-btn" onClick={() => say("Filter: coming soon", "info")}>Filter</button>
+                            <button className="ro-btn" onClick={() => setDraft(status)}>Filter{status ? " •" : ""}</button>
                         </div>
                     </div>
 
@@ -149,11 +151,12 @@ function Section({ m, type, title, label, list, stats, reload }: SectionProps) {
                             <div key={wi} className="ro-row ro-wk">
                                 {w.map((d, i) => {
                                     const k = iso(d), h = hit(k);
+                                    const vis = h && (!status || h.status === "staged" || h.status === status);
                                     return (
                                         <div key={k} className={"ro-cell " + col(i) + (d.getMonth() !== month.getMonth() ? " other" : "") + (sel.has(k) ? " sel" : "")}
                                             onClick={() => toggle(k)}>
                                             <div className="lv-n">{d.getDate()}</div>
-                                            {h && <div className={`lv-tag ${h.status}`}>{label}</div>}
+                                            {vis && <div className={`lv-tag ${h.status}`}>{label}</div>}
                                         </div>
                                     );
                                 })}
@@ -181,6 +184,18 @@ function Section({ m, type, title, label, list, stats, reload }: SectionProps) {
                     <input disabled value={type === "freiwunsch" ? "Frei" : "Urlaub"} />
                     <label>Reason (optional)</label>
                     <textarea value={reason} onChange={e => setReason(e.target.value)} />
+                </Modal>
+            )}
+
+            {draft !== null && (
+                <Modal title="Filter" onClose={() => setDraft(null)} onSubmit={() => { setStatus(draft); setDraft(null); }} submitLabel="Apply">
+                    <label>Status</label>
+                    <select value={draft} onChange={e => setDraft(e.target.value)}>
+                        <option value="">All</option>
+                        <option value="approved">Approved</option>
+                        <option value="pending">Pending</option>
+                        <option value="rejected">Rejected</option>
+                    </select>
                 </Modal>
             )}
         </>

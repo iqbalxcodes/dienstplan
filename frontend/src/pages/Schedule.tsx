@@ -27,6 +27,9 @@ export interface Entry {
 interface Data { members: Membership[]; shifts: Shift[]; requests: ShiftRequest[]; notes: RosterNote[]; claims: { shift_id: string }[]; }
 const EMPTY: Data = { members: [], shifts: [], requests: [], notes: [], claims: [] };
 
+interface Filter { member: string; code: string; }   // member: "" = all, OPEN = open shifts only · code: "" = all
+const NO_FILTER: Filter = { member: "", code: "" };
+
 interface CellProps {
     date: Date; other: boolean; alt: boolean; weekend: boolean; today: boolean; selected: boolean;
     cols: number; slots: number; entries: Entry[]; info: string; manager: boolean;
@@ -98,6 +101,8 @@ export default function Schedule() {
     const [group, setGroup] = useState<{ title: string; list: Entry[] } | null>(null);
     const [note, setNote] = useState<NoteForm | null>(null);
     const [undo, setUndo] = useState<(() => Promise<unknown>)[]>([]);
+    const [filter, setFilter] = useState<Filter>(NO_FILTER);
+    const [fdraft, setFdraft] = useState<Filter | null>(null);         // non-null = filter popup open
 
     const settings = org!.settings ?? {};
     const types = shiftTypesOf(settings);
@@ -153,7 +158,12 @@ export default function Schedule() {
 
     const byDate = useMemo(() => {
         const map = new Map<string, Entry[]>();
-        const add = (d: string, e: Entry) => { if (e.member || e.open) map.set(d, [...(map.get(d) ?? []), e]); };
+        const add = (d: string, e: Entry) => {
+            if (!e.member && !e.open) return;
+            if (filter.code && e.code !== filter.code) return;
+            if (filter.member && (filter.member === OPEN ? !e.open : e.member?.id !== filter.member)) return;
+            map.set(d, [...(map.get(d) ?? []), e]);
+        };
         const member = (id: string | null) => data.members.find(x => x.id === id);
         data.shifts.forEach(raw => {
             const s = viewOf(raw);
@@ -167,7 +177,7 @@ export default function Schedule() {
         const rank = (c: string | null) => { const i = types.findIndex(t => t.code === c); return i < 0 ? 99 : i; };
         map.forEach(l => l.sort((a, b) => rank(a.code) - rank(b.code) || lastName(a.member).localeCompare(lastName(b.member))));
         return map;
-    }, [data, types]);
+    }, [data, types, filter]);
 
     // "Employee works 6 days non stop!" + open shifts that need a decision (manager)
     const warnings = useMemo(() => {
@@ -416,6 +426,8 @@ export default function Schedule() {
     const monthName = new Intl.DateTimeFormat(user.language, { month: "long", year: "numeric" }).format(month);
     const today = startOfToday();
     const sorted = [...selected].sort();
+    const filtered = !!(filter.member || filter.code);
+    const shownMembers = filter.member ? data.members.filter(m => m.id === filter.member) : data.members;   // OPEN matches nobody -> only the Open row stays
 
     return (
         <div className="dsh fill">
@@ -435,12 +447,12 @@ export default function Schedule() {
                     </div>
 
                     <div className="ro-side">
-                        <button className="ro-btn" onClick={() => say("Filter: coming soon", "info")}>Filter</button>
+                        <button className="ro-btn" onClick={() => setFdraft(filter)}>Filter{filtered ? " •" : ""}</button>
                     </div>
                 </div>
 
                 {mode === "week" ? (
-                    <Week days={weeks[0]} members={data.members} byDate={byDate} notes={data.notes} types={types}
+                    <Week days={weeks[0]} members={shownMembers} byDate={byDate} notes={data.notes} types={types}
                         manager={isManager} lang={user.language} today={today} selected={selected} selMember={selMember}
                         onToggle={toggle}
                         onShift={s => setPopup({ mode: "edit", shift: s })}
@@ -500,6 +512,23 @@ export default function Schedule() {
                     isManager={isManager} meId={me!.id} onClose={() => setPopup(null)}
                     onSubmit={(f, d) => submit(popup, f, d)}
                     onDelete={popup.mode === "assign" ? undefined : () => removeOrReject(popup)} />
+            )}
+
+            {fdraft && (
+                <Modal title="Filter" onClose={() => setFdraft(null)} onSubmit={() => { setFilter(fdraft); setFdraft(null); }} submitLabel="Apply">
+                    <label>Employee</label>
+                    <select value={fdraft.member} onChange={e => setFdraft({ ...fdraft, member: e.target.value })}>
+                        <option value="">All</option>
+                        <option value={OPEN}>Open Shift</option>
+                        {data.members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+                    </select>
+                    <label>Shift</label>
+                    <select value={fdraft.code} onChange={e => setFdraft({ ...fdraft, code: e.target.value })}>
+                        <option value="">All</option>
+                        {types.map(t => <option key={t.code} value={t.code}>{t.code} - {t.name}</option>)}
+                    </select>
+                    <button type="button" className="mg-btn" style={{ marginTop: 14 }} onClick={() => setFdraft(NO_FILTER)}>Reset</button>
+                </Modal>
             )}
 
             {note && (

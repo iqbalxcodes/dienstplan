@@ -365,6 +365,7 @@ function LeavePanel() {
 // ---------------- Crew ----------------
 
 const BLANK = { first: "", last: "", role: "employee", contract: "", hours: "40", job: "", phone: "", email: "" };
+const NO_FILTER = { q: "", role: "", active: "" };
 
 function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | null) => void }) {
 
@@ -374,6 +375,8 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
     const [list, setList] = useState<Membership[]>([]);
     const [edit, setEdit] = useState<Membership | null>(null);
     const [d, setD] = useState(BLANK);
+    const [filter, setFilter] = useState(NO_FILTER);
+    const [draft, setDraft] = useState<typeof NO_FILTER | null>(null);   // non-null = filter popup open
 
     // stored list shows instantly, refreshed in the background
     const load = useCallback(() => getMembers(org!.id, false, setList), [org]);
@@ -381,6 +384,13 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
     useEffect(() => { void load(); }, [load]);
 
     const set = (k: keyof typeof BLANK) => (e: { target: { value: string } }) => setD(x => ({ ...x, [k]: e.target.value }));
+
+    const kw = filter.q.trim().toLowerCase();
+    const shown = list.filter(m =>
+        (!filter.role || m.role === filter.role) &&
+        (!filter.active || String(m.active) === filter.active) &&
+        (!kw || m.full_name.toLowerCase().includes(kw) || (m.email ?? "").toLowerCase().includes(kw)));
+    const filtered = !!(filter.q || filter.role || filter.active);
 
     function start(m: Membership) {
         const n = split(m.full_name);
@@ -446,11 +456,12 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
         <div className="ro-panel">
             <div className="ro-bar">
                 <div className="ro-side"><button className="ro-btn" onClick={() => say("Add: coming soon", "info")}>Add</button></div>
-                <div className="ro-side"><button className="ro-btn" onClick={() => say("Filter: coming soon", "info")}>Filter</button></div>
+                <div className="ro-side"><button className="ro-btn" onClick={() => setDraft(filter)}>Filter{filtered ? " •" : ""}</button></div>
             </div>
 
             <div className="mg-crew">
-                {list.map(m => {
+                {shown.length === 0 && <p className="entry-empty">No crew found.</p>}
+                {shown.map(m => {
                     const n = split(m.full_name);
                     return (
                         <div key={m.id} className={"mg-card" + (m.active ? "" : " off") + (sel?.id === m.id ? " sel" : "")}
@@ -476,6 +487,27 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
                     );
                 })}
             </div>
+
+            {draft && (
+                <Modal title="Filter" onClose={() => setDraft(null)} onSubmit={() => { setFilter(draft); setDraft(null); }} submitLabel="Apply">
+                    <label>Name / email</label>
+                    <input type="search" placeholder="Search…" value={draft.q} onChange={e => setDraft({ ...draft, q: e.target.value })} />
+                    <label>Role</label>
+                    <select value={draft.role} onChange={e => setDraft({ ...draft, role: e.target.value })}>
+                        <option value="">All</option>
+                        <option value="employee">Crew</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                    <label>Status</label>
+                    <select value={draft.active} onChange={e => setDraft({ ...draft, active: e.target.value })}>
+                        <option value="">All</option>
+                        <option value="true">Active</option>
+                        <option value="false">Deactivated</option>
+                    </select>
+                    <button type="button" className="mg-btn" style={{ marginTop: 14 }} onClick={() => setDraft(NO_FILTER)}>Reset</button>
+                </Modal>
+            )}
 
             {edit && (
                 <Modal title="Edit Crew Member" onClose={() => setEdit(null)} onSubmit={done} submitLabel="Done">

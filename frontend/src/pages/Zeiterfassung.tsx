@@ -22,6 +22,8 @@ export function TimesheetBody({ m }: { m: Membership }) {
     const [sheet, setSheet] = useState<Sheet | null>(null);
     const [tick, setTick] = useState(0);
     const [edit, setEdit] = useState<AdjForm | null>(null);
+    const [status, setStatus] = useState("");                    // "" = all
+    const [draft, setDraft] = useState<string | null>(null);     // non-null = filter popup open
 
     // admin edits everyone, manager only employees
     const canEdit = isAdmin || (isManager && m.role === "employee");
@@ -36,7 +38,6 @@ export function TimesheetBody({ m }: { m: Membership }) {
 
     const step = (n: number) => setMonth(d => new Date(d.getFullYear(), d.getMonth() + n, 1));
     const monthName = new Intl.DateTimeFormat(user.language, { month: "long", year: "numeric" }).format(month);
-    const soon = (what: string) => say(`${what}: coming soon`, "info");
 
     function openEdit() {
         const f = {} as AdjForm;
@@ -59,6 +60,7 @@ export function TimesheetBody({ m }: { m: Membership }) {
     }
 
     const rows = sheet?.rows ?? [];
+    const shown = rows.filter(r => !status || r.e.status === status);   // table only; stats/totals stay for the whole month
     const t = sheet?.totals ?? { elapsed: 0, soll: 0, balance: 0 };
 
     return (
@@ -76,7 +78,7 @@ export function TimesheetBody({ m }: { m: Membership }) {
                             <button className="ro-btn" onClick={() => step(1)}>Next</button>
                         </div>
                         <div className="ro-side">
-                            <button className="ro-btn" onClick={() => soon("Filter")}>Filter</button>
+                            <button className="ro-btn" onClick={() => setDraft(status)}>Filter{status ? " •" : ""}</button>
                         </div>
                     </div>
 
@@ -84,8 +86,8 @@ export function TimesheetBody({ m }: { m: Membership }) {
                         <table>
                             <thead><tr>{COLUMNS.map(c => <th key={c}>{c}</th>)}</tr></thead>
                             <tbody>
-                                {rows.length === 0 && <tr><td colSpan={COLUMNS.length} style={{ color: "#888" }}>No entries.</td></tr>}
-                                {rows.map(r => (
+                                {shown.length === 0 && <tr><td colSpan={COLUMNS.length} style={{ color: "#888" }}>No entries.</td></tr>}
+                                {shown.map(r => (
                                     <tr key={r.e.id} className={r.counted ? "" : "off"} title={r.counted ? "" : `Status: ${r.e.status}`}>
                                         <td>{r.e.clock_in ? dmy(r.e.clock_in) : "-"}</td>
                                         <td>{r.e.shift_code ?? r.e.shifts?.shift_code ?? "-"}</td>
@@ -114,6 +116,18 @@ export function TimesheetBody({ m }: { m: Membership }) {
                     </div>
                 </div>
             </div>
+
+            {draft !== null && (
+                <Modal title="Filter" onClose={() => setDraft(null)} onSubmit={() => { setStatus(draft); setDraft(null); }} submitLabel="Apply">
+                    <label>Status</label>
+                    <select value={draft} onChange={e => setDraft(e.target.value)}>
+                        <option value="">All</option>
+                        <option value="approved">Approved</option>
+                        <option value="pending">Pending</option>
+                        <option value="rejected">Rejected</option>
+                    </select>
+                </Modal>
+            )}
 
             {edit && (
                 <Modal title={`Edit - ${monthName}`} onClose={() => setEdit(null)} onSubmit={saveEdit}>
