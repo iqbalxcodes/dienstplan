@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
-import { useSettings } from "../lib/i18n";
+import { tr } from "../lib/i18n";
 import { DEFAULT_SHIFT_TYPES } from "../lib/roster";
 import { DEFAULT_AREAS, DEFAULT_ROLES } from "../lib/types";
 
@@ -29,7 +29,6 @@ const slugify = (name: string) =>
 function LoginCard({ onRegister }: { onRegister: () => void }) {
 
     const { reload } = useAuth();
-    const { t } = useSettings();
     const [email, setEmail] = useState("");
     const [pass, setPass] = useState("");
     const [show, setShow] = useState(false);
@@ -43,7 +42,7 @@ function LoginCard({ onRegister }: { onRegister: () => void }) {
 
     async function login() {
         setErr(""); setInfo("");
-        if (!email.trim() || !pass) { setErr("Please fill in email and password."); return; }
+        if (!email.trim() || !pass) { setErr(tr("Please fill in email and password.")); return; }
         localStorage.setItem(REMEMBER_KEY, remember ? "1" : "0");
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pass });
         if (error) { setErr(error.message); return; }
@@ -53,35 +52,35 @@ function LoginCard({ onRegister }: { onRegister: () => void }) {
     // invited by a manager (email already on the crew list): the link creates the account and logs in
     async function firstLogin() {
         setErr(""); setInfo("");
-        if (!email.trim()) { setErr("Enter the email your manager added, then tap again."); return; }
+        if (!email.trim()) { setErr(tr("Enter the email your manager added, then tap again.")); return; }
         localStorage.setItem(REMEMBER_KEY, remember ? "1" : "0");
         const { error } = await supabase.auth.signInWithOtp({
             email: email.trim(), options: { shouldCreateUser: true, emailRedirectTo: window.location.origin }
         });
-        if (error) setErr(error.message); else setInfo(`Login link sent to ${email.trim()} - open it on this device.`);
+        if (error) setErr(error.message); else setInfo(tr("Login link sent to {email} - open it on this device.", { email: email.trim() }));
     }
 
     async function sendReset() {
         if (!fEmail.trim()) return;
         setFBusy(true);
         const { error } = await supabase.auth.resetPasswordForEmail(fEmail.trim(), { redirectTo: `${window.location.origin}/reset` });
-        setFMsg(error ? error.message : "Recovery email sent - check your inbox (and spam folder).");
+        setFMsg(error ? error.message : tr("Recovery email sent - check your inbox (and spam folder)."));
         setFBusy(false);
     }
 
     return (
         <div className="plan-modal auth-card">
-            <h3>{t("login.title")}</h3>
+            <h3>{tr("login.title")}</h3>
 
-            <label>{t("login.email")}</label>
+            <label>{tr("login.email")}</label>
             <input type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} />
 
-            <label>{t("login.password")}</label>
+            <label>{tr("login.password")}</label>
             <div className="auth-pass-row">
                 <input type={show ? "text" : "password"} autoComplete="current-password" value={pass}
                     onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === "Enter" && login()} />
                 <button type="button" className="auth-eye" onClick={() => setShow(!show)}
-                    title={show ? "Hide password" : "Show password"} aria-label={show ? "Hide password" : "Show password"}>
+                    title={tr(show ? "Hide password" : "Show password")} aria-label={tr(show ? "Hide password" : "Show password")}>
                     {show ? EYE_OFF : EYE}
                 </button>
             </div>
@@ -89,30 +88,30 @@ function LoginCard({ onRegister }: { onRegister: () => void }) {
             <div className="auth-actions-row">
                 <label className="auth-check">
                     <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />
-                    <span>{t("login.remember")}</span>
+                    <span>{tr("login.remember")}</span>
                 </label>
-                <button className="primary" onClick={login}>{t("login.submit")}</button>
+                <button className="primary" onClick={login}>{tr("login.submit")}</button>
             </div>
 
             {err && <div className="auth-error">{err}</div>}
             {info && <div className="reset-msg ok">{info}</div>}
 
             <p className="auth-hint">
-                <a href="#" onClick={e => { e.preventDefault(); void firstLogin(); }}>First login? Send me a login link</a> ·{" "}
-                <a href="#" onClick={e => { e.preventDefault(); setForgot(!forgot); }}>{t("login.forgot")}</a>
+                <a href="#" onClick={e => { e.preventDefault(); void firstLogin(); }}>{tr("First login? Send me a login link")}</a> ·{" "}
+                <a href="#" onClick={e => { e.preventDefault(); setForgot(!forgot); }}>{tr("login.forgot")}</a>
             </p>
             <p className="auth-hint">
-                <span>{t("login.noAccount")}</span>{" "}
-                <a href="#" onClick={e => { e.preventDefault(); onRegister(); }}>{t("login.registerBusiness")}</a>
+                <span>{tr("login.noAccount")}</span>{" "}
+                <a href="#" onClick={e => { e.preventDefault(); onRegister(); }}>{tr("login.registerBusiness")}</a>
             </p>
 
             {forgot && (
                 <div>
                     <hr />
-                    <label>{t("login.forgotEmailLabel")}</label>
+                    <label>{tr("login.forgotEmailLabel")}</label>
                     <div className="auth-forgot-row">
                         <input type="email" autoComplete="email" value={fEmail} onChange={e => setFEmail(e.target.value)} />
-                        <button type="button" disabled={fBusy} onClick={sendReset}>{t("login.reset")}</button>
+                        <button type="button" disabled={fBusy} onClick={sendReset}>{tr("login.reset")}</button>
                     </div>
                     <p className="auth-hint">{fMsg}</p>
                 </div>
@@ -130,17 +129,16 @@ function NoWorkplace({ onRegister }: { onRegister: () => void }) {
 
     return (
         <div className="plan-modal auth-card">
-            <h3>No workplace yet</h3>
-            <p className="auth-hint">Signed in as <b>{user?.email}</b>.</p>
+            <h3>{tr("No workplace yet")}</h3>
+            <p className="auth-hint">{tr("Signed in as")} <b>{user?.email}</b>.</p>
             <p className="auth-hint">
-                This email is not linked to a workplace. Ask your manager to add it under Manager → Crew, then check again -
-                or register your own business.
+                {tr("This email is not linked to a workplace. Ask your manager to add it under Manager → Crew, then check again - or register your own business.")}
             </p>
             <div className="auth-actions-row">
-                <a href="#" onClick={e => { e.preventDefault(); void logout(); }}>Log out</a>
-                <button className="primary" disabled={busy} onClick={async () => { setBusy(true); await reload(); setBusy(false); }}>Check again</button>
+                <a href="#" onClick={e => { e.preventDefault(); void logout(); }}>{tr("Log out")}</a>
+                <button className="primary" disabled={busy} onClick={async () => { setBusy(true); await reload(); setBusy(false); }}>{tr("Check again")}</button>
             </div>
-            <p className="auth-hint"><a href="#" onClick={e => { e.preventDefault(); onRegister(); }}>Register a business instead</a></p>
+            <p className="auth-hint"><a href="#" onClick={e => { e.preventDefault(); onRegister(); }}>{tr("Register a business instead")}</a></p>
         </div>
     );
 }
@@ -175,9 +173,9 @@ function OnboardCard({ onBack }: { onBack: () => void }) {
 
     async function account() {
         setErr(""); setInfo("");
-        if (!name.trim() || !email.trim()) { setErr("Please enter your name and email."); return; }
-        if (pass.length < 6) { setErr("Password must be at least 6 characters."); return; }
-        if (pass !== pass2) { setErr("Passwords do not match."); return; }
+        if (!name.trim() || !email.trim()) { setErr(tr("Please enter your name and email.")); return; }
+        if (pass.length < 6) { setErr(tr("Password must be at least 6 characters.")); return; }
+        if (pass !== pass2) { setErr(tr("Passwords do not match.")); return; }
 
         setBusy(true);
         const { data, error } = await supabase.auth.signUp({
@@ -188,21 +186,21 @@ function OnboardCard({ onBack }: { onBack: () => void }) {
         setBusy(false);
 
         if (error) { setErr(error.message); return; }
-        if (data.user && data.user.identities?.length === 0) { setErr("This email is already registered - go back and log in."); return; }
-        if (!data.session) { setInfo(`We sent a confirmation link to ${email.trim()}. Open it on this device - you will continue here automatically.`); return; }
+        if (data.user && data.user.identities?.length === 0) { setErr(tr("This email is already registered - go back and log in.")); return; }
+        if (!data.session) { setInfo(tr("We sent a confirmation link to {email}. Open it on this device - you will continue here automatically.", { email: email.trim() })); return; }
         setStep(2);
     }
 
     async function resend() {
         const { error } = await supabase.auth.resend({ type: "signup", email: email.trim() });
         setErr(error ? error.message : "");
-        setInfo(error ? "" : "Confirmation email sent again.");
+        setInfo(error ? "" : tr("Confirmation email sent again."));
     }
 
     function business() {
         setErr("");
-        if (user && !name.trim()) { setErr("Please enter your name."); return; }
-        if (!orgName.trim()) { setErr("Organization name is required."); return; }
+        if (user && !name.trim()) { setErr(tr("Please enter your name.")); return; }
+        if (!orgName.trim()) { setErr(tr("Organization name is required.")); return; }
         setStep(3);
     }
 
@@ -210,7 +208,7 @@ function OnboardCard({ onBack }: { onBack: () => void }) {
         setErr("");
         navigator.geolocation?.getCurrentPosition(
             p => setPos([p.coords.latitude, p.coords.longitude]),
-            () => setErr("Location not available - you can set it later in Admin."),
+            () => setErr(tr("Location not available - you can set it later in Admin.")),
             { enableHighAccuracy: true, timeout: 10000 }
         );
     }
@@ -239,26 +237,26 @@ function OnboardCard({ onBack }: { onBack: () => void }) {
 
     return (
         <div className={"plan-modal auth-card" + (step === 3 ? " wide" : "")} id="onboardCard">
-            <h3>Register Your Business</h3>
-            <p className="auth-hint" style={{ margin: "-6px 0 6px" }}>Step {step} of 3</p>
+            <h3>{tr("Register Your Business")}</h3>
+            <p className="auth-hint" style={{ margin: "-6px 0 6px" }}>{tr("Step {n} of 3", { n: step })}</p>
 
             {step === 1 && (
                 <div>
-                    <label>Your Name</label>
+                    <label>{tr("Your Name")}</label>
                     <input type="text" autoComplete="name" value={name} onChange={e => setName(e.target.value)} />
-                    <label>Email</label>
+                    <label>{tr("login.email")}</label>
                     <input type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} />
-                    <label>Password</label>
+                    <label>{tr("login.password")}</label>
                     <input type="password" autoComplete="new-password" value={pass} onChange={e => setPass(e.target.value)} />
-                    <label>Repeat password</label>
+                    <label>{tr("Repeat password")}</label>
                     <input type="password" autoComplete="new-password" value={pass2} onChange={e => setPass2(e.target.value)} />
 
                     {err && <div className="auth-error">{err}</div>}
-                    {info && <div className="reset-msg ok">{info} <a href="#" onClick={e => { e.preventDefault(); void resend(); }}>Resend</a></div>}
+                    {info && <div className="reset-msg ok">{info} <a href="#" onClick={e => { e.preventDefault(); void resend(); }}>{tr("Resend")}</a></div>}
 
                     <div className="auth-actions-row">
-                        <a href="#" onClick={e => { e.preventDefault(); onBack(); }}>Back to login</a>
-                        <button className="primary" disabled={busy} onClick={account}>Next</button>
+                        <a href="#" onClick={e => { e.preventDefault(); onBack(); }}>{tr("Back to login")}</a>
+                        <button className="primary" disabled={busy} onClick={account}>{tr("Next")}</button>
                     </div>
                 </div>
             )}
@@ -267,64 +265,63 @@ function OnboardCard({ onBack }: { onBack: () => void }) {
                 <div>
                     {user && (
                         <>
-                            <label>Your Name</label>
+                            <label>{tr("Your Name")}</label>
                             <input type="text" value={name} onChange={e => setName(e.target.value)} />
                         </>
                     )}
-                    <label>Organization Name</label>
+                    <label>{tr("Organization Name")}</label>
                     <input type="text" value={orgName} onChange={e => setOrgName(e.target.value)} />
 
-                    <label>Timezone</label>
+                    <label>{tr("Timezone")}</label>
                     <select value={tz} onChange={e => setTz(e.target.value)}>
                         {zones.map(z => <option key={z} value={z}>{z.replace(/_/g, " ")}</option>)}
                     </select>
 
-                    <label>Workplace location (for check-in distance) - optional</label>
+                    <label>{tr("Workplace location (for check-in distance) - optional")}</label>
                     <div className="auth-pass-row">
-                        <input readOnly value={pos ? `${pos[0].toFixed(5)}, ${pos[1].toFixed(5)}` : "not set"} />
-                        <button type="button" className="auth-eye" style={{ width: "auto", padding: "0 12px" }} onClick={locate}>Use my location</button>
+                        <input readOnly value={pos ? `${pos[0].toFixed(5)}, ${pos[1].toFixed(5)}` : tr("not set")} />
+                        <button type="button" className="auth-eye" style={{ width: "auto", padding: "0 12px" }} onClick={locate}>{tr("Use my location")}</button>
                     </div>
-                    <p className="auth-hint" style={{ textAlign: "left", margin: "4px 0 0" }}>Stand at your workplace and tap the button, or set it later in Admin.</p>
+                    <p className="auth-hint" style={{ textAlign: "left", margin: "4px 0 0" }}>{tr("Stand at your workplace and tap the button, or set it later in Admin.")}</p>
 
                     {err && <div className="auth-error">{err}</div>}
                     <div className="auth-actions-row">
-                        <a href="#" onClick={e => { e.preventDefault(); if (user) onBack(); else setStep(1); }}>Back</a>
-                        <button className="primary" onClick={business}>Next</button>
+                        <a href="#" onClick={e => { e.preventDefault(); if (user) onBack(); else setStep(1); }}>{tr("Back")}</a>
+                        <button className="primary" onClick={business}>{tr("Next")}</button>
                     </div>
                 </div>
             )}
 
             {step === 3 && (
                 <div>
-                    <label>Team Members (optional - you can add them later in Manager → Crew)</label>
+                    <label>{tr("Team Members (optional - you can add them later in Manager → Crew)")}</label>
 
                     <div id="obCrewRows">
-                        {crew.length === 0 && <p className="ob-empty">No members yet. Tap “+ Add member”.</p>}
+                        {crew.length === 0 && <p className="ob-empty">{tr("No members yet. Tap “+ Add member”.")}</p>}
                         {crew.map((r, i) => (
                             <div key={i} className="ob-crew-row">
                                 <select value={r.role} onChange={e => setRow(i, { role: e.target.value })}>
-                                    <option value="employee">Employee</option>
-                                    <option value="manager">Manager</option>
+                                    <option value="employee">{tr("Employee")}</option>
+                                    <option value="manager">{tr("Manager")}</option>
                                 </select>
-                                <input type="text" placeholder="Full name" value={r.name} onChange={e => setRow(i, { name: e.target.value })} />
-                                <input type="email" placeholder="Email" value={r.email} onChange={e => setRow(i, { email: e.target.value })} />
-                                <button type="button" className="ob-crew-remove" aria-label="Remove member"
+                                <input type="text" placeholder={tr("Full name")} value={r.name} onChange={e => setRow(i, { name: e.target.value })} />
+                                <input type="email" placeholder={tr("login.email")} value={r.email} onChange={e => setRow(i, { email: e.target.value })} />
+                                <button type="button" className="ob-crew-remove" aria-label={tr("Remove member")}
                                     onClick={() => setCrew(c => c.filter((_, j) => j !== i))}>✕</button>
                             </div>
                         ))}
                     </div>
 
                     <button type="button" id="obAddCrewRow" style={{ marginTop: 8 }}
-                        onClick={() => setCrew(c => [...c, { role: "employee", name: "", email: "" }])}>+ Add member</button>
+                        onClick={() => setCrew(c => [...c, { role: "employee", name: "", email: "" }])}>{tr("+ Add member")}</button>
                     <p className="auth-hint" style={{ textAlign: "left" }}>
-                        Members log in with the email you enter here: they tap “First login? Send me a login link”
-                        on the login screen, or you press <b>Invite</b> on their card later. No email = no login.
+                        {tr("Members log in with the email you enter here. They tap “First login? Send me a login link” on the login screen, or you press Invite on their card later. No email = no login.")}
                     </p>
 
                     {err && <div className="auth-error">{err}</div>}
                     <div className="auth-actions-row">
-                        <a href="#" onClick={e => { e.preventDefault(); setStep(2); }}>Back</a>
-                        <button className="primary" disabled={busy} onClick={finish}>{busy ? "Creating…" : "Finish Setup"}</button>
+                        <a href="#" onClick={e => { e.preventDefault(); setStep(2); }}>{tr("Back")}</a>
+                        <button className="primary" disabled={busy} onClick={finish}>{busy ? tr("Creating…") : tr("Finish Setup")}</button>
                     </div>
                 </div>
             )}

@@ -1,5 +1,6 @@
 // Weekly roster: one row per member (+ Open Shift row), 7 day columns. Same select/open mechanics as the month grid.
 import { iso, isSameDay } from "../../lib/dates";
+import { tr } from "../../lib/i18n";
 import { isOff, NO_CODE_COLOR, OPEN } from "../../lib/roster";
 import { getShiftRange } from "../../lib/shifts";
 import { useCompact } from "../../lib/useCompact";
@@ -64,7 +65,7 @@ export function Week(p: Props) {
                 ))}
             </div>
 
-            {rows.length === 0 && <div style={{ padding: 16, color: "#888" }}>No staff found</div>}
+            {rows.length === 0 && <div style={{ padding: 16, color: "#888" }}>{tr("No staff found")}</div>}
 
             {rows.map(m => {
                 const isOpen = m.id === OPEN;
@@ -77,7 +78,7 @@ export function Week(p: Props) {
                 return (
                     <div key={m.id} className="ro-row wk-row wk-member">
                         <div className="wk-name">
-                            {isOpen ? <b>Open Shift</b> : (
+                            {isOpen ? <b>{tr("Open Shift")}</b> : (
                                 <>
                                     <b>{last}{first && ","}</b>
                                     <b>{first}</b>
@@ -105,7 +106,7 @@ export function Week(p: Props) {
                                             <div key={e.key} className={cls} onClick={open}>{e.code ?? "?"}</div>
                                         ) : (
                                             <div key={e.key} className={cls} style={{ "--c": colorOf(e.code) } as React.CSSProperties} onClick={open}
-                                                title={`${e.open ? "Open Shift" : m.full_name} · ${e.code ?? "?"}${e.req ? " (request)" : ""}`}>
+                                                title={`${e.open ? tr("Open Shift") : m.full_name} · ${e.code ?? "?"}${e.req ? " " + tr("(request)") : ""}`}>
                                                 <div className="wk-top">
                                                     <span>{e.code}{e.open && e.claims ? ` (${e.claims})` : ""}</span>
                                                     <span>{e.shift ? hours(e.shift).toFixed(2) : ""}</span>

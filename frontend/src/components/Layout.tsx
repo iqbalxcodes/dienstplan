@@ -3,7 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { Bell, ChevronDown, Clock, Settings, TriangleAlert, WifiOff } from "lucide-react";
 import pkg from "../../package.json";
 import { useAuth } from "../lib/auth";
-import { useSettings } from "../lib/i18n";
+import { tr, useSettings } from "../lib/i18n";
 import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
 import { LoginOverlay } from "./LoginOverlay";
@@ -33,7 +33,6 @@ function Menu({ button, className, active, align = "left", children }:
 function Header() {
 
     const { org, me, isManager, isAdmin, logout } = useAuth();
-    const { t } = useSettings();
     const { pathname } = useLocation();
     const [pending, setPending] = useState({ approvals: 0, complaints: 0, leave: 0 });
 
@@ -67,23 +66,23 @@ function Header() {
                         <strong>{me ? `${me.role === "employee" ? "CREW" : me.role.toUpperCase()} - ${me.full_name.split(" ")[0]}` : "Dienstplan"}</strong>
                         <span>{org?.name}</span>
                     </span></>}>
-                    {me && <button onClick={logout}>Logout</button>}
+                    {me && <button onClick={logout}>{tr("Logout")}</button>}
                 </Menu>
 
                 {me && (
                     <nav className="hdr-nav">
-                        <NavLink to="/" end className={link}>{t("nav.dashboard")}</NavLink>
-                        <NavLink to="/schedule" className={link}>{t("nav.schedule")}</NavLink>
+                        <NavLink to="/" end className={link}>{tr("nav.dashboard")}</NavLink>
+                        <NavLink to="/schedule" className={link}>{tr("nav.schedule")}</NavLink>
                         <Menu className={"hdr-link" + (timesActive ? " active" : "")} active={timesActive}
-                            button={<>{t("nav.hours")} <ChevronDown size={16} /></>}>
-                            <Link to="/zeiterfassung">{t("nav.timesheet")}</Link>
-                            <Link to="/hours">{t("nav.leave")}</Link>
+                            button={<>{tr("nav.hours")} <ChevronDown size={16} /></>}>
+                            <Link to="/zeiterfassung">{tr("nav.timesheet")}</Link>
+                            <Link to="/hours">{tr("nav.leave")}</Link>
                         </Menu>
                         {isManager && (
                             <Menu className={"hdr-link" + (managerActive ? " active" : "")} active={managerActive}
-                                button={<>{t("nav.manager")} <ChevronDown size={16} /></>}>
-                                <Link to="/manager">{t("nav.manager")}</Link>
-                                {isAdmin && <Link to="/admin">{t("nav.admin")}</Link>}
+                                button={<>{tr("nav.manager")} <ChevronDown size={16} /></>}>
+                                <Link to="/manager">{tr("nav.manager")}</Link>
+                                {isAdmin && <Link to="/admin">{tr("nav.admin")}</Link>}
                             </Menu>
                         )}
                     </nav>
@@ -91,14 +90,14 @@ function Header() {
 
                 {me && (
                     <div className="hdr-icons">
-                        {isManager && <NavLink to="/history" className={icon} title={t("nav.history")}><Clock size={26} /></NavLink>}
+                        {isManager && <NavLink to="/history" className={icon} title={tr("nav.history")}><Clock size={26} /></NavLink>}
                         <Menu className="hdr-icon" align="right" button={<><Bell size={26} />{total > 0 && <i className="hdr-dot" />}</>}>
-                            {total === 0 && <span className="hdr-empty">No new notifications</span>}
-                            {pending.approvals > 0 && <Link to="/manager">{pending.approvals} approval(s) pending</Link>}
-                            {pending.complaints > 0 && <Link to="/manager">{pending.complaints} open complaint(s)</Link>}
-                            {pending.leave > 0 && <Link to="/manager">{pending.leave} leave request(s)</Link>}
+                            {total === 0 && <span className="hdr-empty">{tr("No new notifications")}</span>}
+                            {pending.approvals > 0 && <Link to="/manager">{tr("{n} approval(s) pending", { n: pending.approvals })}</Link>}
+                            {pending.complaints > 0 && <Link to="/manager">{tr("{n} open complaint(s)", { n: pending.complaints })}</Link>}
+                            {pending.leave > 0 && <Link to="/manager">{tr("{n} leave request(s)", { n: pending.leave })}</Link>}
                         </Menu>
-                        <NavLink to="/settings" className={icon} title={t("nav.settings")}><Settings size={26} /></NavLink>
+                        <NavLink to="/settings" className={icon} title={tr("nav.settings")}><Settings size={26} /></NavLink>
                     </div>
                 )}
             </div>
@@ -112,6 +111,7 @@ function Header() {
 function Strip() {
 
     const { me } = useAuth();
+    const { settings } = useSettings();
     const [now, setNow] = useState(new Date());
 
     useEffect(() => {
@@ -120,13 +120,17 @@ function Strip() {
     }, []);
 
     const h = now.getHours();
-    const greeting = h < 11 ? "Guten Morgen" : h < 18 ? "Guten Tag" : "Guten Abend";
+    const greeting = tr(h < 11 ? "Good morning" : h < 18 ? "Good day" : "Good evening");
 
     return (
         <div className="hdr-strip">
             <span>{me && `${greeting} ${me.full_name.split(" ")[0]}!`}</span>
             <span>
-                {now.toLocaleDateString("de-DE", { weekday: "long" })}, den {now.toLocaleDateString("de-DE")} - {now.toLocaleTimeString("de-DE")}
+                {tr("{weekday}, {date} - {time}", {
+                    weekday: new Intl.DateTimeFormat(settings.language, { weekday: "long" }).format(now),
+                    date: now.toLocaleDateString("de-DE"),
+                    time: now.toLocaleTimeString("de-DE")
+                })}
             </span>
         </div>
     );
@@ -158,7 +162,7 @@ function Footer() {
             <div id="paginationNav" ref={setNavEl} />
             {!online && (
                 <div className="footer-offline">
-                    <WifiOff size={18} />Offline! Data shown may not be accurate. Connect to the internet.
+                    <WifiOff size={18} />{tr("Offline! Data shown may not be accurate. Connect to the internet.")}
                 </div>
             )}
             <div className="app-version">Dienstplan v. {pkg.version}</div>
@@ -171,8 +175,8 @@ function OrgChooser() {
     return (
         <div className="plan-modal-backdrop">
             <div className="plan-modal auth-card">
-                <h3>Choose your workplace</h3>
-                <p className="auth-hint">You belong to more than one organization.</p>
+                <h3>{tr("Choose your workplace")}</h3>
+                <p className="auth-hint">{tr("You belong to more than one organization.")}</p>
                 {choices!.map(c => (
                     <div key={c.id} className="plan-entry-actions" style={{ marginTop: 10 }}>
                         <button style={{ width: "100%" }} onClick={() => choose(c.id)}>

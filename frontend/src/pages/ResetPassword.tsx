@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { tr } from "../lib/i18n";
 
 export default function ResetPassword() {
 
@@ -26,8 +27,8 @@ export default function ResetPassword() {
     async function submit(e: FormEvent) {
         e.preventDefault();
         setErr("");
-        if (p1.length < 6) { setErr("Password must be at least 6 characters."); return; }
-        if (p1 !== p2) { setErr("Passwords do not match."); return; }
+        if (p1.length < 6) { setErr(tr("Password must be at least 6 characters.")); return; }
+        if (p1 !== p2) { setErr(tr("Passwords do not match.")); return; }
 
         setBusy(true);
         const { error } = await supabase.auth.updateUser({ password: p1 });
@@ -40,25 +41,25 @@ export default function ResetPassword() {
     return (
         <div className="reset-wrap">
             <div className="plan-modal auth-card reset-card">
-                <h3>{state === "form" ? "Set New Password" : state === "done" ? "Done!" : "Reset Password"}</h3>
+                <h3>{tr(state === "form" ? "Set New Password" : state === "done" ? "Done!" : "Reset Password")}</h3>
 
-                {state === "loading" && <div className="reset-loading">Verifying your link…</div>}
-                {state === "invalid" && <div className="reset-loading">Link expired or invalid. Please request a new recovery email.</div>}
+                {state === "loading" && <div className="reset-loading">{tr("Verifying your link…")}</div>}
+                {state === "invalid" && <div className="reset-loading">{tr("Link expired or invalid. Please request a new recovery email.")}</div>}
 
                 {state === "form" && (
                     <form onSubmit={submit}>
-                        <label htmlFor="newPassword">New password</label>
-                        <input id="newPassword" type="password" placeholder="At least 6 characters" autoComplete="new-password"
+                        <label htmlFor="newPassword">{tr("New password")}</label>
+                        <input id="newPassword" type="password" placeholder={tr("At least 6 characters")} autoComplete="new-password"
                             value={p1} onChange={e => setP1(e.target.value)} />
-                        <label htmlFor="confirmPassword">Confirm password</label>
-                        <input id="confirmPassword" type="password" placeholder="Repeat your new password" autoComplete="new-password"
+                        <label htmlFor="confirmPassword">{tr("Confirm password")}</label>
+                        <input id="confirmPassword" type="password" placeholder={tr("Repeat your new password")} autoComplete="new-password"
                             value={p2} onChange={e => setP2(e.target.value)} />
-                        <button type="submit" disabled={busy}>{busy ? "Updating…" : "Update Password"}</button>
+                        <button type="submit" disabled={busy}>{busy ? tr("Updating…") : tr("Update Password")}</button>
                         {err && <div className="reset-msg err">{err}</div>}
                     </form>
                 )}
 
-                {state === "done" && <div className="reset-msg ok">Password updated. Redirecting to login…</div>}
+                {state === "done" && <div className="reset-msg ok">{tr("Password updated. Redirecting to login…")}</div>}
             </div>
         </div>
     );

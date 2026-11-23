@@ -1,5 +1,6 @@
 // One popup for: Assign (new), Edit Shift (manager), Request (manager approves/rejects).
 import { useState } from "react";
+import { tr } from "../../lib/i18n";
 import { isOff, OPEN, type RosterForm } from "../../lib/roster";
 import type { Membership, Shift, ShiftRequest, ShiftType } from "../../lib/types";
 
@@ -54,10 +55,11 @@ export function AssignPopup(p: Props) {
     ].filter(Boolean) as string[];
     const valid = missing.length === 0;
     const dirty = JSON.stringify(f) !== JSON.stringify(initial);
+    const approve = p.spec.mode === "request" && !dirty;
 
-    const title = p.spec.mode === "assign" ? "Assign" : p.spec.mode === "edit" ? "Edit Shift" : "Request";
-    const submitLabel = p.spec.mode === "assign" ? (p.isManager ? "Save" : "Send request")
-        : p.spec.mode === "edit" ? "Save" : (dirty ? "Save" : "Approve");
+    const title = tr(p.spec.mode === "assign" ? "Assign" : p.spec.mode === "edit" ? "Edit Shift" : "Request");
+    const submitLabel = tr(p.spec.mode === "assign" ? (p.isManager ? "Save" : "Send request")
+        : p.spec.mode === "edit" ? "Save" : approve ? "Approve" : "Save");
 
     function pickShift(code: string) {
         const t = p.types.find(x => x.code === code);
@@ -77,21 +79,21 @@ export function AssignPopup(p: Props) {
             <div className="plan-modal">
                 <h3>{title}</h3>
 
-                <label>Date</label>
+                <label>{tr("Date")}</label>
                 {multi
                     ? <input disabled value={dates.map(short).join(", ")} />
                     : <input type="date" value={f.date} onChange={e => set({ date: e.target.value })} />}
 
-                <label>Employee</label>
+                <label>{tr("Employee")}</label>
                 <select value={f.membershipId} disabled={!p.isManager} onChange={e => set({ membershipId: e.target.value })}>
-                    <option value="">Select</option>
-                    {p.isManager && p.spec.mode !== "request" && <option value={OPEN}>Open Shift</option>}
+                    <option value="">{tr("Select")}</option>
+                    {p.isManager && p.spec.mode !== "request" && <option value={OPEN}>{tr("Open Shift")}</option>}
                     {p.members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
                 </select>
 
-                <label>Shift</label>
+                <label>{tr("Shift")}</label>
                 <select value={f.code} onChange={e => pickShift(e.target.value)}>
-                    <option value="">Select</option>
+                    <option value="">{tr("Select")}</option>
                     {withCurrent(p.types.map(t => t.code), f.code).map(c => {
                         const t = p.types.find(x => x.code === c);
                         return <option key={c} value={c}>{t ? `${c} - ${t.name}` : c}</option>;
@@ -100,37 +102,41 @@ export function AssignPopup(p: Props) {
 
                 {!off && (
                     <>
-                        <label>Area</label>
+                        <label>{tr("Area")}</label>
                         <select value={f.area} onChange={e => set({ area: e.target.value })}>
-                            <option value="">Select</option>
+                            <option value="">{tr("Select")}</option>
                             {withCurrent(p.areas, f.area).map(a => <option key={a} value={a}>{a}</option>)}
                         </select>
 
-                        <label>Role</label>
+                        <label>{tr("Role")}</label>
                         <select value={f.role} onChange={e => set({ role: e.target.value })}>
-                            <option value="">Select</option>
+                            <option value="">{tr("Select")}</option>
                             {withCurrent(p.roles, f.role).map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
 
-                        <label>Start time</label>
+                        <label>{tr("Start time")}</label>
                         <input type="time" value={f.start} onChange={e => set({ start: e.target.value })} />
-                        <label>End time</label>
+                        <label>{tr("End time")}</label>
                         <input type="time" value={f.end} onChange={e => set({ end: e.target.value })} />
                     </>
                 )}
 
-                {!valid && <div className="plan-entry-meta" style={{ marginTop: 12, color: "#c62828" }}>Please fill in all fields (missing: {missing.join(", ")}).</div>}
+                {!valid && (
+                    <div className="plan-entry-meta" style={{ marginTop: 12, color: "#c62828" }}>
+                        {tr("Please fill in all fields (missing: {list}).", { list: missing.map(m => tr(m)).join(", ") })}
+                    </div>
+                )}
                 {err && <div className="auth-error">{err}</div>}
 
                 <div className="plan-modal-footer">
                     {p.onDelete && (
                         <button className="danger" disabled={busy} onClick={() => {
-                            if (p.spec.mode === "edit" && !confirm("Delete this shift?")) return;
+                            if (p.spec.mode === "edit" && !confirm(tr("Delete this shift?"))) return;
                             void run(p.onDelete!);
-                        }}>{p.spec.mode === "edit" ? "Delete" : "Reject"}</button>
+                        }}>{tr(p.spec.mode === "edit" ? "Delete" : "Reject")}</button>
                     )}
-                    <button onClick={p.onClose}>Cancel</button>
-                    <button className={"primary" + (submitLabel === "Approve" ? " ok" : "")} disabled={!valid || busy}
+                    <button onClick={p.onClose}>{tr("Cancel")}</button>
+                    <button className={"primary" + (approve ? " ok" : "")} disabled={!valid || busy}
                         onClick={() => run(() => p.onSubmit(f, ds))}>{submitLabel}</button>
                 </div>
             </div>
