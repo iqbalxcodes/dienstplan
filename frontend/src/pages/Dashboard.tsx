@@ -11,7 +11,7 @@ import { useLog } from "../lib/activity";
 import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
 import { addDays, duration, fmtDT, hm, iso, parseDate } from "../lib/dates";
-import { useSettings } from "../lib/i18n";
+import { tr, useSettings } from "../lib/i18n";
 import { fileComplaint } from "../lib/complaints";
 import { findShiftConflicts } from "../lib/shifts";
 import { DEFAULT_AREAS, DEFAULT_ROLES, DEFAULT_SHIFT_COLOR, type Shift, type TimeEntry } from "../lib/types";
@@ -60,12 +60,12 @@ function MapView({ wp, pos }: { wp: LL | null; pos: LL | null }) {
         const m = map.current!;
 
         if (wp) {
-            if (!workPin.current) workPin.current = L.marker(wp).addTo(m).bindPopup("Workplace");
+            if (!workPin.current) workPin.current = L.marker(wp).addTo(m).bindPopup(tr("Workplace"));
             else workPin.current.setLatLng(wp);
         }
 
         if (pos) {
-            if (!userPin.current) userPin.current = L.circleMarker(pos, { radius: 10, color: "#1565c0", fillOpacity: 0.8 }).addTo(m).bindPopup("You are here");
+            if (!userPin.current) userPin.current = L.circleMarker(pos, { radius: 10, color: "#1565c0", fillOpacity: 0.8 }).addTo(m).bindPopup(tr("You are here"));
             else userPin.current.setLatLng(pos);
         }
 
@@ -105,11 +105,11 @@ function MyEntries({ refreshKey }: { refreshKey: number }) {
     async function submit() {
         if (!complaint || !complaint.message.trim()) return;
         const err = await fileComplaint(org!.id, me!.id, complaint.entryId, complaint.message, complaint.files);
-        say(err ?? "Complaint filed - a manager will review it", err ? "error" : "success");
+        say(err ?? tr("Complaint filed - a manager will review it"), err ? "error" : "success");
         setComplaint(null);
     }
 
-    if (list.length === 0) return <p className="entry-empty">No entries yet.</p>;
+    if (list.length === 0) return <p className="entry-empty">{tr("No entries yet.")}</p>;
 
     return (
         <>
@@ -117,7 +117,7 @@ function MyEntries({ refreshKey }: { refreshKey: number }) {
                 const area = [e.area_label ?? e.shifts?.area_label, e.role_label ?? e.shifts?.role_label].filter(Boolean).join(" - ");
                 return (
                     <div key={e.id} className="entry-card" style={{ "--c": STATUS_COLOR[e.status] } as React.CSSProperties}>
-                        <span className="entry-pill">{e.status}</span>
+                        <span className="entry-pill">{tr(e.status)}</span>
                         <strong>{e.shift_code ?? e.shifts?.shift_code ?? "-"}</strong>
                         <span className="entry-item"><MapPin size={22} />{area || "-"}</span>
                         <span className="entry-item"><CircleArrowRight size={22} />{fmtDT(e.clock_in)}</span>
@@ -125,17 +125,17 @@ function MyEntries({ refreshKey }: { refreshKey: number }) {
                         <span className="entry-item"><Clock size={22} />{e.clock_in && e.clock_out ? duration(e.clock_in, e.clock_out) : "-"}</span>
                         <span className="entry-item" title={e.employee_note ?? ""}><FileText size={22} /><span className="entry-note">{e.employee_note || "-"}</span></span>
                         {e.status === "rejected" && (
-                            <button className="entry-btn" onClick={() => setComplaint({ entryId: e.id, message: "", files: [] })}>File Complaint</button>
+                            <button className="entry-btn" onClick={() => setComplaint({ entryId: e.id, message: "", files: [] })}>{tr("File Complaint")}</button>
                         )}
                     </div>
                 );
             })}
 
             {complaint && (
-                <Modal title="File Complaint" onClose={() => setComplaint(null)} onSubmit={submit} submitLabel="Submit">
-                    <label>What is wrong with this entry?</label>
+                <Modal title={tr("File Complaint")} onClose={() => setComplaint(null)} onSubmit={submit} submitLabel="Submit">
+                    <label>{tr("What is wrong with this entry?")}</label>
                     <textarea value={complaint.message} onChange={e => setComplaint({ ...complaint, message: e.target.value })} />
-                    <label>Evidence (optional photo / PDF)</label>
+                    <label>{tr("Evidence (optional photo / PDF)")}</label>
                     <input type="file" multiple onChange={e => setComplaint({ ...complaint, files: Array.from(e.target.files ?? []) })} />
                 </Modal>
             )}
@@ -234,23 +234,23 @@ export default function Dashboard() {
 
     function allow() {
         setGeoKey(k => k + 1);
-        say("If nothing happens, enable location for this site in your browser settings.", "info");
+        say(tr("If nothing happens, enable location for this site in your browser settings."), "info");
     }
 
     async function claim() {
         const s = ask!;
         setAsk(null);
         const { conflicts } = await findShiftConflicts(org!.id, me!.id, s.shift_date, s.start_time, s.end_time);
-        if (conflicts.length) { say("You already have an overlapping shift", "error"); return; }
+        if (conflicts.length) { say(tr("You already have an overlapping shift"), "error"); return; }
         const { error } = await supabase.from("open_shift_claims")
             .insert({ organization_id: org!.id, shift_id: s.id, membership_id: me!.id, status: "pending" });
-        say(error ? error.message : "Request sent - waiting for approval", error ? "error" : "success");
+        say(error ? error.message : tr("Request sent - waiting for approval"), error ? "error" : "success");
         await refresh();
     }
 
     async function checkIn() {
         if (strict === "enforce" && dist !== null && dist > nearM) {
-            alert(`Check-in blocked - you are ~${dist} m from the workplace.`);
+            alert(tr("Check-in blocked - you are ~{d} m from the workplace.", { d: dist }));
             return;
         }
         const t = new Date().toISOString();
@@ -279,7 +279,7 @@ export default function Dashboard() {
             { workplace: org!.name, distance_m: dist }, "time_entry", res.data.id);
 
         setComment("");
-        say("Checked in", "success");
+        say(tr("Checked in"), "success");
         await refresh();
     }
 
@@ -300,7 +300,7 @@ export default function Dashboard() {
             { workplace: org!.name, elapsed: hms(elapsedSec) }, "time_entry", open!.id);
 
         setComment("");
-        say("Checked out - waiting for approval", "success");
+        say(tr("Checked out - waiting for approval"), "success");
         await refresh();
     }
 
@@ -309,9 +309,9 @@ export default function Dashboard() {
     return (
         <div className="dsh">
 
-            <div className="dsh-h"><h2>My Shift</h2></div>
+            <div className="dsh-h"><h2>{tr("My Shift")}</h2></div>
             <div className="shift-strip">
-                {upcoming.length === 0 && <p className="entry-empty">No shifts scheduled.</p>}
+                {upcoming.length === 0 && <p className="entry-empty">{tr("No shifts scheduled.")}</p>}
                 {upcoming.map(s => (
                     <div key={s.id} className={"shift-card" + (s.shift_date === todayIso ? " is-today" : "")}
                         style={{ "--c": colorOf(s.shift_code) } as React.CSSProperties}>
@@ -327,7 +327,7 @@ export default function Dashboard() {
 
             {openShifts.length > 0 && (
                 <>
-                    <div className="dsh-h"><h2>Open Shift</h2></div>
+                    <div className="dsh-h"><h2>{tr("Open Shift")}</h2></div>
                     <div className="shift-strip">
                         {openShifts.map(s => {
                             const wait = claimed.has(s.id);
@@ -339,7 +339,7 @@ export default function Dashboard() {
                                     onClick={() => { if (!wait) setAsk(s); }}>
                                     <div className="shift-card-top">
                                         {wait
-                                            ? <><span>Pending</span><span>{day}, {date}</span></>
+                                            ? <><span>{tr("Pending")}</span><span>{day}, {date}</span></>
                                             : <><span>{day}</span><span>{date}</span></>}
                                     </div>
                                     <div className="shift-card-time">{hm(s.start_time)} - {hm(s.end_time)}</div>
@@ -352,12 +352,14 @@ export default function Dashboard() {
             )}
 
             <div className="dsh-h">
-                <h2>{todayShift || checkedIn ? "Today\u2019s Shift" : "Extra Shift"}{code ? ` - ${code}` : ""}</h2>
+                <h2>{todayShift || checkedIn ? tr("Today’s Shift") : tr("Extra Shift")}{code ? ` - ${code}` : ""}</h2>
                 <span className="dsh-note">
-                    {geo === "denied" && <>Location permission denied - showing workplace only. <button onClick={allow}>Allow</button></>}
-                    {geo === "unsupported" && "Geolocation not supported - showing workplace only."}
-                    {geo === "wait" && "Locating you…"}
-                    {geo === "ok" && dist !== null && (dist <= nearM ? `At workplace (~${dist} m away)` : `Not at workplace (~${dist} m away)`)}
+                    {geo === "denied" && <>{tr("Location permission denied - showing workplace only.")} <button onClick={allow}>{tr("Allow")}</button></>}
+                    {geo === "unsupported" && tr("Geolocation not supported - showing workplace only.")}
+                    {geo === "wait" && tr("Locating you…")}
+                    {geo === "ok" && dist !== null && (dist <= nearM
+                        ? tr("At workplace (~{d} m away)", { d: dist })
+                        : tr("Not at workplace (~{d} m away)", { d: dist }))}
                 </span>
             </div>
 
@@ -365,28 +367,28 @@ export default function Dashboard() {
 
             <div className="att-grid">
                 <div className="att-field">
-                    <label htmlFor="attArea">Area</label>
+                    <label htmlFor="attArea">{tr("Area")}</label>
                     <select id="attArea" value={area} disabled={locked} onChange={e => setArea(e.target.value)}>
                         {[...new Set([...areas, area])].filter(Boolean).map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
                 </div>
                 <div className="att-field">
-                    <label htmlFor="attRole">Role</label>
+                    <label htmlFor="attRole">{tr("Role")}</label>
                     <select id="attRole" value={role} disabled={locked} onChange={e => setRole(e.target.value)}>
                         {[...new Set([...labels, role])].filter(Boolean).map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
                 </div>
                 <div className="att-field">
-                    <label>Scheduled</label>
+                    <label>{tr("Scheduled")}</label>
                     <input readOnly value={todayShift ? `${hm(todayShift.start_time)} - ${hm(todayShift.end_time)}` : "-"} />
                 </div>
                 <div className="att-field">
-                    <label>Elapsed</label>
+                    <label>{tr("Elapsed")}</label>
                     <input readOnly value={hms(elapsedSec)} />
                 </div>
 
                 <div className="att-field comment">
-                    <label htmlFor="attComment">Comment<small>optional</small></label>
+                    <label htmlFor="attComment">{tr("Comment")}<small>{tr("optional")}</small></label>
                     <textarea id="attComment" value={comment} onChange={e => setComment(e.target.value)} />
                 </div>
 
@@ -396,12 +398,15 @@ export default function Dashboard() {
                 </button>
             </div>
 
-            <div className="dsh-h"><h2>Recent Entries</h2></div>
+            <div className="dsh-h"><h2>{tr("Recent Entries")}</h2></div>
             <MyEntries refreshKey={entriesKey} />
 
             {ask && (
-                <Modal title="Open Shift" onClose={() => setAsk(null)} onSubmit={claim} submitLabel="Yes" cancelLabel="No">
-                    <p>Send request to work on {ask.shift_date.slice(8)}.{ask.shift_date.slice(5, 7)}. ({hm(ask.start_time)} - {hm(ask.end_time)})?</p>
+                <Modal title={tr("Open Shift")} onClose={() => setAsk(null)} onSubmit={claim} submitLabel="Yes" cancelLabel="No">
+                    <p>{tr("Send request to work on {date} ({time})?", {
+                        date: `${ask.shift_date.slice(8)}.${ask.shift_date.slice(5, 7)}.`,
+                        time: `${hm(ask.start_time)} - ${hm(ask.end_time)}`
+                    })}</p>
                 </Modal>
             )}
 

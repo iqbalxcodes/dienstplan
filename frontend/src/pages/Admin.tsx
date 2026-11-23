@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Field, Panel } from "../components/Panel";
 import { useAuth } from "../lib/auth";
 import { useLog } from "../lib/activity";
+import { tr } from "../lib/i18n";
 import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
 import { shiftTypesOf } from "../lib/roster";
@@ -46,35 +47,35 @@ function Presets() {
 
         patchOrg({ settings });
         void log("settings.update", "Shift presets updated", { shift_types: shift_types.length });
-        say("Saved", "success");
+        say(tr("Saved"), "success");
     }
 
     return (
         <>
-            <span className="plan-entry-meta">Code · name · color · type · default start/end. “Off” types (e.g. U, Sch) fill the whole day.</span>
+            <span className="plan-entry-meta">{tr("Code · name · color · type · default start/end. “Off” types (e.g. U, Sch) fill the whole day.")}</span>
             <div>
                 {types.map((t, i) => (
                     <div key={i} className="preset-row">
-                        <input placeholder="Code" value={t.code} onChange={e => edit(i, { code: e.target.value })} />
-                        <input placeholder="Name" value={t.name} onChange={e => edit(i, { name: e.target.value })} />
+                        <input placeholder={tr("Code")} value={t.code} onChange={e => edit(i, { code: e.target.value })} />
+                        <input placeholder={tr("Name")} value={t.name} onChange={e => edit(i, { name: e.target.value })} />
                         <input type="color" value={t.color} onChange={e => edit(i, { color: e.target.value })} />
                         <select value={t.kind ?? "work"} onChange={e => edit(i, { kind: e.target.value as ShiftType["kind"] })}>
-                            <option value="work">Work</option>
-                            <option value="off">Off</option>
+                            <option value="work">{tr("Work")}</option>
+                            <option value="off">{tr("Day off")}</option>
                         </select>
                         <input type="time" disabled={t.kind === "off"} value={t.start ?? ""} onChange={e => edit(i, { start: e.target.value })} />
                         <input type="time" disabled={t.kind === "off"} value={t.end ?? ""} onChange={e => edit(i, { end: e.target.value })} />
-                        <button type="button" onClick={() => setTypes(x => x.filter((_, j) => j !== i))} title="Remove">✕</button>
+                        <button type="button" onClick={() => setTypes(x => x.filter((_, j) => j !== i))} title={tr("Remove")}>✕</button>
                     </div>
                 ))}
-                <button type="button" className="preset-add" onClick={() => setTypes(t => [...t, { code: "", name: "", color: "#6b7280", kind: "work", start: "09:00", end: "17:00" }])}>+ Add shift</button>
+                <button type="button" className="preset-add" onClick={() => setTypes(t => [...t, { code: "", name: "", color: "#6b7280", kind: "work", start: "09:00", end: "17:00" }])}>{tr("+ Add shift")}</button>
             </div>
 
-            <Field label="Areas - one per line">
+            <Field label={tr("Areas - one per line")}>
                 <textarea rows={4} value={areas} onChange={e => setAreas(e.target.value)} />
             </Field>
 
-            <div><button className="mg-btn" disabled={busy} onClick={save}>Save presets</button></div>
+            <div><button className="mg-btn" disabled={busy} onClick={save}>{tr("Save presets")}</button></div>
         </>
     );
 }
@@ -111,9 +112,9 @@ export default function Admin() {
 
     function extract() {
         const c = parseMapsInput(mapsUrl);
-        if (!c) { say("Could not find coordinates in that link/text.", "error"); return; }
+        if (!c) { say(tr("Could not find coordinates in that link/text."), "error"); return; }
         setF({ ...f, lat: String(c[0]), lng: String(c[1]) });
-        say(`Extracted: ${c[0]}, ${c[1]} - remember to Save.`, "info");
+        say(tr("Extracted: {lat}, {lng} - remember to Save.", { lat: c[0], lng: c[1] }), "info");
     }
 
     async function save() {
@@ -142,22 +143,22 @@ export default function Admin() {
 
         await log("settings.update", "Organization settings updated", { settings });
         patchOrg({ name: f.name.trim(), timezone: f.timezone, settings: settings as any });
-        say("Saved", "success");
+        say(tr("Saved"), "success");
     }
 
     return (
         <div className="dsh">
             <div className="dsh-h split">
-                <h2>Admin</h2>
-                <button className="ro-export" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save"}</button>
+                <h2>{tr("nav.admin")}</h2>
+                <button className="ro-export" disabled={busy} onClick={save}>{busy ? tr("Saving…") : tr("Save")}</button>
             </div>
 
             <div className="ad-stack">
-                <Panel title="Organization">
+                <Panel title={tr("Organization")}>
                     <div className="ad-grid">
-                        <Field label="Name"><input type="text" value={f.name} onChange={set("name")} /></Field>
+                        <Field label={tr("Name")}><input type="text" value={f.name} onChange={set("name")} /></Field>
                         <Field label="Slug (URL)"><input type="text" value={org!.slug} disabled /></Field>
-                        <Field label="Timezone">
+                        <Field label={tr("Timezone")}>
                             <select value={f.timezone} onChange={set("timezone")}>
                                 {zones.map(z => <option key={z} value={z}>{z.replace(/_/g, " ")}</option>)}
                             </select>
@@ -165,44 +166,44 @@ export default function Admin() {
                     </div>
                 </Panel>
 
-                <Panel title="Location & Check-in">
+                <Panel title={tr("Location & Check-in")}>
                     <div className="ad-grid">
-                        <Field label="Workplace latitude"><input type="number" step="any" value={f.lat} onChange={set("lat")} /></Field>
-                        <Field label="Workplace longitude"><input type="number" step="any" value={f.lng} onChange={set("lng")} /></Field>
-                        <Field label="Check-in radius (meters)"><input type="number" min="10" value={f.radius} onChange={set("radius")} /></Field>
-                        <Field label="Outside-radius behavior">
+                        <Field label={tr("Workplace latitude")}><input type="number" step="any" value={f.lat} onChange={set("lat")} /></Field>
+                        <Field label={tr("Workplace longitude")}><input type="number" step="any" value={f.lng} onChange={set("lng")} /></Field>
+                        <Field label={tr("Check-in radius (meters)")}><input type="number" min="10" value={f.radius} onChange={set("radius")} /></Field>
+                        <Field label={tr("Outside-radius behavior")}>
                             <select value={f.strict} onChange={set("strict")}>
-                                <option value="off">Allow silently</option>
-                                <option value="warn">Warn only</option>
-                                <option value="enforce">Block check-in</option>
+                                <option value="off">{tr("Allow silently")}</option>
+                                <option value="warn">{tr("Warn only")}</option>
+                                <option value="enforce">{tr("Block check-in")}</option>
                             </select>
                         </Field>
                     </div>
-                    <Field label="Google Maps link or “lat, lng” - coordinates are extracted automatically">
+                    <Field label={tr("Google Maps link or “lat, lng” - coordinates are extracted automatically")}>
                         <div className="ad-row">
                             <input type="text" placeholder="https://maps.google.com/… or -6.2562, 106.6641"
                                 value={mapsUrl} onChange={e => setMapsUrl(e.target.value)} />
-                            <button type="button" className="mg-btn" onClick={extract}>Extract</button>
+                            <button type="button" className="mg-btn" onClick={extract}>{tr("Extract")}</button>
                         </div>
                     </Field>
                 </Panel>
 
-                <Panel title="Staff Role Labels">
-                    <Field label="One per line - these fill the role dropdown on the Dashboard.">
+                <Panel title={tr("Staff Role Labels")}>
+                    <Field label={tr("One per line - these fill the role dropdown on the Dashboard.")}>
                         <textarea rows={5} value={f.roles} onChange={set("roles")} />
                     </Field>
                 </Panel>
 
-                <Panel title="Scheduling Rules">
+                <Panel title={tr("Scheduling Rules")}>
                     <div className="ad-grid">
-                        <Field label="Leave request cut-off (days ahead)"><input type="number" min="0" value={f.cutoff} onChange={set("cutoff")} /></Field>
-                        <Field label="Min shift duration (hours)"><input type="number" min="1" value={f.min} onChange={set("min")} /></Field>
-                        <Field label="Max shift duration (hours)"><input type="number" min="1" value={f.max} onChange={set("max")} /></Field>
-                        <Field label="Jahresurlaub (days per year)"><input type="number" min="0" value={f.vac} onChange={set("vac")} /></Field>
+                        <Field label={tr("Leave request cut-off (days ahead)")}><input type="number" min="0" value={f.cutoff} onChange={set("cutoff")} /></Field>
+                        <Field label={tr("Min shift duration (hours)")}><input type="number" min="1" value={f.min} onChange={set("min")} /></Field>
+                        <Field label={tr("Max shift duration (hours)")}><input type="number" min="1" value={f.max} onChange={set("max")} /></Field>
+                        <Field label={tr("Annual leave (days per year)")}><input type="number" min="0" value={f.vac} onChange={set("vac")} /></Field>
                     </div>
                 </Panel>
 
-                <Panel title="Shift Presets"><Presets /></Panel>
+                <Panel title={tr("Shift Presets")}><Presets /></Panel>
             </div>
         </div>
     );

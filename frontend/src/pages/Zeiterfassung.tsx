@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../components/Modal";
 import { useAuth } from "../lib/auth";
-import { useSettings } from "../lib/i18n";
+import { tr, useSettings } from "../lib/i18n";
 import { useStatus } from "../lib/status";
 import { getMembers } from "../lib/cache";
 import { startOfMonth, startOfToday } from "../lib/dates";
@@ -32,7 +32,7 @@ export function TimesheetBody({ m }: { m: Membership }) {
         let stale = false;
         loadSheet(org!.id, m, month, org!.settings ?? {})
             .then(s => { if (!stale) setSheet(s); })
-            .catch(e => { console.error(e); say("Failed to load timesheet", "error"); });
+            .catch(e => { console.error(e); say(tr("Failed to load timesheet"), "error"); });
         return () => { stale = true; };
     }, [org, m, month, tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -54,7 +54,7 @@ export function TimesheetBody({ m }: { m: Membership }) {
         for (const k of KINDS) {
             const raw = edit![k].h.replace(",", ".").trim();
             const n = raw === "" ? 0 : Number(raw);
-            if (!Number.isFinite(n)) { say(`${ADJ[k]}: not a number`, "error"); return; }
+            if (!Number.isFinite(n)) { say(tr("{field}: not a number", { field: tr(ADJ[k]) }), "error"); return; }
             hours[k] = n;
         }
         for (const k of KINDS) {
@@ -62,7 +62,7 @@ export function TimesheetBody({ m }: { m: Membership }) {
             if (err) { say(err, "error"); return; }
         }
         setEdit(null);
-        say("Saved", "success");
+        say(tr("Saved"), "success");
         setTick(t => t + 1);
     }
 
@@ -74,28 +74,28 @@ export function TimesheetBody({ m }: { m: Membership }) {
         <>
             <div className="zt">
                 <aside className="zt-stats">
-                    {(sheet?.stats ?? []).map(s => <div key={s.label}><b>{s.label}</b><span>{hmm(s.value)}</span></div>)}
+                    {(sheet?.stats ?? []).map(s => <div key={s.label}><b>{tr(s.label)}</b><span>{hmm(s.value)}</span></div>)}
                 </aside>
 
                 <div className="ro-panel">
                     <div className="ro-bar">
                         <div className="ro-side"><h2>{monthName}</h2></div>
                         <div className="ro-side">
-                            <button className="ro-btn" onClick={() => step(-1)}>Prev.</button>
-                            <button className="ro-btn" onClick={() => step(1)}>Next</button>
+                            <button className="ro-btn" onClick={() => step(-1)}>{tr("Prev.")}</button>
+                            <button className="ro-btn" onClick={() => step(1)}>{tr("Next")}</button>
                         </div>
                         <div className="ro-side">
-                            <button className="ro-btn" onClick={() => setDraft(status)}>Filter{status ? " •" : ""}</button>
+                            <button className="ro-btn" onClick={() => setDraft(status)}>{tr("Filter")}{status ? " •" : ""}</button>
                         </div>
                     </div>
 
                     <div className="zt-table">
                         <table>
-                            <thead><tr>{COLUMNS.map(c => <th key={c}>{c}</th>)}</tr></thead>
+                            <thead><tr>{COLUMNS.map(c => <th key={c}>{tr(c)}</th>)}</tr></thead>
                             <tbody>
-                                {shown.length === 0 && <tr><td colSpan={COLUMNS.length} style={{ color: "#888" }}>No entries.</td></tr>}
+                                {shown.length === 0 && <tr><td colSpan={COLUMNS.length} style={{ color: "#888" }}>{tr("No entries.")}</td></tr>}
                                 {shown.map(r => (
-                                    <tr key={r.e.id} className={r.counted ? "" : "off"} title={r.counted ? "" : `Status: ${r.e.status}`}>
+                                    <tr key={r.e.id} className={r.counted ? "" : "off"} title={r.counted ? "" : tr("Status: {s}", { s: tr(r.e.status) })}>
                                         <td>{r.e.clock_in ? dmy(r.e.clock_in) : "-"}</td>
                                         <td>{r.e.shift_code ?? r.e.shifts?.shift_code ?? "-"}</td>
                                         <td>{clock(r.e.clock_in)}</td>
@@ -113,39 +113,39 @@ export function TimesheetBody({ m }: { m: Membership }) {
 
                     <div className="ro-foot">
                         <div className="ro-side">
-                            {canEdit && <button className="ro-btn" onClick={openEdit}>Edit</button>}
+                            {canEdit && <button className="ro-btn" onClick={openEdit}>{tr("Edit")}</button>}
                         </div>
                         <div className="ro-side zt-totals">
-                            <span>Total Elapsed = {hms(t.elapsed)}</span>
-                            <span>Total Soll = {hms(t.soll)}</span>
-                            <span>Total Balance = {hms(t.balance)}</span>
+                            <span>{tr("Total Elapsed")} = {hms(t.elapsed)}</span>
+                            <span>{tr("Total Target")} = {hms(t.soll)}</span>
+                            <span>{tr("Total Balance")} = {hms(t.balance)}</span>
                         </div>
                     </div>
                 </div>
             </div>
 
             {draft !== null && (
-                <Modal title="Filter" onClose={() => setDraft(null)} onSubmit={() => { setStatus(draft); setDraft(null); }} submitLabel="Apply">
+                <Modal title={tr("Filter")} onClose={() => setDraft(null)} onSubmit={() => { setStatus(draft); setDraft(null); }} submitLabel="Apply">
                     <label>Status</label>
                     <select value={draft} onChange={e => setDraft(e.target.value)}>
-                        <option value="">All</option>
-                        <option value="approved">Approved</option>
-                        <option value="pending">Pending</option>
-                        <option value="rejected">Rejected</option>
+                        <option value="">{tr("All")}</option>
+                        <option value="approved">{tr("Approved")}</option>
+                        <option value="pending">{tr("Pending")}</option>
+                        <option value="rejected">{tr("Rejected")}</option>
                     </select>
                 </Modal>
             )}
 
             {edit && (
-                <Modal title={`Edit - ${monthName}`} onClose={() => setEdit(null)} onSubmit={saveEdit}>
-                    <p className="plan-entry-meta">Hours (e.g. 1.5). Korrektur may be negative. 0 = delete.</p>
+                <Modal title={tr("Edit - {month}", { month: monthName })} onClose={() => setEdit(null)} onSubmit={saveEdit}>
+                    <p className="plan-entry-meta">{tr("Hours (e.g. 1.5). Korrektur may be negative. 0 = delete.")}</p>
                     {KINDS.map(k => (
                         <div key={k}>
-                            <label>{ADJ[k]}</label>
+                            <label>{tr(ADJ[k])}</label>
                             <div className="plan-entry-actions">
                                 <input type="number" step="0.25" style={{ flex: "0 0 100px" }} value={edit[k].h}
                                     onChange={e => setEdit({ ...edit, [k]: { ...edit[k], h: e.target.value } })} />
-                                <input type="text" placeholder="Note" style={{ flex: 1 }} value={edit[k].note}
+                                <input type="text" placeholder={tr("Note")} style={{ flex: 1 }} value={edit[k].note}
                                     onChange={e => setEdit({ ...edit, [k]: { ...edit[k], note: e.target.value } })} />
                             </div>
                         </div>
@@ -172,14 +172,14 @@ export default function Zeiterfassung() {
     return (
         <div className="dsh">
             <div className="dsh-h split">
-                <h2>Zeiterfassung{isManager && m.id !== me!.id ? ` - ${m.full_name}` : ""}</h2>
+                <h2>{tr("nav.timesheet")}{isManager && m.id !== me!.id ? ` - ${m.full_name}` : ""}</h2>
                 <div className="ro-side">
                     {isManager && (
                         <select className="ro-btn" value={target} onChange={e => setTarget(e.target.value)}>
                             {members.map(x => <option key={x.id} value={x.id}>{x.full_name}</option>)}
                         </select>
                     )}
-                    <button className="ro-export" onClick={() => say("Export: coming soon", "info")}>Export</button>
+                    <button className="ro-export" onClick={() => say(tr("{what}: coming soon", { what: tr("Export") }), "info")}>{tr("Export")}</button>
                 </div>
             </div>
             <TimesheetBody m={m} />

@@ -7,7 +7,7 @@ import { Modal } from "../components/Modal";
 import { AssignPopup, type PopupSpec } from "../components/schedule/AssignPopup";
 import { Week } from "../components/schedule/Week";
 import { useAuth } from "../lib/auth";
-import { useSettings } from "../lib/i18n";
+import { tr, useSettings } from "../lib/i18n";
 import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
 import { getMembers } from "../lib/cache";
@@ -40,7 +40,7 @@ interface CellProps {
     onGroup: (title: string, list: Entry[]) => void;
 }
 
-const who = (e: Entry) => (e.open ? "Open Shift" : e.member?.full_name);
+const who = (e: Entry) => (e.open ? tr("Open Shift") : e.member?.full_name);
 
 function DayCell(p: CellProps) {
 
@@ -65,9 +65,9 @@ function DayCell(p: CellProps) {
 
                 {!grouped && p.entries.map(e => (
                     <div key={e.key} className={"ro-card" + (e.req ? " ghost" : "") + (e.dirty ? " draft" : "") + (e.del ? " del" : "")} style={{ background: p.color(e.code) }}
-                        title={`${who(e)} · ${e.code ?? "?"}${e.req ? " (request)" : e.del ? " (deleted - publish to apply)" : e.dirty ? " (draft)" : ""}`}
+                        title={`${who(e)} · ${e.code ?? "?"}${e.req ? " " + tr("(request)") : e.del ? " " + tr("(deleted - publish to apply)") : e.dirty ? " " + tr("(draft)") : ""}`}
                         onClick={ev => { ev.stopPropagation(); if (p.manager) open(e); }}>
-                        {e.open ? `Open${e.claims ? ` (${e.claims})` : ""}` : lastName(e.member)}
+                        {e.open ? `${tr("Open")}${e.claims ? ` (${e.claims})` : ""}` : lastName(e.member)}
                     </div>
                 ))}
 
@@ -75,7 +75,7 @@ function DayCell(p: CellProps) {
                     <div key={k} className={"ro-card" + (list[0].req ? " ghost" : "")} style={{ background: p.color(list[0].code) }}
                         title={`${list[0].code}: ${list.map(who).join(", ")}`}
                         onClick={ev => { ev.stopPropagation(); if (p.manager) p.onGroup(`${list[0].code} - ${iso(p.date)}`, list); }}>
-                        {list.length} {list[0].open ? "Open" : "Mitarbeiter"}
+                        {list.length} {list[0].open ? tr("Open") : tr("Mitarbeiter")}
                     </div>
                 ))}
             </div>
@@ -119,8 +119,8 @@ export default function Schedule() {
         const r = getShiftRange("2000-01-01", f.start, f.end);   // night shifts roll over midnight
         const h = (r.end - r.start) / 60;
         const min = settings.shift_min_hours ?? 1, max = settings.shift_max_hours ?? 16;
-        if (h < min) return `Shift is shorter than ${min} h`;
-        if (h > max) return `Shift is longer than ${max} h`;
+        if (h < min) return tr("Shift is shorter than {n} h", { n: min });
+        if (h > max) return tr("Shift is longer than {n} h", { n: max });
         return null;
     }
 
@@ -209,7 +209,7 @@ export default function Schedule() {
                 const t = parseDate(d).getTime();
                 run = t - prev === 86400000 ? run + 1 : 1;
                 prev = t;
-                if (run === 6) out.push(`${lastName(data.members.find(m => m.id === id))} works 6 days non stop!`);
+                if (run === 6) out.push(tr("{name} works 6 days non stop!", { name: lastName(data.members.find(m => m.id === id)) }));
             });
         });
 
@@ -221,8 +221,8 @@ export default function Schedule() {
                 if (!s.is_open || raw.status !== "published" || s.shift_date > limit || s.shift_date < todayIso) return;
                 const n = data.claims.filter(c => c.shift_id === s.id).length;
                 const d = `${s.shift_date.slice(8)}.${s.shift_date.slice(5, 7)}.`;
-                if (n === 0) out.push(`Open shift ${d}: nobody applied!`);
-                else if (n > 1) out.push(`Open shift ${d}: ${n} applicants, choose one!`);
+                if (n === 0) out.push(tr("Open shift {d}: nobody applied!", { d }));
+                else if (n > 1) out.push(tr("Open shift {d}: {n} applicants, choose one!", { d, n }));
             });
         }
         return out;
@@ -243,12 +243,12 @@ export default function Schedule() {
         setUndo(u => u.slice(0, -1));
         await fn();
         await load();
-        say("Undone", "info");
+        say(tr("Undone"), "info");
     }
 
     async function publish() {
-        if (!drafts.length) { say("Nothing to publish", "info"); return; }
-        if (!confirm(`Publish ${drafts.length} change(s)? Employees will see them. This is final and cannot be undone.`)) return;
+        if (!drafts.length) { say(tr("Nothing to publish"), "info"); return; }
+        if (!confirm(tr("Publish {n} change(s)? Employees will see them. This is final and cannot be undone.", { n: drafts.length }))) return;
         const errs = await Promise.all(drafts.map(async x => {
             if (x.draft?._delete) return (await supabase.from("shifts").delete().eq("id", x.id)).error;
             const { _delete, ...fields } = x.draft ?? {};
@@ -257,7 +257,7 @@ export default function Schedule() {
         const bad = errs.find(Boolean);
         if (bad) { say(bad.message, "error"); await load(); return; }
         setUndo([]);   // published = final: nothing before this point can be undone anymore
-        say(`Published ${drafts.length} change(s)`, "success");
+        say(tr("Published {n} change(s)", { n: drafts.length }), "success");
         await load();
     }
 
@@ -281,7 +281,7 @@ export default function Schedule() {
         if (!isManager && mid && mid !== me!.id) return;   // employees: own row only
         // employees can only pick days where they have nothing yet
         if (!isManager && (byDate.get(d) ?? []).some(e => e.member?.id === me!.id)) {
-            say("You already have an entry on that day", "info");
+            say(tr("You already have an entry on that day"), "info");
             return;
         }
         setSelMember(mid);
@@ -313,7 +313,7 @@ export default function Schedule() {
             if (error) { say(error.message, "error"); return; }
         }
         setNote(null);
-        say("Vermerk gespeichert", "success");
+        say(tr("Note saved"), "success");
         await load();
     }
 
@@ -334,8 +334,8 @@ export default function Schedule() {
         const r = rowOf(f, dates[0]);
         for (const d of dates) {
             const { conflicts, error } = await findShiftConflicts(org!.id, f.membershipId, d, r.start_time, r.end_time, exclude);
-            if (error) return "Failed to check for conflicts";
-            if (conflicts.length) return `Overlaps another shift on ${d.slice(8)}.${d.slice(5, 7)}.`;
+            if (error) return tr("Failed to check for conflicts");
+            if (conflicts.length) return tr("Overlaps another shift on {d}", { d: `${d.slice(8)}.${d.slice(5, 7)}.` });
         }
         return null;
     }
@@ -356,7 +356,7 @@ export default function Schedule() {
             if (error) return error.code === "PGRST205" ? "Table shift_requests missing - run backend/sql/002_roster.sql." : error.message;
             const ids = ins!.map(x => x.id);
             pushUndo(async () => { await supabase.from("shift_requests").delete().in("id", ids); });
-            say("Request sent - waiting for approval", "success");
+            say(tr("Request sent - waiting for approval"), "success");
 
         } else if (spec.mode === "assign") {                              // manager -> applied at once
             const err = await overlap(f, dates);
@@ -365,7 +365,7 @@ export default function Schedule() {
             if (error) return error.message;
             const ids = ins!.map(x => x.id);
             pushUndo(async () => { await supabase.from("shifts").delete().in("id", ids); });
-            say(f.membershipId === OPEN ? "Open shift added - publish to apply" : "Shift assigned", "success");
+            say(tr(f.membershipId === OPEN ? "Open shift added - publish to apply" : "Shift assigned"), "success");
 
         } else if (spec.mode === "edit") {
             const old = data.shifts.find(x => x.id === spec.shift.id)!;   // raw row (spec.shift is the manager view)
@@ -388,7 +388,7 @@ export default function Schedule() {
                 if (e) return e;
                 pushUndo(async () => { await setDraft(old.id, prev); });
             }
-            say("Shift updated - publish to apply", "success");
+            say(tr("Shift updated - publish to apply"), "success");
 
         } else {                                                          // approve (as is, or edited)
             const req = spec.req;
@@ -406,7 +406,7 @@ export default function Schedule() {
                 await supabase.from("shifts").delete().eq("id", sid);
                 await supabase.from("shift_requests").update({ status: "pending", reviewed_by: null, reviewed_at: null }).eq("id", req.id);
             });
-            say("Request approved", "success");
+            say(tr("Request approved"), "success");
         }
 
         setSelected(new Set());
@@ -422,13 +422,13 @@ export default function Schedule() {
                 const { error } = await supabase.from("shifts").delete().eq("id", old.id);
                 if (error) return error.message;
                 pushUndo(async () => { await insertShifts([old as unknown as Record<string, unknown>]); });
-                say("Shift deleted", "success");
+                say(tr("Shift deleted"), "success");
             } else {                                                       // published: marked until Publish
                 const prev = old.draft ?? null;
                 const e = await setDraft(old.id, { _delete: true });
                 if (e) return e;
                 pushUndo(async () => { await setDraft(old.id, prev); });
-                say("Shift marked for deletion - publish to apply", "success");
+                say(tr("Shift marked for deletion - publish to apply"), "success");
             }
         } else if (spec.mode === "request") {
             const req = spec.req;                                          // keep the row (audit trail), just close it
@@ -436,7 +436,7 @@ export default function Schedule() {
                 .update({ status: "rejected", reviewed_by: uid, reviewed_at: new Date().toISOString() }).eq("id", req.id);
             if (error) return error.message;
             pushUndo(async () => { await supabase.from("shift_requests").update({ status: "pending", reviewed_by: null, reviewed_at: null }).eq("id", req.id); });
-            say("Request rejected", "success");
+            say(tr("Request rejected"), "success");
         }
         await load();
         return null;
@@ -455,22 +455,22 @@ export default function Schedule() {
     return (
         <div className="dsh fill">
             <div className="dsh-h split">
-                <h2>Roster</h2>
-                <button className="ro-export" onClick={() => say("Export: coming soon", "info")}>Export</button>
+                <h2>{tr("Roster")}</h2>
+                <button className="ro-export" onClick={() => say(tr("{what}: coming soon", { what: tr("Export") }), "info")}>{tr("Export")}</button>
             </div>
 
             <div className="ro-panel">
                 <div className="ro-bar">
-                    <div className="ro-side"><h2>{mode === "week" ? `KW ${isoWeek(weekStart)}` : monthName}</h2></div>
+                    <div className="ro-side"><h2>{mode === "week" ? tr("KW {n}", { n: isoWeek(weekStart) }) : monthName}</h2></div>
 
                     <div className="ro-side">
-                        <button className="ro-btn" onClick={() => step(-1)}>Prev.</button>
-                        <button className="ro-btn" onClick={() => step(1)}>Next</button>
-                        <button className="ro-btn" onClick={switchMode}>{mode === "week" ? "Weekly" : "Monthly"}</button>
+                        <button className="ro-btn" onClick={() => step(-1)}>{tr("Prev.")}</button>
+                        <button className="ro-btn" onClick={() => step(1)}>{tr("Next")}</button>
+                        <button className="ro-btn" onClick={switchMode}>{tr(mode === "week" ? "Weekly" : "Monthly")}</button>
                     </div>
 
                     <div className="ro-side">
-                        <button className="ro-btn" onClick={() => setFdraft(filter)}>Filter{filtered ? " •" : ""}</button>
+                        <button className="ro-btn" onClick={() => setFdraft(filter)}>{tr("Filter")}{filtered ? " •" : ""}</button>
                     </div>
                 </div>
 
@@ -480,7 +480,7 @@ export default function Schedule() {
                         onToggle={toggle}
                         onShift={s => setPopup({ mode: "edit", shift: s })}
                         onReq={r => setPopup({ mode: "request", req: r })}
-                        onNote={d => openNote(`Vermerk - ${d.slice(8)}.${d.slice(5, 7)}.`, d)} />
+                        onNote={d => openNote(tr("Note - {d}", { d: `${d.slice(8)}.${d.slice(5, 7)}.` }), d)} />
                 ) : (
                     <div className="ro-grid">
                         <div className="ro-row ro-head">
@@ -490,7 +490,7 @@ export default function Schedule() {
                         <div className="ro-row ro-notes">
                             {Array.from({ length: 7 }, (_, i) => (
                                 <div key={i} className={(i >= 5 ? "we" : i % 2 ? "alt" : "") + (isManager ? " edit" : "")}
-                                    onClick={() => openNote(`Vermerk - ${weekdayName(i)}`, undefined, i + 1)}>
+                                    onClick={() => openNote(tr("Note - {d}", { d: weekdayName(i) }), undefined, i + 1)}>
                                     {data.notes.filter(n => n.weekday === i + 1).map(n => n.text).join(" · ")}
                                 </div>
                             ))}
@@ -519,12 +519,12 @@ export default function Schedule() {
                 <div className="ro-foot">
                     <div className="ro-side">
                         <button className="ro-btn" onClick={() => setPopup({ mode: "assign", dates: sorted, membershipId: selMember ?? undefined })}>
-                            Assign{sorted.length ? ` (${sorted.length})` : ""}
+                            {tr("Assign")}{sorted.length ? ` (${sorted.length})` : ""}
                         </button>
-                        {undo.length > 0 && <button className="ro-btn" onClick={doUndo}>Undo</button>}
+                        {undo.length > 0 && <button className="ro-btn" onClick={doUndo}>{tr("Undo")}</button>}
                     </div>
                     <div className="ro-side">
-                        {isManager && <button className="ro-btn" onClick={publish}>Publish{drafts.length ? ` (${drafts.length})` : ""}</button>}
+                        {isManager && <button className="ro-btn" onClick={publish}>{tr("Publish")}{drafts.length ? ` (${drafts.length})` : ""}</button>}
                     </div>
                 </div>
             </div>
@@ -538,27 +538,27 @@ export default function Schedule() {
             )}
 
             {fdraft && (
-                <Modal title="Filter" onClose={() => setFdraft(null)} onSubmit={() => { setFilter(fdraft); setFdraft(null); }} submitLabel="Apply">
-                    <label>Employee</label>
+                <Modal title={tr("Filter")} onClose={() => setFdraft(null)} onSubmit={() => { setFilter(fdraft); setFdraft(null); }} submitLabel="Apply">
+                    <label>{tr("Employee")}</label>
                     <select value={fdraft.member} onChange={e => setFdraft({ ...fdraft, member: e.target.value })}>
-                        <option value="">All</option>
-                        <option value={OPEN}>Open Shift</option>
+                        <option value="">{tr("All")}</option>
+                        <option value={OPEN}>{tr("Open Shift")}</option>
                         {data.members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
                     </select>
-                    <label>Shift</label>
+                    <label>{tr("Shift")}</label>
                     <select value={fdraft.code} onChange={e => setFdraft({ ...fdraft, code: e.target.value })}>
-                        <option value="">All</option>
+                        <option value="">{tr("All")}</option>
                         {types.map(t => <option key={t.code} value={t.code}>{t.code} - {t.name}</option>)}
                     </select>
-                    <button type="button" className="mg-btn" style={{ marginTop: 14 }} onClick={() => setFdraft(NO_FILTER)}>Reset</button>
+                    <button type="button" className="mg-btn" style={{ marginTop: 14 }} onClick={() => setFdraft(NO_FILTER)}>{tr("Reset")}</button>
                 </Modal>
             )}
 
             {note && (
                 <Modal title={note.title} onClose={() => setNote(null)} onSubmit={saveNote}>
-                    <label>{note.date ? "Vermerk / Event" : "Vermerk / Event (every week)"}</label>
+                    <label>{tr(note.date ? "Note / Event" : "Note / Event (every week)")}</label>
                     <textarea autoFocus value={note.text} onChange={e => setNote({ ...note, text: e.target.value })} />
-                    <p className="plan-entry-meta">Empty + Save = delete.</p>
+                    <p className="plan-entry-meta">{tr("Empty + Save = delete.")}</p>
                 </Modal>
             )}
 
@@ -568,7 +568,7 @@ export default function Schedule() {
                         <button key={e.key} className="ro-pick" onClick={() => {
                             setGroup(null);
                             setPopup(e.shift ? { mode: "edit", shift: e.shift } : { mode: "request", req: e.req! });
-                        }}>{who(e)}{e.req ? " (request)" : ""}</button>
+                        }}>{who(e)}{e.req ? " " + tr("(request)") : ""}</button>
                     ))}
                 </Modal>
             )}

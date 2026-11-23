@@ -6,6 +6,7 @@ import { CircleArrowOutUpRight, CircleArrowRight, Clock, FileText, MapPin } from
 import { Modal } from "../components/Modal";
 import { useAuth } from "../lib/auth";
 import { useLog } from "../lib/activity";
+import { tr } from "../lib/i18n";
 import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
 import { bust, getMembers } from "../lib/cache";
@@ -28,7 +29,7 @@ function Head({ title, exp = true }: { title: string; exp?: boolean }) {
     return (
         <div className="dsh-h split">
             <h2>{title}</h2>
-            {exp && <button className="ro-export" onClick={() => say("Export: coming soon", "info")}>Export</button>}
+            {exp && <button className="ro-export" onClick={() => say(tr("{what}: coming soon", { what: tr("Export") }), "info")}>{tr("Export")}</button>}
         </div>
     );
 }
@@ -85,7 +86,7 @@ function EntryRow({ e, text, onSave, onApprove, onDelete }: RowProps) {
 
     return (
         <div className="entry-card" style={{ "--c": "#dba43d" } as React.CSSProperties}>
-            <strong>{e.memberships?.full_name ?? "Unknown"}</strong>
+            <strong>{e.memberships?.full_name ?? tr("Unknown")}</strong>
             <b>{e.shift_code ?? e.shifts?.shift_code ?? "-"}</b>
             <span className="entry-item"><MapPin size={22} />{area || "-"}</span>
             {edit ? (
@@ -102,8 +103,8 @@ function EntryRow({ e, text, onSave, onApprove, onDelete }: RowProps) {
             <span className="entry-item"><Clock size={22} />{a && b ? duration(a, b) : "-"}</span>
             <span className="entry-item"><FileText size={22} /><span className="entry-note">{text || "-"}</span></span>
             <div className="mg-act er">
-                <button className="mg-btn" onClick={edit ? done : start}>{edit ? "Done" : "Edit"}</button>
-                <button className="mg-btn" onClick={edit ? onDelete : onApprove}>{edit ? "Delete" : "Approve"}</button>
+                <button className="mg-btn" onClick={edit ? done : start}>{tr(edit ? "Done" : "Edit")}</button>
+                <button className="mg-btn" onClick={edit ? onDelete : onApprove}>{tr(edit ? "Delete" : "Approve")}</button>
             </div>
         </div>
     );
@@ -134,7 +135,7 @@ function Approvals() {
     const ops = useEntryOps(load);
 
     async function remove(id: string) {
-        if (!confirm("Delete this entry permanently?")) return;
+        if (!confirm(tr("Delete this entry permanently?"))) return;
         const { error } = await supabase.from("time_entries").delete().eq("id", id);
         if (error) { alert(error.message); return; }
         void load();
@@ -146,8 +147,8 @@ function Approvals() {
         const { conflicts, error } = await findShiftConflicts(
             req.organization_id, shift.membership_id, req.proposed_shift_date,
             req.proposed_start_time, req.proposed_end_time, req.shift_id);
-        if (error) { alert("Failed to check for conflicts"); return; }
-        if (conflicts.length) { alert("Cannot approve - this overlaps another shift"); return; }
+        if (error) { alert(tr("Failed to check for conflicts")); return; }
+        if (conflicts.length) { alert(tr("Cannot approve - this overlaps another shift")); return; }
 
         await supabase.from("shifts").update({
             shift_date: req.proposed_shift_date, start_time: req.proposed_start_time,
@@ -169,7 +170,7 @@ function Approvals() {
 
     return (
         <>
-            {entries.length === 0 && changes.length === 0 && <Empty text="Nothing pending." />}
+            {entries.length === 0 && changes.length === 0 && <Empty text={tr("Nothing pending.")} />}
 
             {entries.map(e => (
                 <EntryRow key={e.id} e={e} text={e.employee_note}
@@ -178,11 +179,13 @@ function Approvals() {
 
             {changes.map(r => (
                 <div key={r.id} className="entry-card" style={{ "--c": "#dba43d" } as React.CSSProperties}>
-                    <strong>{r.memberships?.full_name ?? "Unknown"}</strong>
-                    <span className="entry-item">Shift change: {dmy(r.proposed_shift_date)} · {r.proposed_start_time.slice(0, 5)}-{r.proposed_end_time.slice(0, 5)}</span>
+                    <strong>{r.memberships?.full_name ?? tr("Unknown")}</strong>
+                    <span className="entry-item">{tr("Shift change: {d} · {t}", {
+                        d: dmy(r.proposed_shift_date), t: `${r.proposed_start_time.slice(0, 5)}-${r.proposed_end_time.slice(0, 5)}`
+                    })}</span>
                     <div className="mg-act">
-                        <button className="mg-btn" onClick={() => rejectChange(r.id)}>Reject</button>
-                        <button className="mg-btn" onClick={() => approveChange(r)}>Approve</button>
+                        <button className="mg-btn" onClick={() => rejectChange(r.id)}>{tr("Reject")}</button>
+                        <button className="mg-btn" onClick={() => approveChange(r)}>{tr("Approve")}</button>
                     </div>
                 </div>
             ))}
@@ -218,15 +221,15 @@ function OpenShifts() {
         const { error } = await supabase.from("organizations").update({ settings }).eq("id", org!.id);
         if (error) { say(error.message, "error"); return; }
         patchOrg({ settings });
-        say("Saved", "success");
+        say(tr("Saved"), "success");
     }
 
     async function approve(c: any) {
         const s = c.shifts;
         const { conflicts, error } = await findShiftConflicts(
             c.organization_id, c.membership_id, s.shift_date, s.start_time, s.end_time, s.id);
-        if (error) { alert("Failed to check for conflicts"); return; }
-        if (conflicts.length) { alert("Cannot approve - this overlaps another shift"); return; }
+        if (error) { alert(tr("Failed to check for conflicts")); return; }
+        if (conflicts.length) { alert(tr("Cannot approve - this overlaps another shift")); return; }
 
         const up = await supabase.from("shifts")
             .update({ membership_id: c.membership_id, is_open: false, updated_at: now() }).eq("id", s.id);
@@ -246,22 +249,22 @@ function OpenShifts() {
     return (
         <>
             <div className="att-field" style={{ maxWidth: 460, marginBottom: 14 }}>
-                <label>Auto-assign single applicant</label>
+                <label>{tr("Auto-assign single applicant")}</label>
                 <select value={days} onChange={e => setDays(Number(e.target.value))}>
                     {[1, 2, 3].map(n => <option key={n} value={n}>H-{n}</option>)}
                 </select>
             </div>
 
-            {list.length === 0 && <Empty text="No open shift requests." />}
+            {list.length === 0 && <Empty text={tr("No open shift requests.")} />}
             {list.map(c => (
                 <div key={c.id} className="entry-card" style={{ "--c": "#dba43d" } as React.CSSProperties}>
-                    <strong>{c.memberships?.full_name ?? "Unknown"}</strong>
+                    <strong>{c.memberships?.full_name ?? tr("Unknown")}</strong>
                     <b>{c.shifts.shift_code ?? "-"}</b>
                     <span className="entry-item"><MapPin size={22} />{[c.shifts.area_label, c.shifts.role_label].filter(Boolean).join(" - ") || "-"}</span>
                     <span className="entry-item">{dmy(c.shifts.shift_date)} · {c.shifts.start_time.slice(0, 5)}-{c.shifts.end_time.slice(0, 5)}</span>
                     <div className="mg-act">
-                        <button className="mg-btn" onClick={() => reject(c.id)}>Reject</button>
-                        <button className="mg-btn" onClick={() => approve(c)}>Approve</button>
+                        <button className="mg-btn" onClick={() => reject(c.id)}>{tr("Reject")}</button>
+                        <button className="mg-btn" onClick={() => approve(c)}>{tr("Approve")}</button>
                     </div>
                 </div>
             ))}
@@ -293,7 +296,7 @@ function Complaints() {
         if (error) alert(error.message);
     }
 
-    if (list.length === 0) return <Empty text="No open complaints." />;
+    if (list.length === 0) return <Empty text={tr("No open complaints.")} />;
 
     return (
         <>
@@ -306,7 +309,7 @@ function Complaints() {
                         ))}</>}
                         onSave={(i, o) => ops.save(e, i, o)}
                         onApprove={async () => { await ops.approve(c.time_entry_id); await close(c.id, "resolved"); void load(); }}
-                        onDelete={async () => { if (!confirm("Delete this complaint?")) return; await close(c.id, "rejected"); void load(); }} />
+                        onDelete={async () => { if (!confirm(tr("Delete this complaint?"))) return; await close(c.id, "rejected"); void load(); }} />
                 );
             })}
         </>
@@ -340,21 +343,21 @@ function LeavePanel() {
         return n;
     };
 
-    if (list.length === 0) return <Empty text="No pending leave requests." />;
+    if (list.length === 0) return <Empty text={tr("No pending leave requests.")} />;
 
     return (
         <>
             {list.map(r => (
                 <div key={r.id} className="entry-card" style={{ "--c": "#dba43d" } as React.CSSProperties}>
-                    <strong>{LEAVE_LABELS[r.type as LeaveType]}</strong>
-                    <strong>{r.memberships?.full_name ?? "Unknown"}</strong>
-                    <span className="entry-item">Start {dmy(r.date_start)}</span>
-                    <span className="entry-item">End {dmy(r.date_end)}</span>
-                    <span className="entry-item">Duration {count(r.date_start, r.date_end, r.type)} Days</span>
+                    <strong>{tr(LEAVE_LABELS[r.type as LeaveType])}</strong>
+                    <strong>{r.memberships?.full_name ?? tr("Unknown")}</strong>
+                    <span className="entry-item">{tr("Start")} {dmy(r.date_start)}</span>
+                    <span className="entry-item">{tr("End")} {dmy(r.date_end)}</span>
+                    <span className="entry-item">{tr("Duration {n} Days", { n: count(r.date_start, r.date_end, r.type) })}</span>
                     <span className="entry-item"><FileText size={22} /><span className="entry-note">{r.reason || "-"}</span></span>
                     <div className="mg-act">
-                        <button className="mg-btn" onClick={() => review(r.id, false)}>Reject</button>
-                        <button className="mg-btn" onClick={() => review(r.id, true)}>Approve</button>
+                        <button className="mg-btn" onClick={() => review(r.id, false)}>{tr("Reject")}</button>
+                        <button className="mg-btn" onClick={() => review(r.id, true)}>{tr("Approve")}</button>
                     </div>
                 </div>
             ))}
@@ -405,7 +408,7 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
         const m = edit!;
         const full = `${d.first} ${d.last}`.trim();
         const email = d.email.trim().toLowerCase();
-        if (!full || !email) { alert("Name and email are required."); return; }
+        if (!full || !email) { alert(tr("Name and email are required.")); return; }
 
         const patch = {
             full_name: full, weekly_target_hours: Number(d.hours) || 40, role: m.role === "admin" ? "admin" : d.role,
@@ -429,7 +432,7 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
     async function toggleActive(m: Membership) {
         const activate = !m.active;
         if (m.role !== "employee" && !activate && list.filter(x => x.active && x.role !== "employee").length <= 1) {
-            alert("Organization must keep at least one active manager/admin.");
+            alert(tr("Organization must keep at least one active manager/admin."));
             return;
         }
         const { error } = await supabase.from("memberships").update({ active: activate }).eq("id", m.id);
@@ -443,24 +446,24 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
 
     // no login yet -> invite (the link creates the account, claim_membership() links it); otherwise password recovery
     async function recover(m: Membership) {
-        if (!m.email) { alert("This member has no email yet - add one first."); return; }
+        if (!m.email) { alert(tr("This member has no email yet - add one first.")); return; }
         const { error } = m.user_id
             ? await supabase.auth.resetPasswordForEmail(m.email, { redirectTo: `${window.location.origin}/reset` })
             : await supabase.auth.signInWithOtp({ email: m.email, options: { shouldCreateUser: true, emailRedirectTo: window.location.origin } });
         if (error) { alert(error.message); return; }
         if (m.user_id) await supabase.rpc("log_recovery_sent", { p_email: m.email });
-        say(`${m.user_id ? "Recovery" : "Invitation"} email sent to ${m.email}`, "success");
+        say(tr(m.user_id ? "Recovery email sent to {email}" : "Invitation email sent to {email}", { email: m.email }), "success");
     }
 
     return (
         <div className="ro-panel">
             <div className="ro-bar">
-                <div className="ro-side"><button className="ro-btn" onClick={() => say("Add: coming soon", "info")}>Add</button></div>
-                <div className="ro-side"><button className="ro-btn" onClick={() => setDraft(filter)}>Filter{filtered ? " •" : ""}</button></div>
+                <div className="ro-side"><button className="ro-btn" onClick={() => say(tr("{what}: coming soon", { what: tr("Add") }), "info")}>{tr("Add")}</button></div>
+                <div className="ro-side"><button className="ro-btn" onClick={() => setDraft(filter)}>{tr("Filter")}{filtered ? " •" : ""}</button></div>
             </div>
 
             <div className="mg-crew">
-                {shown.length === 0 && <p className="entry-empty">No crew found.</p>}
+                {shown.length === 0 && <p className="entry-empty">{tr("No crew found.")}</p>}
                 {shown.map(m => {
                     const n = split(m.full_name);
                     return (
@@ -469,19 +472,19 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
                             <span className="mg-av">{m.full_name.charAt(0).toUpperCase()}</span>
 
                             <div className="mg-head">
-                                <div>{m.active ? "Active" : "Deactivated"} - {ROLE[m.role]}</div>
+                                <div>{tr(m.active ? "Active" : "Deactivated")} - {tr(ROLE[m.role])}</div>
                                 <div>{n.last.toUpperCase()}{n.first && ","} {n.first.toUpperCase()}</div>
                             </div>
 
                             <div className="mg-body">
-                                <div>{[m.contract?.toUpperCase(), `${m.weekly_target_hours} Std/Woche`, m.job_title].filter(Boolean).join(" - ")}</div>
+                                <div>{[m.contract?.toUpperCase(), tr("{n} Std/Woche", { n: m.weekly_target_hours }), m.job_title].filter(Boolean).join(" - ")}</div>
                                 <div>{[m.phone, m.email].filter(Boolean).join(" - ") || "-"}</div>
                             </div>
 
                             <div className="mg-btns" onClick={e => e.stopPropagation()}>
-                                <button className="mg-btn" onClick={() => start(m)}>Edit</button>
-                                <button className="mg-btn" disabled={!(m.email && m.active)} onClick={() => recover(m)}>{m.user_id ? "Recover" : "Invite"}</button>
-                                <button className="mg-btn" onClick={() => toggleActive(m)}>{m.active ? "Deactivate" : "Reactivate"}</button>
+                                <button className="mg-btn" onClick={() => start(m)}>{tr("Edit")}</button>
+                                <button className="mg-btn" disabled={!(m.email && m.active)} onClick={() => recover(m)}>{tr(m.user_id ? "Recover" : "Invite")}</button>
+                                <button className="mg-btn" onClick={() => toggleActive(m)}>{tr(m.active ? "Deactivate" : "Reactivate")}</button>
                             </div>
                         </div>
                     );
@@ -489,55 +492,55 @@ function Crew({ sel, onSel }: { sel: Membership | null; onSel: (m: Membership | 
             </div>
 
             {draft && (
-                <Modal title="Filter" onClose={() => setDraft(null)} onSubmit={() => { setFilter(draft); setDraft(null); }} submitLabel="Apply">
-                    <label>Name / email</label>
-                    <input type="search" placeholder="Search…" value={draft.q} onChange={e => setDraft({ ...draft, q: e.target.value })} />
-                    <label>Role</label>
+                <Modal title={tr("Filter")} onClose={() => setDraft(null)} onSubmit={() => { setFilter(draft); setDraft(null); }} submitLabel="Apply">
+                    <label>{tr("Name / email")}</label>
+                    <input type="search" placeholder={tr("Search…")} value={draft.q} onChange={e => setDraft({ ...draft, q: e.target.value })} />
+                    <label>{tr("Role")}</label>
                     <select value={draft.role} onChange={e => setDraft({ ...draft, role: e.target.value })}>
-                        <option value="">All</option>
-                        <option value="employee">Crew</option>
-                        <option value="manager">Manager</option>
-                        <option value="admin">Admin</option>
+                        <option value="">{tr("All")}</option>
+                        <option value="employee">{tr("Crew")}</option>
+                        <option value="manager">{tr("Manager")}</option>
+                        <option value="admin">{tr("Admin")}</option>
                     </select>
                     <label>Status</label>
                     <select value={draft.active} onChange={e => setDraft({ ...draft, active: e.target.value })}>
-                        <option value="">All</option>
-                        <option value="true">Active</option>
-                        <option value="false">Deactivated</option>
+                        <option value="">{tr("All")}</option>
+                        <option value="true">{tr("Active")}</option>
+                        <option value="false">{tr("Deactivated")}</option>
                     </select>
-                    <button type="button" className="mg-btn" style={{ marginTop: 14 }} onClick={() => setDraft(NO_FILTER)}>Reset</button>
+                    <button type="button" className="mg-btn" style={{ marginTop: 14 }} onClick={() => setDraft(NO_FILTER)}>{tr("Reset")}</button>
                 </Modal>
             )}
 
             {edit && (
-                <Modal title="Edit Crew Member" onClose={() => setEdit(null)} onSubmit={done} submitLabel="Done">
+                <Modal title={tr("Edit Crew Member")} onClose={() => setEdit(null)} onSubmit={done} submitLabel="Done">
                     {edit.role !== "admin" && (
                         <>
-                            <label>Role</label>
+                            <label>{tr("Role")}</label>
                             <select value={d.role} onChange={set("role")}>
-                                <option value="employee">Crew</option>
-                                <option value="manager">Manager</option>
+                                <option value="employee">{tr("Crew")}</option>
+                                <option value="manager">{tr("Manager")}</option>
                             </select>
                         </>
                     )}
-                    <label>First name</label>
+                    <label>{tr("First name")}</label>
                     <input type="text" value={d.first} onChange={set("first")} />
-                    <label>Last name</label>
+                    <label>{tr("Last name")}</label>
                     <input type="text" value={d.last} onChange={set("last")} />
-                    <label>Vertrag</label>
+                    <label>{tr("Vertrag")}</label>
                     <select value={d.contract} onChange={set("contract")}>
                         <option value="">-</option>
-                        <option value="vollzeit">Vollzeit</option>
-                        <option value="teilzeit">Teilzeit</option>
+                        <option value="vollzeit">{tr("Vollzeit")}</option>
+                        <option value="teilzeit">{tr("Teilzeit")}</option>
                         <option value="minijob">Minijob</option>
                     </select>
-                    <label>Std/Woche</label>
+                    <label>{tr("Hours/week")}</label>
                     <input type="number" value={d.hours} onChange={set("hours")} />
-                    <label>Job (e.g. Servicefachkraft)</label>
+                    <label>{tr("Job title (e.g. Waiter)")}</label>
                     <input type="text" value={d.job} onChange={set("job")} />
-                    <label>Phone</label>
+                    <label>{tr("Phone")}</label>
                     <input type="text" placeholder="+49…" value={d.phone} onChange={set("phone")} />
-                    <label>Email</label>
+                    <label>{tr("login.email")}</label>
                     <input type="email" value={d.email} onChange={set("email")} />
                 </Modal>
             )}
@@ -551,24 +554,24 @@ export default function Manager() {
 
     return (
         <div className="dsh">
-            <Head title="Crew" />
+            <Head title={tr("Crew")} />
             <Crew sel={sel} onSel={setSel} />
 
             {sel ? (
                 <div key={"sel-" + sel.id}>
-                    <Head title={`Zeiterfassung - ${sel.full_name}`} />
+                    <Head title={`${tr("nav.timesheet")} - ${sel.full_name}`} />
                     <TimesheetBody m={sel} />
                     <LeaveSections m={sel} name={sel.full_name} />
                 </div>
             ) : (
                 <div key="default">
-                    <Head title="Pending Shift Approval" />
+                    <Head title={tr("Pending Shift Approval")} />
                     <Approvals />
-                    <Head title="Open Shift Requests" exp={false} />
+                    <Head title={tr("Open Shift Requests")} exp={false} />
                     <OpenShifts />
-                    <Head title="Complaints" />
+                    <Head title={tr("Complaints")} />
                     <Complaints />
-                    <Head title="Leave Request" exp={false} />
+                    <Head title={tr("Leave Request")} exp={false} />
                     <LeavePanel />
                 </div>
             )}

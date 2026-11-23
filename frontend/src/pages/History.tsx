@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Modal } from "../components/Modal";
 import { useAuth } from "../lib/auth";
 import { useLog } from "../lib/activity";
+import { tr } from "../lib/i18n";
 import { useStatus } from "../lib/status";
 import { supabase } from "../lib/supabase";
 import { getMembers } from "../lib/cache";
@@ -121,7 +122,7 @@ export default function History() {
     }
 
     async function deleteEntry(id: string) {
-        if (!confirm("Delete this history entry permanently?")) return;
+        if (!confirm(tr("Delete this history entry permanently?"))) return;
         const { error } = await supabase.from("activity_log").delete().eq("id", id);
         if (error) { say(error.message, "error"); return; }
         setRows(r => r.filter(x => x.id !== id));
@@ -161,15 +162,15 @@ export default function History() {
     return (
         <div className="dsh fit">
             <div className="dsh-h split">
-                <h2>Activity</h2>
-                <button className="ro-export" onClick={exportCsv}>Export CSV</button>
+                <h2>{tr("nav.history")}</h2>
+                <button className="ro-export" onClick={exportCsv}>{tr("Export CSV")}</button>
             </div>
 
             <div className="ro-panel">
                 <div className="ro-bar">
-                    <div className="ro-side"><h2>{total} entries</h2></div>
+                    <div className="ro-side"><h2>{tr("{n} entries", { n: total })}</h2></div>
                     <div className="ro-side">
-                        <button className="ro-btn" onClick={() => setDraft(filter)}>Filter{active ? " •" : ""}</button>
+                        <button className="ro-btn" onClick={() => setDraft(filter)}>{tr("Filter")}{active ? " •" : ""}</button>
                     </div>
                 </div>
 
@@ -179,13 +180,13 @@ export default function History() {
                             <tr>
                                 {COLUMNS.map(c => (
                                     <th key={c.key} className="hs-th" onClick={() => sortBy(c.key)}>
-                                        {c.label}{sortCol === c.key ? (sortDir[c.key] === "asc" ? " \u25b2" : " \u25bc") : ""}
+                                        {tr(c.label)}{sortCol === c.key ? (sortDir[c.key] === "asc" ? " \u25b2" : " \u25bc") : ""}
                                     </th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
-                            {rows.length === 0 && <tr><td colSpan={COLUMNS.length} style={{ color: "#888" }}>No activity found.</td></tr>}
+                            {rows.length === 0 && <tr><td colSpan={COLUMNS.length} style={{ color: "#888" }}>{tr("No activity found.")}</td></tr>}
                             {rows.map((r, i) => {
                                 const when = new Date(r.created_at);
                                 const open = expanded === r.id;
@@ -195,17 +196,17 @@ export default function History() {
                                         <tr className={"hs-row " + (i % 2 ? "r1" : "r0")} onClick={() => setExpanded(open ? null : r.id)}>
                                             <td>{de(when)} - {when.toLocaleTimeString("de-DE")}</td>
                                             <td>{name}</td>
-                                            <td><span className={`action-badge ${actionClass(r.action)}`}>{ACTION_LABELS[r.action] ?? r.action}</span></td>
+                                            <td><span className={`action-badge ${actionClass(r.action)}`}>{tr(ACTION_LABELS[r.action] ?? r.action)}</span></td>
                                             <td>{r.summary}</td>
                                         </tr>
                                         {open && (
                                             <tr className="hs-detail">
                                                 <td colSpan={COLUMNS.length}>
                                                     <div className="detail-grid-hist">
-                                                        <div><span className="plan-entry-meta">Full timestamp</span> <strong>{when.toLocaleString("de-DE")}</strong></div>
-                                                        <div><span className="plan-entry-meta">Member</span> <strong>{name}</strong></div>
-                                                        <div><span className="plan-entry-meta">Actor role</span> <strong>{String(r.details?.actor_role ?? "-")}</strong></div>
-                                                        <div><span className="plan-entry-meta">Entity type</span> <strong>{r.entity_type ?? "-"}</strong></div>
+                                                        <div><span className="plan-entry-meta">{tr("Full timestamp")}</span> <strong>{when.toLocaleString("de-DE")}</strong></div>
+                                                        <div><span className="plan-entry-meta">{tr("Member")}</span> <strong>{name}</strong></div>
+                                                        <div><span className="plan-entry-meta">{tr("Actor role")}</span> <strong>{String(r.details?.actor_role ?? "-")}</strong></div>
+                                                        <div><span className="plan-entry-meta">{tr("Entity type")}</span> <strong>{r.entity_type ?? "-"}</strong></div>
                                                         {Object.entries(r.details ?? {}).map(([k, v]) => (
                                                             <div key={k}>
                                                                 <span className="plan-entry-meta">{k}</span>{" "}
@@ -215,7 +216,7 @@ export default function History() {
                                                     </div>
                                                     {isAdmin && (
                                                         <div className="mg-act" style={{ marginTop: 10, justifyContent: "flex-start" }}>
-                                                            <button className="mg-btn" onClick={() => deleteEntry(r.id)}>Delete Entry</button>
+                                                            <button className="mg-btn" onClick={() => deleteEntry(r.id)}>{tr("Delete Entry")}</button>
                                                         </div>
                                                     )}
                                                 </td>
@@ -231,28 +232,28 @@ export default function History() {
                 <div className="ro-foot">
                     <div className="ro-side" />
                     <div className="ro-side">
-                        <span className="hs-page">Page {page} / {totalPages}</span>
-                        <button className="ro-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Prev.</button>
-                        <button className="ro-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</button>
+                        <span className="hs-page">{tr("Page {p} / {n}", { p: page, n: totalPages })}</span>
+                        <button className="ro-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{tr("Prev.")}</button>
+                        <button className="ro-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{tr("Next")}</button>
                     </div>
                 </div>
             </div>
 
             {draft && (
-                <Modal title="Filter" onClose={() => setDraft(null)} onSubmit={applyFilter} submitLabel="Apply">
-                    <label>Search</label>
-                    <input type="search" placeholder="Search…" value={draft.search} onChange={e => setDraft({ ...draft, search: e.target.value })} />
-                    <label>Action</label>
+                <Modal title={tr("Filter")} onClose={() => setDraft(null)} onSubmit={applyFilter} submitLabel="Apply">
+                    <label>{tr("Search")}</label>
+                    <input type="search" placeholder={tr("Search…")} value={draft.search} onChange={e => setDraft({ ...draft, search: e.target.value })} />
+                    <label>{tr("Action")}</label>
                     <select value={draft.action} onChange={e => setDraft({ ...draft, action: e.target.value })}>
-                        <option value="all">All actions</option>
-                        {Object.entries(ACTION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                        <option value="all">{tr("All actions")}</option>
+                        {Object.entries(ACTION_LABELS).map(([k, v]) => <option key={k} value={k}>{tr(v)}</option>)}
                     </select>
-                    <label>User</label>
+                    <label>{tr("User")}</label>
                     <select value={draft.member} onChange={e => setDraft({ ...draft, member: e.target.value })}>
-                        <option value="all">All users</option>
+                        <option value="all">{tr("All users")}</option>
                         {members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
                     </select>
-                    <button type="button" className="mg-btn" style={{ marginTop: 14 }} onClick={() => setDraft(NONE)}>Reset</button>
+                    <button type="button" className="mg-btn" style={{ marginTop: 14 }} onClick={() => setDraft(NONE)}>{tr("Reset")}</button>
                 </Modal>
             )}
         </div>
